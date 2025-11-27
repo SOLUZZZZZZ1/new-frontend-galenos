@@ -1,14 +1,14 @@
-// src/main.jsx
+// src/main.jsx — Entrada principal de Galenos.pro frontend
 import React from "react";
-import { createRoot } from "react-dom/client";
-import { HashRouter as Router } from "react-router-dom";
+import ReactDOM from "react-dom/client";
+import { BrowserRouter } from "react-router-dom";
 import App from "./App.jsx";
-import "./index.css";
+import "./index.css"; // si usas Tailwind o estilos globales
 
-createRoot(document.getElementById("root")).render(
+ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    <Router>
+    <BrowserRouter>
       <App />
-    </Router>
+    </BrowserRouter>
   </React.StrictMode>
 );

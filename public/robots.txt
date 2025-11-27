@@ -1,3 +1,0 @@
-User-agent: *
-Allow: /
-Sitemap: https://mediazion.eu/sitemap.xml
