@@ -36,7 +36,7 @@ export default function NavbarGalenos() {
          <img
          src="/galenos-logo.png"
          alt="Galenos.pro"
-         className="h-12 w-12 object-contain group-hover:scale-105 transition-transform duration-150"
+         className="h-14 w-14 object-contain group-hover:scale-105 transition-transform duration-150"
       />
       </div>
 
