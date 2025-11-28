@@ -32,7 +32,7 @@ export default function NavbarGalenos() {
           className="flex items-center gap-3 group"
         >
           {/* Logo imagen 3D */}
-          <div className="h-12 w-12 rounded-2xl overflow-hidden shadow-sm border border-slate-200 bg-slate-50 flex items-center justify-center">
+          <div className="h-14 w-14 rounded-2xl overflow-hidden shadow-sm border border-slate-200 bg-slate-50 flex items-center justify-center">
          <img
          src="/galenos-logo.png"
          alt="Galenos.pro"
