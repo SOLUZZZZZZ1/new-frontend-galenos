@@ -1,50 +1,112 @@
-import React, { useState } from 'react'
-import { useTranslation } from 'react-i18next'
+// src/pages/Patients.jsx — Subida de analítica demo + resultados
+import React, { useState } from "react";
 
-const API = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'
+const API = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
-export default function Patients(){
-  const { t } = useTranslation()
-  const [patient, setPatient] = useState('Paciente A')
-  const [file, setFile] = useState(null)
-  const [result, setResult] = useState(null)
+export default function Patients() {
+  const [patient, setPatient] = useState("Paciente A");
+  const [file, setFile] = useState(null);
+  const [result, setResult] = useState(null);
+  const [loading, setLoading] = useState(false);
 
-  const onUpload = async () => {
-    if(!file){ alert('Selecciona un PDF o imagen'); return }
-    const fd = new FormData()
-    fd.append('file', file)
-    fd.append('patient_alias', patient)
-    try{
-      const res = await fetch(`${API}/uploads`, { method:'POST', body: fd })
-      const data = await res.json()
-      setResult(data.extraction)
-    }catch(e){ alert('Error subiendo el informe')}
+  async function onUpload() {
+    if (!file) {
+      alert("Selecciona un PDF o imagen de analítica");
+      return;
+    }
+
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("patient_alias", patient);
+
+    try {
+      setLoading(true);
+      const res = await fetch(`${API}/uploads`, {
+        method: "POST",
+        body: fd,
+      });
+      if (!res.ok) {
+        throw new Error("Respuesta no válida del servidor");
+      }
+      const data = await res.json();
+      setResult(data.extraction || null);
+    } catch (e) {
+      console.error(e);
+      alert("Error subiendo o procesando la analítica (demo).");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
-    <section>
-      <h2>{t('patients')}</h2>
-      <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:24}}>
-        <div>
-          <label>Alias paciente</label><br/>
-          <input value={patient} onChange={e=>setPatient(e.target.value)} style={{padding:8, width:'100%', marginBottom:8}}/>
-          <label>{t('upload')}</label><br/>
-          <input type='file' accept='.pdf,image/*' onChange={e=>setFile(e.target.files[0])} style={{marginBottom:8}}/>
-          <button onClick={onUpload} style={{background:'#0b63ce', color:'white', padding:'8px 14px', border:0, borderRadius:8}}>{t('upload')}</button>
+    <section className="sr-card">
+      <h2 className="sr-h1 mb-3 text-xl">Analíticas · Demo</h2>
+      <p className="sr-p mb-4">
+        Sube una analítica en PDF o imagen. En esta versión demo, el backend
+        devolverá unos valores simulados para probar el flujo de trabajo de
+        Galenos.pro.
+      </p>
+
+      <div className="grid md:grid-cols-2 gap-5 items-start">
+        <div className="space-y-3">
+          <div>
+            <label className="sr-label">Alias del paciente</label>
+            <input
+              className="sr-input mt-1"
+              value={patient}
+              onChange={(e) => setPatient(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label className="sr-label">Analítica (PDF o imagen)</label>
+            <input
+              type="file"
+              accept=".pdf,image/*"
+              onChange={(e) => setFile(e.target.files?.[0] || null)}
+              className="mt-1 block w-full text-sm"
+            />
+          </div>
+
+          <button
+            type="button"
+            onClick={onUpload}
+            className="sr-btn-primary"
+            disabled={loading}
+          >
+            {loading ? "Procesando..." : "Subir y procesar analítica"}
+          </button>
         </div>
-        <div>
-          {!result ? <div style={{opacity:.7}}>{t('patients_empty')}</div> :
+
+        <div className="border border-dashed border-slate-200 rounded-2xl p-4 min-h-[140px]">
+          {!result ? (
+            <p className="sr-p text-slate-500">
+              Cuando subas una analítica, aquí aparecerá una tabla con los
+              marcadores detectados (demo).
+            </p>
+          ) : (
             <div>
-              <h3>Resultados extraídos (demo)</h3>
-              <ul>
-                {result.markers.map((m, idx)=>(
-                  <li key={idx}>{m.name}: <strong>{m.value} {m.unit}</strong> (ref {m.ref_min}–{m.ref_max})</li>
+              <h3 className="font-semibold mb-2 text-slate-900">
+                Resultados extraídos (demo)
+              </h3>
+              <p className="sr-small mb-2 text-slate-500">
+                Paciente: <b>{result.patient_alias}</b>
+              </p>
+              <ul className="sr-list">
+                {result.markers?.map((m, idx) => (
+                  <li key={idx}>
+                    {m.name}:{" "}
+                    <strong>
+                      {m.value} {m.unit}
+                    </strong>{" "}
+                    (ref {m.ref_min}–{m.ref_max})
+                  </li>
                 ))}
               </ul>
             </div>
-          }
+          )}
         </div>
       </div>
     </section>
-  )
+  );
 }

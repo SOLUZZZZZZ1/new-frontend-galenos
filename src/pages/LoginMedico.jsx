@@ -25,7 +25,7 @@ export default function LoginMedico() {
   }
 
   return (
-    <main className="min-h-[80vh] flex items-center justify-center px-4">
+    <main className="min-h-[70vh] flex items-center justify-center px-4">
       <div className="max-w-md w-full sr-card">
         <h1 className="sr-h1 mb-4">Acceso · Galenos.pro</h1>
         <p className="sr-p text-slate-600 mb-4">
@@ -60,7 +60,7 @@ export default function LoginMedico() {
             </label>
             <input
               id="pass"
-              type="password"
+type="password"
               className="sr-input mt-1"
               value={pass}
               onChange={(e) => setPass(e.target.value)}
