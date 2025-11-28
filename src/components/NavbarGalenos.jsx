@@ -32,17 +32,14 @@ export default function NavbarGalenos() {
           className="flex items-center gap-3 group"
         >
           {/* Logo imagen 3D */}
-          <div className="h-10 w-10 rounded-2xl overflow-hidden shadow-sm border border-slate-200 bg-slate-50 flex items-center justify-center">
-            <img
-              src="/galenos-logo.png"
-              alt="Galenos.pro"
-              className="h-10 w-10 object-contain group-hover:scale-105 transition-transform duration-150"
-              onError={(e) => {
-                // Fallback elegante si el logo no carga
-                e.currentTarget.style.display = "none";
-              }}
-            />
-          </div>
+          <div className="h-12 w-12 rounded-2xl overflow-hidden shadow-sm border border-slate-200 bg-slate-50 flex items-center justify-center">
+         <img
+         src="/galenos-logo.png"
+         alt="Galenos.pro"
+         className="h-12 w-12 object-contain group-hover:scale-105 transition-transform duration-150"
+      />
+      </div>
+
 
           {/* Texto de marca */}
           <div className="flex flex-col text-left leading-tight">
