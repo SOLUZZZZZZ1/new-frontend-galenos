@@ -27,12 +27,6 @@ export default function InicioGalenos() {
           >
             Acceder como médico
           </button>
-          <button
-            onClick={() => window.open("https://mediazion.eu", "_blank")}
-            className="px-4 py-2 rounded-lg border border-sky-600 text-sky-700 hover:bg-sky-50"
-          >
-            Ver Mediazion (ejemplo en producción)
-          </button>
         </div>
       </div>
     </main>
