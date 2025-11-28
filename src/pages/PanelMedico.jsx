@@ -2,6 +2,8 @@
 import React, { useState } from "react";
 import Patients from "./Patients.jsx";
 
+const API = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+
 const TABS = [
   { id: "resumen", label: "Resumen" },
   { id: "analiticas", label: "Analíticas (demo)" },
@@ -12,6 +14,30 @@ const TABS = [
 export default function PanelMedico() {
   const email = localStorage.getItem("galenos_email") || "médico en prueba";
   const [tab, setTab] = useState("resumen");
+
+  async function handleActivateGalenosPro() {
+    try {
+      const res = await fetch(`${API}/billing/create-checkout-session`, {
+        method: "POST",
+      });
+
+      if (!res.ok) {
+        alert("No se ha podido iniciar el pago. Revisa el backend o la configuración de Stripe.");
+        return;
+      }
+
+      const data = await res.json();
+
+      if (data.checkout_url) {
+        window.location.href = data.checkout_url;
+      } else {
+        alert("Respuesta inesperada del servidor de pagos.");
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Error al conectar con el servidor de pagos.");
+    }
+  }
 
   return (
     <main
@@ -32,7 +58,17 @@ export default function PanelMedico() {
             </p>
           </div>
 
-          <div className="flex gap-2 flex-wrap">
+          <div className="flex flex-col items-end gap-2">
+            <button
+              type="button"
+              className="sr-btn-primary text-xs sm:text-sm"
+              onClick={handleActivateGalenosPro}
+            >
+              Activar Galenos PRO · 10 €/mes
+              <span className="sr-small block text-[10px] text-sky-100">
+                3 días de prueba gratuita
+              </span>
+            </button>
             <span className="sr-small text-slate-500">
               Estado: <b>Demo funcional</b>
             </span>
