@@ -1,8 +1,7 @@
-// src/pages/Patients.jsx — Analíticas · IA (MVP) para Galenos.pro
+// src/pages/Patients.jsx — Analíticas · IA (MVP + mini chat) para Galenos.pro
 import React, { useState } from "react";
 
 // URL del backend de Galenos (Render)
-// En producción: VITE_API_URL debe ser https://galenos-backend.onrender.com
 const API = import.meta.env.VITE_API_URL || "https://galenos-backend.onrender.com";
 
 export default function Patients() {
@@ -12,10 +11,15 @@ export default function Patients() {
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
 
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatInput, setChatInput] = useState("");
+  const [chatLoading, setChatLoading] = useState(false);
+
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
     setResult(null);
+    setChatMessages([]);
 
     if (!file) {
       setError("Por favor, sube una analítica en PDF o imagen.");
@@ -51,6 +55,63 @@ export default function Patients() {
       setError("No se ha podido conectar con el backend de IA.");
     } finally {
       setUploading(false);
+    }
+  }
+
+  async function handleSendQuestion(e) {
+    e.preventDefault();
+    if (!chatInput.trim() || !result) return;
+
+    const question = chatInput.trim();
+    setChatInput("");
+
+    const newMessages = [
+      ...chatMessages,
+      { from: "doctor", text: question },
+    ];
+    setChatMessages(newMessages);
+    setChatLoading(true);
+    setError("");
+
+    try {
+      const payload = {
+        patient_alias: result.patient_alias,
+        file_name: result.file_name,
+        markers: result.markers,
+        summary: result.summary,
+        differential: result.differential,
+        question,
+      };
+
+      console.log("🔥 Enviando pregunta de chat a:", `${API}/analytics/chat`);
+
+      const res = await fetch(`${API}/analytics/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const raw = await res.text();
+      console.log("👉 Respuesta chat IA (raw):", raw);
+
+      if (!res.ok) {
+        setError(`Error en el chat de IA (${res.status}). Mira la consola.`);
+        setChatLoading(false);
+        return;
+      }
+
+      const data = JSON.parse(raw);
+      const aiText = data.answer || "No se ha podido generar una respuesta.";
+
+      setChatMessages([
+        ...newMessages,
+        { from: "ia", text: aiText },
+      ]);
+    } catch (err) {
+      console.error("❌ Error en el chat de IA:", err);
+      setError("No se ha podido conectar con el chat de IA.");
+    } finally {
+      setChatLoading(false);
     }
   }
 
@@ -136,7 +197,7 @@ export default function Patients() {
         )}
 
         {result && (
-          <div className="space-y-3">
+          <div className="space-y-4">
             <div>
               <h3 className="sr-h1 text-lg mb-1">Resultado para {result.patient_alias}</h3>
               <p className="sr-small text-slate-500">
@@ -194,9 +255,68 @@ export default function Patients() {
               </p>
             </div>
 
-            <p className="sr-small text-slate-500 mt-2">
-              {result.disclaimer}
-            </p>
+            {/* Mini chat clínico */}
+            <div className="mt-4 border-t border-slate-200 pt-3 space-y-2">
+              <h4 className="sr-h1 text-base mb-1">Preguntas rápidas a la IA (demo)</h4>
+              <p className="sr-small text-slate-500 mb-1">
+                Puedes hacer preguntas orientativas sobre esta analítica. Las respuestas son de apoyo
+                y no sustituyen tu criterio clínico.
+              </p>
+
+              <div className="max-h-64 overflow-y-auto border border-slate-200 rounded-lg p-2 bg-slate-50 space-y-2 text-sm">
+                {chatMessages.length === 0 && (
+                  <p className="sr-small text-slate-500">
+                    Aún no hay preguntas. Escribe tu duda abajo para iniciar la conversación.
+                  </p>
+                )}
+                {chatMessages.map((m, idx) => (
+                  <div
+                    key={idx}
+                    className={
+                      m.from === "doctor"
+                        ? "text-right"
+                        : "text-left"
+                    }
+                  >
+                    <div
+                      className={
+                        m.from === "doctor"
+                          ? "inline-block rounded-xl bg-sky-600 text-white px-3 py-1.5 mb-0.5 max-w-[80%] text-left"
+                          : "inline-block rounded-xl bg-white text-slate-900 px-3 py-1.5 mb-0.5 border border-slate-200 max-w-[80%]"
+                      }
+                    >
+                      <span className="block whitespace-pre-line">{m.text}</span>
+                    </div>
+                    <div className="sr-small text-slate-500">
+                      {m.from === "doctor" ? "Tú" : "IA (demo)"}
+                    </div>
+                  </div>
+                ))}
+                {chatLoading && (
+                  <p className="sr-small text-slate-500">
+                    IA está generando una respuesta...
+                  </p>
+                )}
+              </div>
+
+              <form onSubmit={handleSendQuestion} className="flex gap-2 mt-2">
+                <input
+                  type="text"
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  placeholder="Escribe una pregunta clínica orientativa..."
+                  className="sr-input flex-1 text-sm"
+                  disabled={chatLoading}
+                />
+                <button
+                  type="submit"
+                  disabled={chatLoading || !result}
+                  className="sr-btn-secondary whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed text-sm"
+                >
+                  Enviar
+                </button>
+              </form>
+            </div>
           </div>
         )}
       </div>
