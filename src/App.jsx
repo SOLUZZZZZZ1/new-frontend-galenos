@@ -1,11 +1,24 @@
-// src/App.jsx — Router principal Galenos.pro con navbar fijo
+// src/App.jsx — Router principal Galenos.pro con login protegido
 import React from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 
 import NavbarGalenos from "./components/NavbarGalenos.jsx";
 import InicioGalenos from "./pages/InicioGalenos.jsx";
 import LoginMedico from "./pages/LoginMedico.jsx";
 import PanelMedico from "./pages/PanelMedico.jsx";
+
+// Pequeño wrapper para proteger rutas que requieren login
+function RequireAuth({ children }) {
+  const location = useLocation();
+  const token = localStorage.getItem("galenos_token");
+
+  if (!token) {
+    // Si no hay token, redirigimos a /login guardando la ruta de origen
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  return children;
+}
 
 function App() {
   return (
@@ -19,8 +32,15 @@ function App() {
           {/* Login médico */}
           <Route path="/login" element={<LoginMedico />} />
 
-          {/* Panel médico — versión accesible (luego se puede proteger) */}
-          <Route path="/panel-medico" element={<PanelMedico />} />
+          {/* Panel médico — ahora protegido por login */}
+          <Route
+            path="/panel-medico"
+            element={
+              <RequireAuth>
+                <PanelMedico />
+              </RequireAuth>
+            }
+          />
 
           {/* Cualquier ruta rara → inicio */}
           <Route path="*" element={<Navigate to="/" replace />} />
