@@ -1,11 +1,9 @@
-// src/pages/AdminPanel.jsx — Panel Admin diseño profesional sin backend
-import React, { useState } from "react";
+// src/pages/AdminPanel.jsx — Versión mínima estable · Galenos.pro
+import React from "react";
 
 export default function AdminPanel() {
   const email = localStorage.getItem("galenos_email") || "";
   const isMaster = email === "soluzziona@gmail.com";
-
-  const [tab, setTab] = useState("dashboard");
 
   if (!isMaster) {
     return (
@@ -16,7 +14,7 @@ export default function AdminPanel() {
             Este espacio está reservado para el usuario maestro de Galenos.pro.
           </p>
           <p className="sr-small text-slate-500">
-            Accediste como: <b>{email || "desconocido"}</b>
+            Has accedido con: <b>{email || "desconocido"}</b>.
           </p>
         </section>
       </main>
@@ -24,34 +22,17 @@ export default function AdminPanel() {
   }
 
   return (
-    <main className="sr-container py-8 space-y-6">
-      <header className="space-y-1">
-        <h1 className="sr-h1 text-3xl">Panel administrador · Galenos.pro</h1>
-        <p className="sr-small text-slate-600">
-          Bienvenido, <b>{email}</b>. Esta es la versión visual del panel admin.  
-          Más adelante conectaremos datos reales.
+    <main className="sr-container py-8">
+      <section className="sr-card max-w-xl mx-auto space-y-3">
+        <h1 className="sr-h1 text-2xl">Panel administrador (mínimo)</h1>
+        <p className="sr-p text-sm text-slate-600">
+          Estás dentro como usuario maestro (<b>{email}</b>).
         </p>
-      </header>
-
-      {/* Tabs */}
-      <div className="flex flex-wrap gap-3 mb-4">
-        {[
-          ["dashboard", "Inicio"],
-          ["requests", "Solicitudes"],
-          ["users", "Médicos"],
-          ["invites", "Invitaciones"]
-        ].map(([value, label]) => (
-          <button
-            key={value}
-            onClick={() => setTab(value)}
-            className={`sr-btn-secondary text-sm ${
-              tab === value ? "bg-sky-700 text-white" : ""
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {/* Dashboard */}
-      {tab === "dashboard" && (
+        <p className="sr-small text-slate-500">
+          Esta es la versión mínima del panel admin, solo para verificar que el
+          frontend compila correctamente en Vercel.
+        </p>
+      </section>
+    </main>
+  );
+}
