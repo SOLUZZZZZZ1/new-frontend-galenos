@@ -182,6 +182,15 @@ export default function PanelMedico() {
     }
   }
 
+  // 🔥 Botón "Limpiar TODO": resultado + chat + input + error + file
+  function handleClearAll() {
+    setResult(null);
+    setChatMessages([]);
+    setChatInput("");
+    setError("");
+    setFile(null);
+  }
+
   return (
     <section className="space-y-4">
       {/* Cabecera + Invitaciones */}
@@ -271,7 +280,7 @@ export default function PanelMedico() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <button
             type="submit"
             disabled={uploading}
@@ -279,6 +288,15 @@ export default function PanelMedico() {
           >
             {uploading ? "Procesando con IA..." : "Enviar a IA"}
           </button>
+
+          <button
+            type="button"
+            onClick={handleClearAll}
+            className="sr-btn-secondary text-sm"
+          >
+            Limpiar TODO
+          </button>
+
           {file && (
             <span className="sr-small text-slate-600 truncate max-w-xs">
               {file.name}
@@ -378,6 +396,16 @@ export default function PanelMedico() {
                 Puedes hacer preguntas orientativas sobre esta analítica. Las respuestas son de apoyo
                 y no sustituyen tu criterio clínico.
               </p>
+
+              <div className="flex justify-end mb-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setChatMessages([])}
+                  className="sr-btn-secondary text-xs"
+                >
+                  Limpiar chat
+                </button>
+              </div>
 
               <div className="max-h-64 overflow-y-auto border border-slate-200 rounded-lg p-2 bg-slate-50 space-y-2 text-sm">
                 {chatMessages.length === 0 && (
