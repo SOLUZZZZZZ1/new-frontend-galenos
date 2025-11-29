@@ -2,6 +2,8 @@
 import React, { useState } from "react";
 import Patients from "./Patients.jsx";
 
+// URL del backend de Galenos (Render)
+// En producción: VITE_API_URL debe ser https://galenos-backend.onrender.com
 const API = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
 const TABS = [
@@ -15,27 +17,46 @@ export default function PanelMedico() {
   const email = localStorage.getItem("galenos_email") || "médico en prueba";
   const [tab, setTab] = useState("resumen");
 
+  console.log("🔥 API usada en PanelMedico:", API);
+
   async function handleActivateGalenosPro() {
     try {
+      console.log("👉 handleActivateGalenosPro llamado");
+      console.log("👉 Llamando a:", `${API}/billing/create-checkout-session`);
+
+      // Versión GET (para evitar problemas 405)
       const res = await fetch(`${API}/billing/create-checkout-session`, {
-        method: "POST",
+        method: "GET",
       });
 
+      console.log("👉 Respuesta Stripe status:", res.status);
+      const rawText = await res.text();
+      console.log("👉 Respuesta Stripe texto bruto:", rawText);
+
       if (!res.ok) {
-        alert("No se ha podido iniciar el pago. Revisa el backend o la configuración de Stripe.");
+        alert("Stripe devolvió error " + res.status + ". Mira la consola (F12 → Console).");
         return;
       }
 
-      const data = await res.json();
+      let data;
+      try {
+        data = JSON.parse(rawText);
+      } catch (e) {
+        console.error("❌ No se pudo parsear JSON de Stripe:", e);
+        alert("Respuesta de Stripe no es JSON. Mira la consola.");
+        return;
+      }
 
       if (data.checkout_url) {
+        console.log("👉 Redirigiendo a checkout_url:", data.checkout_url);
         window.location.href = data.checkout_url;
       } else {
-        alert("Respuesta inesperada del servidor de pagos.");
+        console.warn("⚠ Respuesta sin checkout_url:", data);
+        alert("Respuesta inesperada del servidor de pagos. Mira la consola.");
       }
     } catch (e) {
-      console.error(e);
-      alert("Error al conectar con el servidor de pagos.");
+      console.error("❌ Error en fetch billing:", e);
+      alert("Error al conectar con el servidor de pagos (fetch).");
     }
   }
 
