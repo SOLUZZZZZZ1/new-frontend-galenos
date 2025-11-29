@@ -1,10 +1,10 @@
-// src/pages/Patients.jsx — Analíticas · IA (MVP + mini chat) para Galenos.pro
+// src/pages/PanelMedico.jsx — Panel médico + Analíticas IA + Invitaciones · Galenos.pro
 import React, { useState } from "react";
 
 // URL del backend de Galenos (Render)
 const API = import.meta.env.VITE_API_URL || "https://galenos-backend.onrender.com";
 
-export default function Patients() {
+export default function PanelMedico() {
   const [alias, setAlias] = useState("Paciente A");
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
@@ -14,6 +14,12 @@ export default function Patients() {
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
+
+  // Invitaciones
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const [inviteError, setInviteError] = useState("");
+  const [inviteUrl, setInviteUrl] = useState("");
+  const [inviteCopied, setInviteCopied] = useState(false);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -65,10 +71,7 @@ export default function Patients() {
     const question = chatInput.trim();
     setChatInput("");
 
-    const newMessages = [
-      ...chatMessages,
-      { from: "doctor", text: question },
-    ];
+    const newMessages = [...chatMessages, { from: "doctor", text: question }];
     setChatMessages(newMessages);
     setChatLoading(true);
     setError("");
@@ -103,10 +106,7 @@ export default function Patients() {
       const data = JSON.parse(raw);
       const aiText = data.answer || "No se ha podido generar una respuesta.";
 
-      setChatMessages([
-        ...newMessages,
-        { from: "ia", text: aiText },
-      ]);
+      setChatMessages([...newMessages, { from: "ia", text: aiText }]);
     } catch (err) {
       console.error("❌ Error en el chat de IA:", err);
       setError("No se ha podido conectar con el chat de IA.");
@@ -115,15 +115,129 @@ export default function Patients() {
     }
   }
 
+  async function handleCreateInvite() {
+    setInviteError("");
+    setInviteCopied(false);
+
+    const token = localStorage.getItem("galenos_token");
+    if (!token) {
+      setInviteError("No se ha encontrado el token de sesión. Vuelve a entrar al panel.");
+      return;
+    }
+
+    try {
+      setInviteLoading(true);
+
+      console.log("🔥 Creando invitación en:", `${API}/auth/invitations/create`);
+
+      const res = await fetch(`${API}/auth/invitations/create`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const raw = await res.text();
+      console.log("👉 Respuesta invitación (raw):", raw);
+
+      if (!res.ok) {
+        setInviteError("No se ha podido crear la invitación. Revisa la API.");
+        return;
+      }
+
+      let data;
+      try {
+        data = JSON.parse(raw);
+      } catch (err) {
+        console.error("❌ No se pudo parsear JSON de invitación:", err);
+        setInviteError("Respuesta inesperada del servidor al crear la invitación.");
+        return;
+      }
+
+      if (!data.invite_url) {
+        setInviteError("La API no ha devuelto 'invite_url'. Revisa el endpoint.");
+        return;
+      }
+
+      setInviteUrl(data.invite_url);
+    } catch (err) {
+      console.error("❌ Error al crear invitación:", err);
+      setInviteError("No se ha podido conectar con el servidor de invitaciones.");
+    } finally {
+      setInviteLoading(false);
+    }
+  }
+
+  async function handleCopyInvite() {
+    if (!inviteUrl) return;
+
+    const texto = `Hola, te invito a probar Galenos.pro (panel de apoyo para médicos).\n\nPuedes darte de alta desde este enlace seguro:\n${inviteUrl}\n\nGalenos.pro es una herramienta de apoyo, la decisión clínica final es siempre tuya.`;
+
+    try {
+      await navigator.clipboard.writeText(texto);
+      setInviteCopied(true);
+    } catch (err) {
+      console.error("❌ No se pudo copiar al portapapeles:", err);
+      setInviteCopied(false);
+    }
+  }
+
   return (
     <section className="space-y-4">
-      <div className="border-b border-slate-200 pb-3 mb-3">
-        <h2 className="sr-h1 text-xl mb-1">Analíticas · IA (MVP)</h2>
-        <p className="sr-p text-sm text-slate-600">
-          Sube una analítica en PDF o imagen. Esta versión MVP utiliza marcadores de ejemplo y
-          genera un resumen clínico orientativo y un diagnóstico diferencial a valorar.
-          La decisión final es siempre del médico responsable.
-        </p>
+      {/* Cabecera + Invitaciones */}
+      <div className="border-b border-slate-200 pb-3 mb-3 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div className="max-w-xl">
+          <h2 className="sr-h1 text-xl mb-1">Analíticas · IA (MVP)</h2>
+          <p className="sr-p text-sm text-sky-700 font-medium mb-2">
+            IA Médica con Visión: interpreta analíticas, identifica patrones y resume hallazgos en lenguaje clínico.
+          </p>
+          <p className="sr-p text-sm text-slate-600">
+            Sube una analítica en PDF o imagen. Esta versión MVP utiliza marcadores de ejemplo y
+            genera un resumen clínico orientativo y un diagnóstico diferencial a valorar.
+            La decisión final es siempre del médico responsable.
+          </p>
+        </div>
+
+        <div className="sr-card max-w-md w-full">
+          <h3 className="sr-h1 text-sm mb-1">Invitar a un colega</h3>
+          <p className="sr-small text-slate-600 mb-2">
+            Genera un enlace privado para que otro médico pueda darse de alta en Galenos.pro.
+            Puedes enviarle el texto por correo, WhatsApp o el canal que prefieras.
+          </p>
+
+          <button
+            type="button"
+            onClick={handleCreateInvite}
+            disabled={inviteLoading}
+            className="sr-btn-secondary w-full mb-2 disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {inviteLoading ? "Creando invitación..." : "Generar enlace de invitación"}
+          </button>
+
+          {inviteError && (
+            <p className="sr-small text-red-600 mb-1">{inviteError}</p>
+          )}
+
+          {inviteUrl && (
+            <div className="space-y-2 mt-1">
+              <p className="sr-small text-slate-600">
+                Enlace generado. Copia y pega este texto donde quieras:
+              </p>
+              <textarea
+                readOnly
+                className="sr-input w-full text-xs h-28 bg-slate-50"
+                value={`Hola, te invito a probar Galenos.pro (panel de apoyo para médicos).\n\nPuedes darte de alta desde este enlace seguro:\n${inviteUrl}\n\nGalenos.pro es una herramienta de apoyo, la decisión clínica final es siempre tuya.`}
+              />
+              <button
+                type="button"
+                onClick={handleCopyInvite}
+                className="sr-btn-primary w-full text-sm"
+              >
+                {inviteCopied ? "Copiado ✔" : "Copiar texto de invitación"}
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Formulario de subida */}

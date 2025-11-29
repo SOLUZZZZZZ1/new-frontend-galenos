@@ -1,4 +1,4 @@
-// src/pages/InicioGalenos.jsx — Landing Galenos.pro
+// src/pages/InicioGalenos.jsx — Landing Galenos.pro con mensaje de IA Médica con Visión
 import React from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -12,6 +12,21 @@ export default function InicioGalenos() {
           <h1 className="text-3xl md:text-4xl font-bold mb-4">
             Galenos.pro · Panel PRO de apoyo para médicos
           </h1>
+
+          <p className="sr-p text-sky-700 font-semibold mb-2">
+            IA Médica con Visión · El copiloto clínico que ve, compara y resume tus analíticas en segundos.
+          </p>
+
+          <ul className="sr-list space-y-1 mb-4 text-slate-700">
+            <li>Analiza PDF e imágenes para extraer marcadores clave.</li>
+            <li>Detecta tendencias y cambios sutiles entre analíticas previas.</li>
+            <li>Genera un resumen clínico orientativo en lenguaje profesional.</li>
+          </ul>
+
+          <p className="sr-small text-slate-500 mb-6">
+            Galenos.pro no diagnostica ni prescribe. Es una herramienta de apoyo para médicos.
+          </p>
+
           <p className="sr-p mb-3">
             Galenos.pro es tu copiloto clínico: analiza analíticas, organiza
             casos y resúmenes, y te ayuda a seguir la evolución de tus
