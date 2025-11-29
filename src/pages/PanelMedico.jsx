@@ -1,224 +1,323 @@
-// src/pages/PanelMedico.jsx — Panel del médico con tabs, Stripe y estado post-checkout
-import React, { useState, useMemo } from "react";
-import { useLocation } from "react-router-dom";
-import Patients from "./Patients.jsx";
+// src/pages/Patients.jsx — Analíticas · IA (MVP + mini chat) para Galenos.pro
+import React, { useState } from "react";
 
 // URL del backend de Galenos (Render)
 const API = import.meta.env.VITE_API_URL || "https://galenos-backend.onrender.com";
 
-const TABS = [
-  { id: "resumen", label: "Resumen" },
-  { id: "analiticas", label: "Analíticas · IA" },
-  { id: "agenda", label: "Agenda" },
-  { id: "ajustes", label: "Ajustes" },
-];
+export default function Patients() {
+  const [alias, setAlias] = useState("Paciente A");
+  const [file, setFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState("");
 
-function useQuery() {
-  const { search } = useLocation();
-  return useMemo(() => new URLSearchParams(search), [search]);
-}
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatInput, setChatInput] = useState("");
+  const [chatLoading, setChatLoading] = useState(false);
 
-export default function PanelMedico() {
-  const [tab, setTab] = useState("resumen");
-  const [loadingCheckout, setLoadingCheckout] = useState(false);
-  const query = useQuery();
-  const checkoutStatus = query.get("checkout"); // "success" | "cancel" | null
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setError("");
+    setResult(null);
+    setChatMessages([]);
 
-  async function handleActivateGalenosPro() {
+    if (!file) {
+      setError("Por favor, sube una analítica en PDF o imagen.");
+      return;
+    }
+
     try {
-      setLoadingCheckout(true);
-      console.log("🔥 API usada en PanelMedico:", API);
-      console.log("👉 handleActivateGalenosPro llamado");
-      console.log("👉 Llamando a:", `${API}/billing/create-checkout-session`);
+      setUploading(true);
 
-      const res = await fetch(`${API}/billing/create-checkout-session`, {
-        method: "GET",
+      const formData = new FormData();
+      formData.append("alias", alias);
+      formData.append("file", file);
+
+      console.log("🔥 Enviando analítica a:", `${API}/analytics/analyze`);
+
+      const res = await fetch(`${API}/analytics/analyze`, {
+        method: "POST",
+        body: formData,
       });
 
-      console.log("👉 Respuesta Stripe status:", res.status);
-      const rawText = await res.text();
-      console.log("👉 Respuesta Stripe texto bruto:", rawText);
+      const raw = await res.text();
+      console.log("👉 Respuesta IA (raw):", raw);
 
       if (!res.ok) {
-        alert(
-          "Stripe devolvió error " +
-            res.status +
-            ". Mira la consola (F12 → Console) para más detalles."
-        );
+        setError(`Error del servidor (${res.status}). Mira la consola.`);
         return;
       }
 
-      const data = JSON.parse(rawText);
-      if (data.checkout_url) {
-        window.location.href = data.checkout_url;
-      } else {
-        alert("Respuesta de Stripe sin checkout_url. Mira la consola.");
-      }
+      const data = JSON.parse(raw);
+      setResult(data);
     } catch (err) {
-      console.error("❌ Error al activar Galenos PRO:", err);
-      alert("Error al conectar con el servidor de pagos (fetch).");
+      console.error("❌ Error al llamar a IA de analíticas:", err);
+      setError("No se ha podido conectar con el backend de IA.");
     } finally {
-      setLoadingCheckout(false);
+      setUploading(false);
+    }
+  }
+
+  async function handleSendQuestion(e) {
+    e.preventDefault();
+    if (!chatInput.trim() || !result) return;
+
+    const question = chatInput.trim();
+    setChatInput("");
+
+    const newMessages = [
+      ...chatMessages,
+      { from: "doctor", text: question },
+    ];
+    setChatMessages(newMessages);
+    setChatLoading(true);
+    setError("");
+
+    try {
+      const payload = {
+        patient_alias: result.patient_alias,
+        file_name: result.file_name,
+        markers: result.markers,
+        summary: result.summary,
+        differential: result.differential,
+        question,
+      };
+
+      console.log("🔥 Enviando pregunta de chat a:", `${API}/analytics/chat`);
+
+      const res = await fetch(`${API}/analytics/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const raw = await res.text();
+      console.log("👉 Respuesta chat IA (raw):", raw);
+
+      if (!res.ok) {
+        setError(`Error en el chat de IA (${res.status}). Mira la consola.`);
+        setChatLoading(false);
+        return;
+      }
+
+      const data = JSON.parse(raw);
+      const aiText = data.answer || "No se ha podido generar una respuesta.";
+
+      setChatMessages([
+        ...newMessages,
+        { from: "ia", text: aiText },
+      ]);
+    } catch (err) {
+      console.error("❌ Error en el chat de IA:", err);
+      setError("No se ha podido conectar con el chat de IA.");
+    } finally {
+      setChatLoading(false);
     }
   }
 
   return (
-    <main className="sr-container py-6 space-y-6">
-      {/* Cabecera principal */}
-      <header className="sr-card flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-        <div className="space-y-1">
-          <h1 className="sr-h1 text-2xl">Panel del médico</h1>
-          <p className="sr-p text-slate-600 text-sm">
-            Gestiona tus pacientes, revisa analíticas y activa Galenos PRO para
-            desbloquear todas las funciones. Esta versión es un MVP orientativo
-            para validar el flujo de trabajo.
-          </p>
-        </div>
-
-        <div className="flex flex-col gap-2 items-stretch sm:items-end">
-          <button
-            type="button"
-            onClick={handleActivateGalenosPro}
-            disabled={loadingCheckout}
-            className="inline-flex items-center justify-center rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-sky-700 disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            {loadingCheckout
-              ? "Conectando con Stripe…"
-              : "Activar Galenos PRO · 10 €/mes"}
-          </button>
-          <p className="sr-small text-slate-500 text-right max-w-xs">
-            3 días de prueba · Sin permanencia · Cancelable en cualquier momento.
-            El cargo mensual se realiza solo tras el periodo de prueba.
-          </p>
-        </div>
-      </header>
-
-      {/* Estado tras volver de Stripe */}
-      {checkoutStatus === "success" && (
-        <div className="sr-card border-emerald-300 bg-emerald-50 text-sm text-emerald-900 space-y-1">
-          <p className="font-medium">
-            ✅ Tu suscripción <strong>Galenos PRO</strong> se ha iniciado correctamente.
-          </p>
-          <p>
-            En unos instantes se confirmará el pago en el sistema. Si estás en
-            entorno de pruebas de Stripe, recuerda que no es un cargo real.
-          </p>
-        </div>
-      )}
-
-      {checkoutStatus === "cancel" && (
-        <div className="sr-card border-amber-300 bg-amber-50 text-sm text-amber-900 space-y-1">
-          <p className="font-medium">
-            ⚠️ El proceso de pago de <strong>Galenos PRO</strong> se canceló.
-          </p>
-          <p>
-            Si ha sido un error, puedes volver a intentarlo cuando quieras
-            haciendo clic en “Activar Galenos PRO”.
-          </p>
-        </div>
-      )}
-
-      {/* Aviso legal general */}
-      <div className="sr-card bg-slate-50 border-slate-200 text-xs text-slate-600">
-        <p>
-          Galenos.pro no diagnostica ni prescribe. Es una herramienta de apoyo
-          al médico. La decisión clínica final corresponde siempre al facultativo
-          responsable, integrando historia clínica, exploración física y el resto
-          de pruebas complementarias.
+    <section className="space-y-4">
+      <div className="border-b border-slate-200 pb-3 mb-3">
+        <h2 className="sr-h1 text-xl mb-1">Analíticas · IA (MVP)</h2>
+        <p className="sr-p text-sm text-slate-600">
+          Sube una analítica en PDF o imagen. Esta versión MVP utiliza marcadores de ejemplo y
+          genera un resumen clínico orientativo y un diagnóstico diferencial a valorar.
+          La decisión final es siempre del médico responsable.
         </p>
       </div>
 
-      {/* Tabs + contenido */}
-      <section className="sr-card space-y-4">
-        {/* Tabs */}
-        <div className="flex flex-wrap gap-2 mb-2">
-          {TABS.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => setTab(t.id)}
-              className={`px-3 py-1.5 rounded-xl text-sm border transition-colors ${
-                tab === t.id
-                  ? "border-sky-500 bg-sky-50 text-sky-700"
-                  : "border-slate-200 text-slate-700 hover:bg-slate-50"
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
+      {/* Formulario de subida */}
+      <form onSubmit={handleSubmit} className="space-y-4 sr-card">
+        <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-4">
+          <div className="flex-1">
+            <label className="sr-label" htmlFor="alias">
+              Alias del paciente
+            </label>
+            <input
+              id="alias"
+              type="text"
+              value={alias}
+              onChange={(e) => setAlias(e.target.value)}
+              className="sr-input w-full"
+              placeholder="Ej. Paciente A"
+            />
+          </div>
+
+          <div className="flex-1">
+            <label className="sr-label" htmlFor="file">
+              Analítica (PDF o imagen)
+            </label>
+            <input
+              id="file"
+              type="file"
+              accept=".pdf,image/*"
+              onChange={(e) => setFile(e.target.files[0] || null)}
+              className="sr-input w-full bg-white"
+            />
+          </div>
         </div>
 
-        {/* Contenido de cada tab */}
-        {tab === "resumen" && (
+        <div className="flex items-center gap-3">
+          <button
+            type="submit"
+            disabled={uploading}
+            className="sr-btn-primary disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {uploading ? "Procesando con IA..." : "Enviar a IA"}
+          </button>
+          {file && (
+            <span className="sr-small text-slate-600 truncate max-w-xs">
+              {file.name}
+            </span>
+          )}
+        </div>
+
+        {error && (
+          <p className="sr-small text-red-600">
+            {error}
+          </p>
+        )}
+      </form>
+
+      {/* Resultado + chat */}
+      <div className="sr-card space-y-3">
+        <p className="sr-small text-slate-500">
+          Galenos.pro no diagnostica ni prescribe. Es una herramienta de apoyo al médico.
+        </p>
+
+        {!result && !uploading && (
+          <p className="sr-p text-sm text-slate-500">
+            Cuando subas una analítica, aquí aparecerán los marcadores detectados junto con un
+            resumen orientativo generado por IA. Esta versión MVP usa datos de ejemplo.
+          </p>
+        )}
+
+        {uploading && (
+          <p className="sr-p text-sm text-slate-600">
+            Procesando con IA...
+          </p>
+        )}
+
+        {result && (
           <div className="space-y-4">
             <div>
-              <h2 className="sr-h1 text-xl mb-1">Resumen de actividad</h2>
-              <p className="sr-p text-sm text-slate-600">
-                Aquí verás, en futuras versiones, un resumen rápido de tu
-                actividad: últimos pacientes vistos, analíticas recientes,
-                recordatorios importantes y avisos de seguridad.
+              <h3 className="sr-h1 text-lg mb-1">Resultado para {result.patient_alias}</h3>
+              <p className="sr-small text-slate-500">
+                Fichero: <span className="font-mono text-xs">{result.file_name}</span>
               </p>
             </div>
 
-            <div className="grid gap-3 md:grid-cols-3">
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                <p className="sr-small text-slate-500 mb-1">Estado de cuenta</p>
-                <p className="text-sm font-medium">Demo / MVP</p>
-                <p className="sr-small text-slate-500 mt-1">
-                  Cuando conectemos el webhook a la BD, aquí verás si tienes
-                  Galenos PRO activo y la fecha de renovación.
-                </p>
+            <div>
+              <h4 className="sr-h1 text-base mb-1">Marcadores (demo)</h4>
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm border border-slate-200 rounded-lg overflow-hidden">
+                  <thead className="bg-slate-50">
+                    <tr>
+                      <th className="px-3 py-2 text-left border-b border-slate-200">Parámetro</th>
+                      <th className="px-3 py-2 text-left border-b border-slate-200">Valor</th>
+                      <th className="px-3 py-2 text-left border-b border-slate-200">Rango</th>
+                      <th className="px-3 py-2 text-left border-b border-slate-200">Estado</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {result.markers?.map((m, idx) => (
+                      <tr key={idx} className="odd:bg-white even:bg-slate-50">
+                        <td className="px-3 py-2 border-b border-slate-100">{m.name}</td>
+                        <td className="px-3 py-2 border-b border-slate-100">{m.value}</td>
+                        <td className="px-3 py-2 border-b border-slate-100">{m.range}</td>
+                        <td className="px-3 py-2 border-b border-slate-100">
+                          <span
+                            className={
+                              m.status === "normal"
+                                ? "text-emerald-600"
+                                : "text-amber-700 font-medium"
+                            }
+                          >
+                            {m.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                <p className="sr-small text-slate-500 mb-1">Analíticas cargadas</p>
-                <p className="text-sm font-medium">Demo</p>
-                <p className="sr-small text-slate-500 mt-1">
-                  Esta tarjeta mostrará el número de analíticas analizadas con IA
-                  en el periodo seleccionado.
-                </p>
+            </div>
+
+            <div>
+              <h4 className="sr-h1 text-base mb-1">Resumen orientativo</h4>
+              <p className="sr-p text-sm whitespace-pre-line">
+                {result.summary}
+              </p>
+            </div>
+
+            <div>
+              <h4 className="sr-h1 text-base mb-1">Diagnóstico diferencial (orientativo)</h4>
+              <p className="sr-p text-sm whitespace-pre-line">
+                {result.differential}
+              </p>
+            </div>
+
+            {/* Mini chat clínico */}
+            <div className="mt-4 border-t border-slate-200 pt-3 space-y-2">
+              <h4 className="sr-h1 text-base mb-1">Preguntas rápidas a la IA (demo)</h4>
+              <p className="sr-small text-slate-500 mb-1">
+                Puedes hacer preguntas orientativas sobre esta analítica. Las respuestas son de apoyo
+                y no sustituyen tu criterio clínico.
+              </p>
+
+              <div className="max-h-64 overflow-y-auto border border-slate-200 rounded-lg p-2 bg-slate-50 space-y-2 text-sm">
+                {chatMessages.length === 0 && (
+                  <p className="sr-small text-slate-500">
+                    Aún no hay preguntas. Escribe tu duda abajo para iniciar la conversación.
+                  </p>
+                )}
+                {chatMessages.map((m, idx) => (
+                  <div
+                    key={idx}
+                    className={m.from === "doctor" ? "text-right" : "text-left"}
+                  >
+                    <div
+                      className={
+                        m.from === "doctor"
+                          ? "inline-block rounded-xl bg-sky-600 text-white px-3 py-1.5 mb-0.5 max-w-[80%] text-left"
+                          : "inline-block rounded-xl bg-white text-slate-900 px-3 py-1.5 mb-0.5 border border-slate-200 max-w-[80%]"
+                      }
+                    >
+                      <span className="block whitespace-pre-line">{m.text}</span>
+                    </div>
+                    <div className="sr-small text-slate-500">
+                      {m.from === "doctor" ? "Tú" : "IA (demo)"}
+                    </div>
+                  </div>
+                ))}
+                {chatLoading && (
+                  <p className="sr-small text-slate-500">
+                    IA está generando una respuesta...
+                  </p>
+                )}
               </div>
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                <p className="sr-small text-slate-500 mb-1">
-                  Próximas iteraciones
-                </p>
-                <p className="text-sm font-medium">Agenda, alertas y más</p>
-                <p className="sr-small text-slate-500 mt-1">
-                  El objetivo es que el panel se convierta en un “dashboard
-                  clínico” de apoyo diario para el médico.
-                </p>
-              </div>
+
+              <form onSubmit={handleSendQuestion} className="flex gap-2 mt-2">
+                <input
+                  type="text"
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  placeholder="Escribe una pregunta clínica orientativa..."
+                  className="sr-input flex-1 text-sm"
+                  disabled={chatLoading}
+                />
+                <button
+                  type="submit"
+                  disabled={chatLoading || !result}
+                  className="sr-btn-secondary whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed text-sm"
+                >
+                  Enviar
+                </button>
+              </form>
             </div>
           </div>
         )}
-
-        {tab === "analiticas" && (
-          <div className="space-y-4">
-            <Patients />
-          </div>
-        )}
-
-        {tab === "agenda" && (
-          <div className="space-y-2">
-            <h2 className="sr-h1 text-xl mb-1">Agenda (demo)</h2>
-            <p className="sr-p text-sm text-slate-600">
-              Aquí podrás integrar tu agenda de consultas, recordatorios y
-              tareas diarias. En esta versión MVP es solo un placeholder
-              visual sin lógica interna.
-            </p>
-          </div>
-        )}
-
-        {tab === "ajustes" && (
-          <div className="space-y-2">
-            <h2 className="sr-h1 text-xl mb-1">Ajustes (próximamente)</h2>
-            <p className="sr-p text-sm text-slate-600">
-              En esta sección podrás configurar tus preferencias, idioma,
-              notificaciones, país de facturación y otros detalles de tu cuenta
-              de médico.
-            </p>
-          </div>
-        )}
-      </section>
-    </main>
+      </div>
+    </section>
   );
 }
