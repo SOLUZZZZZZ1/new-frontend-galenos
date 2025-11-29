@@ -1,4 +1,4 @@
-// src/App.jsx — Router principal Galenos.pro con login protegido + registro por invitación
+// src/App.jsx — Router principal Galenos.pro con login protegido + registro por invitación + solicitud de acceso
 import React from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 
@@ -7,6 +7,8 @@ import InicioGalenos from "./pages/InicioGalenos.jsx";
 import LoginMedico from "./pages/LoginMedico.jsx";
 import PanelMedico from "./pages/PanelMedico.jsx";
 import RegistroMedico from "./pages/RegistroMedico.jsx";
+import PanelDemo from "./pages/PanelDemo.jsx";
+import SolicitarAcceso from "./pages/SolicitarAcceso.jsx";
 
 // Pequeño wrapper para proteger rutas que requieren login
 function RequireAuth({ children }) {
@@ -35,6 +37,12 @@ function App() {
 
           {/* Registro médico desde invitación */}
           <Route path="/registro" element={<RegistroMedico />} />
+
+          {/* Panel de ejemplo público (sin login) */}
+          <Route path="/panel-demo" element={<PanelDemo />} />
+
+          {/* Solicitud de acceso (sin invitación) */}
+          <Route path="/solicitar-acceso" element={<SolicitarAcceso />} />
 
           {/* Panel médico — protegido por login */}
           <Route
