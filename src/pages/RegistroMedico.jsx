@@ -111,7 +111,8 @@ export default function RegistroMedico() {
 
         {!token && (
           <p className="sr-small text-red-600">
-            No se ha encontrado ningún token de invitación en el enlace. Pide a tu colega que te reenvíe el enlace completo.
+            No se ha encontrado ningún token de invitación en el enlace. Pide a tu colega que te reenvíe el enlace completo,
+            o bien solicita acceso directo.
           </p>
         )}
 
@@ -173,6 +174,18 @@ export default function RegistroMedico() {
             {loading ? "Creando cuenta..." : "Crear cuenta y acceder"}
           </button>
         </form>
+
+        <p className="sr-small text-slate-500 text-xs">
+          ¿No tienes invitación y quieres usar Galenos.pro?{" "}
+          <button
+            type="button"
+            onClick={() => navigate("/solicitar-acceso")}
+            className="underline text-sky-700 hover:text-sky-800"
+          >
+            Solicita acceso aquí
+          </button>
+          .
+        </p>
 
         <p className="sr-small text-slate-500 text-xs">
           Galenos.pro es una herramienta de apoyo al médico. La decisión clínica final corresponde siempre al médico responsable.

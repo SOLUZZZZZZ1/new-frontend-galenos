@@ -1,4 +1,4 @@
-// src/pages/InicioGalenos.jsx — Landing Galenos.pro con mensaje de IA Médica con Visión
+// src/pages/InicioGalenos.jsx — Landing Galenos.pro con IA Médica con Visión + acceso demo
 import React from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -38,7 +38,8 @@ export default function InicioGalenos() {
             y posibles causas a valorar. Nunca prescribe, nunca sustituye tu
             criterio.
           </p>
-          <div className="flex flex-wrap gap-3">
+
+          <div className="flex flex-wrap gap-3 mb-2">
             <button
               onClick={() => nav("/login")}
               className="sr-btn-primary"
@@ -46,12 +47,25 @@ export default function InicioGalenos() {
               Acceder como médico
             </button>
             <button
-              onClick={() => nav("/panel-medico")}
+              onClick={() => nav("/panel-demo")}
               className="sr-btn-secondary"
             >
               Ver panel de ejemplo
             </button>
           </div>
+
+          <p className="sr-small text-slate-600">
+            ¿Aún no conoces a ningún colega que use Galenos.pro?{" "}
+            <button
+              type="button"
+              onClick={() => nav("/solicitar-acceso")}
+              className="underline text-sky-700 hover:text-sky-800"
+            >
+              Solicita acceso aquí
+            </button>
+            .
+          </p>
+
           <p className="sr-small mt-3 text-slate-500">
             Versión inicial · Proyecto en desarrollo. Perfecto para ir
             probando el flujo y el panel.
