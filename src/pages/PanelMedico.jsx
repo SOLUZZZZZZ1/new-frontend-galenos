@@ -4,7 +4,7 @@ import Patients from "./Patients.jsx";
 
 // URL del backend de Galenos (Render)
 // En producción: VITE_API_URL debe ser https://galenos-backend.onrender.com
-const API = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+const API = "https://galenos-backend.onrender.com";
 
 const TABS = [
   { id: "resumen", label: "Resumen" },
