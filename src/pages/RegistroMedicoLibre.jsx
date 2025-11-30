@@ -1,4 +1,4 @@
-// src/pages/RegistroMedicoLibre.jsx — Alta directa de médico (sin invitación) · Galenos.pro
+// src/pages/RegistroMedicoLibre.jsx — Alta directa de médico (sin invitación) + arranque Stripe · Galenos.pro
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 
@@ -119,16 +119,54 @@ export default function RegistroMedicoLibre() {
         localStorage.setItem("galenos_name", dataLogin.name || name);
       }
 
-      setInfo("Cuenta creada correctamente. Redirigiendo…");
-
-      // 3) Redirigir según el parámetro ?next
+      // 3) Si viene desde el botón PRO (next=pro), arrancamos Stripe directamente
       if (nextParam === "pro") {
-        // Si viene desde el botón PRO, le devolvemos al inicio para que active la prueba con Stripe
-        navigate("/", { replace: true });
-      } else {
-        // Si viene de otro sitio, lo mandamos al panel
-        navigate("/panel-medico", { replace: true });
+        setInfo("Cuenta creada correctamente. Conectando con Stripe…");
+
+        try {
+          console.log("💳 [Alta] Creando sesión de Stripe en:", `${API}/billing/create-checkout-session`);
+          const resStripe = await fetch(`${API}/billing/create-checkout-session`);
+          const rawStripe = await resStripe.text();
+          console.log("👉 [Alta] Respuesta Stripe (raw):", rawStripe);
+
+          if (!resStripe.ok) {
+            setError("Cuenta creada, pero no se ha podido iniciar el pago en Stripe.");
+            return;
+          }
+
+          let dataStripe;
+          try {
+            dataStripe = JSON.parse(rawStripe);
+          } catch (err) {
+            console.error("❌ [Alta] No se pudo parsear JSON de Stripe:", err);
+            setError("Cuenta creada, pero respuesta inesperada del servidor de pagos.");
+            return;
+          }
+
+          if (!dataStripe.checkout_url) {
+            setError("Cuenta creada, pero el servidor no ha devuelto una URL de pago.");
+            return;
+          }
+
+          const newWin = window.open(
+            dataStripe.checkout_url,
+            "_blank",
+            "noopener,noreferrer"
+          );
+          if (!newWin) {
+            window.location.href = dataStripe.checkout_url;
+          }
+          return; // no navegamos más desde aquí; Stripe redirige luego al panel
+        } catch (err) {
+          console.error("❌ [Alta] Error al conectar con Stripe:", err);
+          setError("Cuenta creada, pero no se ha podido conectar con Stripe.");
+          return;
+        }
       }
+
+      // 4) Si no viene de PRO, lo mandamos al panel médico normal
+      setInfo("Cuenta creada correctamente. Entrando al panel…");
+      navigate("/panel-medico", { replace: true });
     } catch (err) {
       console.error("❌ Error en alta libre:", err);
       setError("No se ha podido conectar con el servidor de alta.");
