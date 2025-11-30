@@ -12,14 +12,31 @@ import PanelDemo from "./pages/PanelDemo.jsx";
 import SolicitarAcceso from "./pages/SolicitarAcceso.jsx";
 import AdminPanel from "./pages/AdminPanel.jsx";
 
-// Pequeño wrapper para proteger rutas que requieren login
+// Wrapper para rutas que requieren estar logueado (pero no necesariamente PRO)
 function RequireAuth({ children }) {
   const location = useLocation();
   const token = localStorage.getItem("galenos_token");
 
   if (!token) {
-    // Si no hay token, redirigimos a /login guardando la ruta de origen
     return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  return children;
+}
+
+// Wrapper para rutas SOLO PRO (requiere login + haber pasado por Stripe)
+function RequirePro({ children }) {
+  const location = useLocation();
+  const token = localStorage.getItem("galenos_token");
+  const isPro = localStorage.getItem("galenos_is_pro") === "1";
+
+  if (!token) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  if (!isPro) {
+    // Si no es PRO, lo mandamos a inicio para que active Galenos PRO
+    return <Navigate to="/" state={{ from: location }} replace />;
   }
 
   return children;
@@ -37,7 +54,7 @@ function App() {
           {/* Login médico */}
           <Route path="/login" element={<LoginMedico />} />
 
-          {/* Registro médico desde invitación */}
+          {/* Registro médico desde invitación (modo antiguo, opcional) */}
           <Route path="/registro" element={<RegistroMedico />} />
 
           {/* Registro médico libre (sin invitación) */}
@@ -49,17 +66,17 @@ function App() {
           {/* Solicitud de acceso (sin invitación) */}
           <Route path="/solicitar-acceso" element={<SolicitarAcceso />} />
 
-          {/* Panel médico — protegido por login */}
+          {/* Panel médico — SOLO PRO (login + Stripe) */}
           <Route
             path="/panel-medico"
             element={
-              <RequireAuth>
+              <RequirePro>
                 <PanelMedico />
-              </RequireAuth>
+              </RequirePro>
             }
           />
 
-          {/* Panel administrador — solo para usuario master (mismo login, filtro interno) */}
+          {/* Panel administrador — solo requiere login (usuario master) */}
           <Route
             path="/admin"
             element={
