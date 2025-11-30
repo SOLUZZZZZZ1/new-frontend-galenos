@@ -19,9 +19,9 @@ export default function InicioGalenos() {
     // ⚠️ IMPORTANTE: usamos el mismo token que en LoginMedico: "galenos_token"
     const token = localStorage.getItem("galenos_token");
     if (!token) {
-      // Si no hay sesión, lo enviamos primero al login.
-      // El parámetro ?next=pro nos servirá más adelante para devolverle al flujo PRO.
-      nav("/login?next=pro");
+      // Si no hay sesión, lo enviamos primero al alta directa.
+      // El parámetro ?next=pro nos sirve para volver luego al flujo PRO.
+      nav("/alta-medico?next=pro");
       return;
     }
 
@@ -100,8 +100,8 @@ export default function InicioGalenos() {
           <div className="mb-4 rounded-md border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-slate-800">
             <p className="font-semibold mb-1">Acceso PRO con 3 días de prueba</p>
             <p className="mb-1">
-              Para activar Galenos PRO tendrás que iniciar sesión y, a
-              continuación, dejar registrada tu tarjeta en Stripe.{" "}
+              Para activar Galenos PRO tendrás que crear tu cuenta de médico,
+              iniciar sesión y, a continuación, dejar registrada tu tarjeta en Stripe.{" "}
               <strong>No se realiza ningún cargo al inicio:</strong> dispones de{" "}
               <strong>3 días de prueba gratuita</strong>.
             </p>
