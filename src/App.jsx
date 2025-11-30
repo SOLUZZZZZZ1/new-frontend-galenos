@@ -30,12 +30,19 @@ function RequirePro({ children }) {
   const token = localStorage.getItem("galenos_token");
   const isPro = localStorage.getItem("galenos_is_pro") === "1";
 
+  // Leemos el parámetro ?checkout=success cuando Stripe vuelve
+  const params = new URLSearchParams(location.search);
+  const checkout = params.get("checkout");
+
   if (!token) {
+    // Si no hay sesión, mandamos a login y al volver intentamos recuperar la ruta
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  if (!isPro) {
-    // Si no es PRO, lo mandamos a inicio para que active Galenos PRO
+  // Si no es PRO y NO venimos justo de Stripe con ?checkout=success,
+  // lo mandamos a inicio para que active Galenos PRO.
+  // Si checkout=success, dejamos pasar para que PanelMedico marque galenos_is_pro.
+  if (!isPro && checkout !== "success") {
     return <Navigate to="/" state={{ from: location }} replace />;
   }
 
