@@ -1,6 +1,5 @@
 // src/pages/PanelMedico.jsx — Panel médico + Analíticas IA + Invitaciones · Galenos.pro
-import React, { useState, useEffect } from "react";
-import { useLocation } from "react-router-dom";
+import React, { useState } from "react";
 
 // URL del backend de Galenos (Render)
 const API = import.meta.env.VITE_API_URL || "https://galenos-backend.onrender.com";
@@ -18,21 +17,6 @@ export default function PanelMedico() {
 
   // Invitaciones
   const [inviteLoading, setInviteLoading] = useState(false);
-  const location = useLocation();
-
-  // Si venimos de Stripe con ?checkout=success, marcamos al usuario como PRO en localStorage
-  useEffect(() => {
-    try {
-      const params = new URLSearchParams(location.search);
-      const checkout = params.get("checkout");
-      if (checkout === "success") {
-        localStorage.setItem("galenos_is_pro", "1");
-      }
-    } catch (err) {
-      console.error("No se pudo leer el parámetro checkout de la URL:", err);
-    }
-  }, [location.search]);
-
   const [inviteError, setInviteError] = useState("");
   const [inviteUrl, setInviteUrl] = useState("");
   const [inviteCopied, setInviteCopied] = useState(false);
