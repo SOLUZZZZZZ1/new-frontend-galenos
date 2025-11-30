@@ -16,12 +16,11 @@ export default function InicioGalenos() {
     setStripeError("");
 
     // 1) Comprobar si el usuario está logueado ANTES de ir a Stripe
-    // ⚠️ IMPORTANTE: si tu token se guarda con otro nombre, cámbialo aquí.
-    const token = localStorage.getItem("authToken");
+    // ⚠️ IMPORTANTE: usamos el mismo token que en LoginMedico: "galenos_token"
+    const token = localStorage.getItem("galenos_token");
     if (!token) {
       // Si no hay sesión, lo enviamos primero al login.
-      // El parámetro ?next=pro sirve para que, tras iniciar sesión,
-      // puedas devolverle a la zona PRO o mostrarle el botón de Stripe.
+      // El parámetro ?next=pro nos servirá más adelante para devolverle al flujo PRO.
       nav("/login?next=pro");
       return;
     }
