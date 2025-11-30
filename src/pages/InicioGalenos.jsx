@@ -1,9 +1,52 @@
-// src/pages/InicioGalenos.jsx — Landing Galenos.pro con IA Médica con Visión + acceso demo
-import React from "react";
+// src/pages/InicioGalenos.jsx — Landing Galenos.pro con IA Médica y botón PRO (Stripe)
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+
+// URL del backend de Galenos (Render)
+const API = import.meta.env.VITE_API_URL || "https://galenos-backend.onrender.com";
 
 export default function InicioGalenos() {
   const nav = useNavigate();
+
+  const [stripeLoading, setStripeLoading] = useState(false);
+  const [stripeError, setStripeError] = useState("");
+
+  async function handleStripeCheckout() {
+    setStripeError("");
+    try {
+      setStripeLoading(true);
+      console.log("💳 [Landing] Creando sesión de Stripe en:", `${API}/billing/create-checkout-session`);
+      const res = await fetch(`${API}/billing/create-checkout-session`);
+      const raw = await res.text();
+      console.log("👉 [Landing] Respuesta Stripe (raw):", raw);
+
+      if (!res.ok) {
+        setStripeError("No se ha podido iniciar el pago en Stripe desde la landing.");
+        return;
+      }
+
+      let data;
+      try {
+        data = JSON.parse(raw);
+      } catch (err) {
+        console.error("❌ [Landing] No se pudo parsear JSON de Stripe:", err);
+        setStripeError("Respuesta inesperada del servidor de pagos.");
+        return;
+      }
+
+      if (!data.checkout_url) {
+        setStripeError("El servidor no ha devuelto una URL de pago.");
+        return;
+      }
+
+      window.location.href = data.checkout_url;
+    } catch (err) {
+      console.error("❌ [Landing] Error al conectar con Stripe:", err);
+      setStripeError("No se ha podido conectar con el servidor de pagos.");
+    } finally {
+      setStripeLoading(false);
+    }
+  }
 
   return (
     <main className="min-h-[70vh] flex items-center justify-center px-4">
@@ -39,6 +82,7 @@ export default function InicioGalenos() {
             criterio.
           </p>
 
+          {/* Botones principales */}
           <div className="flex flex-wrap gap-3 mb-2">
             <button
               onClick={() => nav("/login")}
@@ -46,15 +90,31 @@ export default function InicioGalenos() {
             >
               Acceder como médico
             </button>
+
             <button
               onClick={() => nav("/panel-demo")}
               className="sr-btn-secondary"
             >
               Ver panel de ejemplo
             </button>
+
+            <button
+              type="button"
+              onClick={handleStripeCheckout}
+              disabled={stripeLoading}
+              className="sr-btn-secondary"
+            >
+              {stripeLoading ? "Conectando con Stripe..." : "Activar PRO (Stripe)"}
+            </button>
           </div>
 
-          <p className="sr-small text-slate-600">
+          {stripeError && (
+            <p className="sr-small text-red-600 mt-1">
+              {stripeError}
+            </p>
+          )}
+
+          <p className="sr-small text-slate-600 mt-2">
             ¿Aún no conoces a ningún colega que use Galenos.pro?{" "}
             <button
               type="button"
@@ -67,8 +127,7 @@ export default function InicioGalenos() {
           </p>
 
           <p className="sr-small mt-3 text-slate-500">
-            Versión inicial · Proyecto en desarrollo. Perfecto para ir
-            probando el flujo y el panel.
+            Versión inicial · Proyecto en desarrollo. Perfecto para ir probando el flujo y el panel.
           </p>
         </section>
 
