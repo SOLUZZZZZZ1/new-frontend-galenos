@@ -1,4 +1,4 @@
-// src/App.jsx — Router principal Galenos.pro con login protegido + registro + panel médico + pacientes
+// src/App.jsx — Router principal Galenos.pro con Pacientes + Panel médico
 import React from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 
@@ -59,7 +59,7 @@ function App() {
             }
           />
 
-          {/* Panel médico — SOLO requiere login (no exige PRO por ahora) */}
+          {/* Panel médico — requiere login */}
           <Route
             path="/panel-medico"
             element={
@@ -69,7 +69,7 @@ function App() {
             }
           />
 
-          {/* Panel administrador — solo requiere login (usuario master) */}
+          {/* Panel administrador — requiere login */}
           <Route
             path="/admin"
             element={
@@ -90,7 +90,7 @@ function App() {
             © {new Date().getFullYear()} Galenos.pro · Herramienta de apoyo al médico.
           </p>
           <p className="sr-small text-slate-500">
-            La decisión clínica final corresponde siempre al médico responsable.
+            La decisión clínica final corresponde siempre al médico responsable।
           </p>
         </div>
       </footer>
