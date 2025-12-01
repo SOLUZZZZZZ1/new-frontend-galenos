@@ -60,7 +60,15 @@ function App() {
             }
           />
 
-          <Route path="/PacienteDetalle" element={<PacienteDetalle />} />
+          <Route
+            path="/PacienteDetalle/:id"
+            element={
+              <RequireAuth>
+                <PacienteDetalle />
+               </RequireAuth>
+           }
+        />
+
 
           {/* Panel médico — requiere login */}
           <Route
