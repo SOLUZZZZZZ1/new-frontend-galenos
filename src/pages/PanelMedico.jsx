@@ -1,12 +1,14 @@
-
 // src/pages/PanelMedico.jsx — Panel médico con Analíticas + Imágenes · Galenos.pro
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 // URL del backend de Galenos (Render)
 const API =
   import.meta.env.VITE_API_URL || "https://galenos-backend.onrender.com";
 
 export default function PanelMedico() {
+  const navigate = useNavigate();
+
   // ========================
   // ESTADO ANALÍTICAS
   // ========================
@@ -175,7 +177,9 @@ export default function PanelMedico() {
 
     const pid = parseInt(patientIdImagen, 10);
     if (!pid || Number.isNaN(pid)) {
-      setImagenError("Introduce un ID de paciente válido (número). Puedes verlo en la página Pacientes.");
+      setImagenError(
+        "Introduce un ID de paciente válido (número). Puedes verlo en la página Pacientes."
+      );
       return;
     }
     if (!fileImagen) {
@@ -242,12 +246,21 @@ export default function PanelMedico() {
   // ========================
   return (
     <main className="sr-container py-6 space-y-8">
-      <header className="space-y-1">
-        <h1 className="text-2xl font-bold">Panel médico · Galenos.pro</h1>
-        <p className="text-sm text-slate-600">
-          Sube analíticas e imágenes médicas vinculadas a tus pacientes. Galenos te ayuda a
-          interpretar de forma prudente los resultados, sin sustituir tu criterio clínico.
-        </p>
+      <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-bold">Panel médico · Galenos.pro</h1>
+          <p className="text-sm text-slate-600">
+            Sube analíticas e imágenes médicas vinculadas a tus pacientes. Galenos te ayuda a
+            interpretar de forma prudente los resultados, sin sustituir tu criterio clínico.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => navigate("/pacientes")}
+          className="sr-btn-secondary text-sm whitespace-nowrap"
+        >
+          Gestionar pacientes
+        </button>
       </header>
 
       {/* BLOQUE ANALÍTICAS */}
