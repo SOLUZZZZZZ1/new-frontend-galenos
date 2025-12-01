@@ -1,4 +1,4 @@
-// src/App.jsx — Router principal Galenos.pro con login protegido + registro (invitación y libre) + solicitud de acceso
+// src/App.jsx — Router principal Galenos.pro con login protegido + registro + panel médico funcional
 import React from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 
@@ -12,38 +12,13 @@ import PanelDemo from "./pages/PanelDemo.jsx";
 import SolicitarAcceso from "./pages/SolicitarAcceso.jsx";
 import AdminPanel from "./pages/AdminPanel.jsx";
 
-// Wrapper para rutas que requieren estar logueado (pero no necesariamente PRO)
+// Wrapper para rutas que requieren estar logueado (cualquier médico)
 function RequireAuth({ children }) {
   const location = useLocation();
   const token = localStorage.getItem("galenos_token");
 
   if (!token) {
     return <Navigate to="/login" state={{ from: location }} replace />;
-  }
-
-  return children;
-}
-
-// Wrapper para rutas SOLO PRO (requiere login + haber pasado por Stripe)
-function RequirePro({ children }) {
-  const location = useLocation();
-  const token = localStorage.getItem("galenos_token");
-  const isPro = localStorage.getItem("galenos_is_pro") === "1";
-
-  // Leemos el parámetro ?checkout=success cuando Stripe vuelve
-  const params = new URLSearchParams(location.search);
-  const checkout = params.get("checkout");
-
-  if (!token) {
-    // Si no hay sesión, mandamos a login y al volver intentamos recuperar la ruta
-    return <Navigate to="/login" state={{ from: location }} replace />;
-  }
-
-  // Si no es PRO y NO venimos justo de Stripe con ?checkout=success,
-  // lo mandamos a inicio para que active Galenos PRO.
-  // Si checkout=success, dejamos pasar para que PanelMedico marque galenos_is_pro.
-  if (!isPro && checkout !== "success") {
-    return <Navigate to="/" state={{ from: location }} replace />;
   }
 
   return children;
@@ -73,13 +48,13 @@ function App() {
           {/* Solicitud de acceso (sin invitación) */}
           <Route path="/solicitar-acceso" element={<SolicitarAcceso />} />
 
-          {/* Panel médico — SOLO PRO (login + Stripe) */}
+          {/* Panel médico — SOLO requiere login (no exige PRO por ahora) */}
           <Route
             path="/panel-medico"
             element={
-              <RequirePro>
+              <RequireAuth>
                 <PanelMedico />
-              </RequirePro>
+              </RequireAuth>
             }
           />
 
@@ -97,6 +72,7 @@ function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>
+
       <footer className="border-t border-slate-200 py-4 mt-8">
         <div className="sr-container flex flex-col sm:flex-row items-center justify-between gap-2">
           <p className="sr-small">
