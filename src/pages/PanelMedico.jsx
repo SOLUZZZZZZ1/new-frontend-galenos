@@ -1,147 +1,94 @@
-// src/pages/PanelMedico.jsx — Panel médico + Analíticas IA + Invitaciones · Galenos.pro
+
+// src/pages/PanelMedico.jsx — Panel médico Galenos.pro
+// Dos espacios bien separados:
+// 1) Analíticas (PDF / imagen) → /analytics/analyze + /analytics/chat
+// 2) Imágenes médicas (RX / TAC / RM / ECO) → /imaging/upload + /imaging/chat
+
 import React, { useState } from "react";
 
-// URL del backend de Galenos (Render)
-const API = import.meta.env.VITE_API_URL || "https://galenos-backend.onrender.com";
+const API =
+  import.meta.env.VITE_API_URL || "https://galenos-backend.onrender.com";
 
 export default function PanelMedico() {
-  const [alias, setAlias] = useState("Paciente A");
-  const [file, setFile] = useState(null);
-  const [uploading, setUploading] = useState(false);
-  const [result, setResult] = useState(null);
-  const [error, setError] = useState("");
+  // ----------------------------
+  // Estado ANALÍTICAS
+  // ----------------------------
+  const [aliasAnalitica, setAliasAnalitica] = useState("");
+  const [fileAnalitica, setFileAnalitica] = useState(null);
+  const [loadingAnalitica, setLoadingAnalitica] = useState(false);
+  const [markers, setMarkers] = useState([]);
+  const [summary, setSummary] = useState("");
+  const [differential, setDifferential] = useState("");
+  const [analyticsError, setAnalyticsError] = useState("");
 
-  const [chatMessages, setChatMessages] = useState([]);
-  const [chatInput, setChatInput] = useState("");
+  const [chatQuestion, setChatQuestion] = useState("");
+  const [chatAnswer, setChatAnswer] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
+  const [chatError, setChatError] = useState("");
 
-  // Invitaciones
-  const [inviteLoading, setInviteLoading] = useState(false);
-  const [inviteError, setInviteError] = useState("");
-  const [inviteUrl, setInviteUrl] = useState("");
-  const [inviteCopied, setInviteCopied] = useState(false);
+  // ----------------------------
+  // Estado IMAGEN MÉDICA
+  // ----------------------------
+  const [patientIdImagen, setPatientIdImagen] = useState("");
+  const [imgType, setImgType] = useState("RX");
+  const [imgContext, setImgContext] = useState("");
+  const [fileImagen, setFileImagen] = useState(null);
 
-  async function handleSubmit(e) {
+  const [loadingImagen, setLoadingImagen] = useState(false);
+  const [imagenSummary, setImagenSummary] = useState("");
+  const [imagenDifferential, setImagenDifferential] = useState("");
+  const [imagenPatterns, setImagenPatterns] = useState([]);
+  const [imagenError, setImagenError] = useState("");
+
+  const [imgChatQuestion, setImgChatQuestion] = useState("");
+  const [imgChatAnswer, setImgChatAnswer] = useState("");
+  const [imgChatLoading, setImgChatLoading] = useState(false);
+  const [imgChatError, setImgChatError] = useState("");
+
+  // ----------------------------
+  // Handlers ANALÍTICAS
+  // ----------------------------
+  async function handleUploadAnalitica(e) {
     e.preventDefault();
-    setError("");
-    setResult(null);
-    setChatMessages([]);
+    setAnalyticsError("");
+    setSummary("");
+    setDifferential("");
+    setMarkers([]);
+    setChatAnswer("");
+    setChatError("");
 
-    if (!file) {
-      setError("Por favor, sube una analítica en PDF o imagen.");
+    if (!aliasAnalitica.trim()) {
+      setAnalyticsError("Introduce un alias o identificador para el paciente.");
+      return;
+    }
+    if (!fileAnalitica) {
+      setAnalyticsError("Selecciona un fichero de analítica (PDF o imagen).");
       return;
     }
 
+    const formData = new FormData();
+    formData.append("alias", aliasAnalitica.trim());
+    formData.append("file", fileAnalitica);
+
     try {
-      setUploading(true);
-
-      const formData = new FormData();
-      formData.append("alias", alias);
-      formData.append("file", file);
-
-      console.log("🔥 Enviando analítica a:", `${API}/analytics/analyze`);
-
+      setLoadingAnalitica(true);
       const res = await fetch(`${API}/analytics/analyze`, {
         method: "POST",
         body: formData,
       });
 
       const raw = await res.text();
-      console.log("👉 Respuesta IA (raw):", raw);
+      // console.log("👉 Respuesta IA analítica (raw):", raw);
 
       if (!res.ok) {
-        setError(`Error del servidor (${res.status}). Mira la consola.`);
-        return;
-      }
-
-      const data = JSON.parse(raw);
-      setResult(data);
-    } catch (err) {
-      console.error("❌ Error al llamar a IA de analíticas:", err);
-      setError("No se ha podido conectar con el backend de IA.");
-    } finally {
-      setUploading(false);
-    }
-  }
-
-  async function handleSendQuestion(e) {
-    e.preventDefault();
-    if (!chatInput.trim() || !result) return;
-
-    const question = chatInput.trim();
-    setChatInput("");
-
-    const newMessages = [...chatMessages, { from: "doctor", text: question }];
-    setChatMessages(newMessages);
-    setChatLoading(true);
-    setError("");
-
-    try {
-      const payload = {
-        patient_alias: result.patient_alias,
-        file_name: result.file_name,
-        markers: result.markers,
-        summary: result.summary,
-        differential: result.differential,
-        question,
-      };
-
-      console.log("🔥 Enviando pregunta de chat a:", `${API}/analytics/chat`);
-
-      const res = await fetch(`${API}/analytics/chat`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      const raw = await res.text();
-      console.log("👉 Respuesta chat IA (raw):", raw);
-
-      if (!res.ok) {
-        setError(`Error en el chat de IA (${res.status}). Mira la consola.`);
-        setChatLoading(false);
-        return;
-      }
-
-      const data = JSON.parse(raw);
-      const aiText = data.answer || "No se ha podido generar una respuesta.";
-
-      setChatMessages([...newMessages, { from: "ia", text: aiText }]);
-    } catch (err) {
-      console.error("❌ Error en el chat de IA:", err);
-      setError("No se ha podido conectar con el chat de IA.");
-    } finally {
-      setChatLoading(false);
-    }
-  }
-
-  async function handleCreateInvite() {
-    setInviteError("");
-    setInviteCopied(false);
-
-    const token = localStorage.getItem("galenos_token");
-    if (!token) {
-      setInviteError("No se ha encontrado el token de sesión. Vuelve a entrar al panel.");
-      return;
-    }
-
-    try {
-      setInviteLoading(true);
-
-      console.log("🔥 Creando invitación en:", `${API}/auth/invitations/create`);
-
-      const res = await fetch(`${API}/auth/invitations/create`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      const raw = await res.text();
-      console.log("👉 Respuesta invitación (raw):", raw);
-
-      if (!res.ok) {
-        setInviteError("No se ha podido crear la invitación. Revisa la API.");
+        let msg = "No se ha podido analizar la analítica.";
+        try {
+          const errData = JSON.parse(raw);
+          if (errData.detail) msg = errData.detail;
+        } catch {
+          // ignore
+        }
+        setAnalyticsError(msg);
         return;
       }
 
@@ -149,317 +96,528 @@ export default function PanelMedico() {
       try {
         data = JSON.parse(raw);
       } catch (err) {
-        console.error("❌ No se pudo parsear JSON de invitación:", err);
-        setInviteError("Respuesta inesperada del servidor al crear la invitación.");
+        setAnalyticsError("Respuesta inesperada del servidor de analíticas.");
         return;
       }
 
-      if (!data.invite_url) {
-        setInviteError("La API no ha devuelto 'invite_url'. Revisa el endpoint.");
-        return;
-      }
-
-      setInviteUrl(data.invite_url);
+      setSummary(data.summary || "");
+      setDifferential(data.differential || "");
+      setMarkers(Array.isArray(data.markers) ? data.markers : []);
     } catch (err) {
-      console.error("❌ Error al crear invitación:", err);
-      setInviteError("No se ha podido conectar con el servidor de invitaciones.");
+      console.error("❌ Error enviando analítica:", err);
+      setAnalyticsError("Error de conexión con el servidor de analíticas.");
     } finally {
-      setInviteLoading(false);
+      setLoadingAnalitica(false);
     }
   }
 
-  async function handleCopyInvite() {
-    if (!inviteUrl) return;
+  async function handleAnalyticsChat(e) {
+    e.preventDefault();
+    setChatError("");
+    setChatAnswer("");
 
-    const texto = `Hola, te invito a probar Galenos.pro (panel de apoyo para médicos).\n\nPuedes darte de alta desde este enlace seguro:\n${inviteUrl}\n\nGalenos.pro es una herramienta de apoyo, la decisión clínica final es siempre tuya.`;
+    if (!chatQuestion.trim()) {
+      setChatError("Escribe una pregunta para la IA clínica.");
+      return;
+    }
 
     try {
-      await navigator.clipboard.writeText(texto);
-      setInviteCopied(true);
+      setChatLoading(true);
+      const body = {
+        patient_alias: aliasAnalitica || "el paciente",
+        file_name: null,
+        markers,
+        summary,
+        differential,
+        question: chatQuestion,
+      };
+
+      const res = await fetch(`${API}/analytics/chat`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+
+      const raw = await res.text();
+      // console.log("👉 Respuesta chat analítica (raw):", raw);
+
+      if (!res.ok) {
+        let msg = "No se ha podido generar una respuesta para la analítica.";
+        try {
+          const errData = JSON.parse(raw);
+          if (errData.detail) msg = errData.detail;
+        } catch {
+          // ignore
+        }
+        setChatError(msg);
+        return;
+      }
+
+      let data;
+      try {
+        data = JSON.parse(raw);
+      } catch {
+        setChatError("Respuesta inesperada del chat de analíticas.");
+        return;
+      }
+
+      setChatAnswer(data.answer || "");
     } catch (err) {
-      console.error("❌ No se pudo copiar al portapapeles:", err);
-      setInviteCopied(false);
+      console.error("❌ Error en chat de analíticas:", err);
+      setChatError("Error de conexión con el servidor de analíticas.");
+    } finally {
+      setChatLoading(false);
     }
   }
 
-  // 🔥 Botón "Limpiar TODO": resultado + chat + input + error + file
-  function handleClearAll() {
-    setResult(null);
-    setChatMessages([]);
-    setChatInput("");
-    setError("");
-    setFile(null);
+  // ----------------------------
+  // Handlers IMAGEN
+  // ----------------------------
+  async function handleUploadImagen(e) {
+    e.preventDefault();
+    setImagenError("");
+    setImagenSummary("");
+    setImagenDifferential("");
+    setImagenPatterns([]);
+    setImgChatAnswer("");
+    setImgChatError("");
+
+    const pid = parseInt(patientIdImagen, 10);
+    if (!pid || Number.isNaN(pid)) {
+      setImagenError("Introduce un ID de paciente válido (número).");
+      return;
+    }
+    if (!fileImagen) {
+      setImagenError("Selecciona un fichero de imagen (JPG/PNG/PDF, etc.).");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("patient_id", String(pid));
+    formData.append("img_type", imgType || "imagen");
+    if (imgContext && imgContext.trim()) {
+      formData.append("context", imgContext.trim());
+    }
+    formData.append("file", fileImagen);
+
+    const token = localStorage.getItem("galenos_token");
+    if (!token) {
+      setImagenError("No hay sesión activa. Vuelve a iniciar sesión.");
+      return;
+    }
+
+    try {
+      setLoadingImagen(true);
+      const res = await fetch(`${API}/imaging/upload`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      const raw = await res.text();
+      // console.log("👉 Respuesta imagen (raw):", raw);
+
+      if (!res.ok) {
+        let msg = "No se ha podido analizar la imagen médica.";
+        try {
+          const errData = JSON.parse(raw);
+          if (errData.detail) msg = errData.detail;
+        } catch {
+          // ignore
+        }
+        setImagenError(msg);
+        return;
+      }
+
+      let data;
+      try {
+        data = JSON.parse(raw);
+      } catch {
+        setImagenError("Respuesta inesperada del servidor de imagen.");
+        return;
+      }
+
+      setImagenSummary(data.summary || "");
+      setImagenDifferential(data.differential || "");
+
+      if (Array.isArray(data.patterns)) {
+        // Si ImagingReturn incluye patterns directamente
+        setImagenPatterns(data.patterns.map((p) => p.pattern_text || String(p)));
+      } else {
+        // Si no vienen, dejamos vacío; en el futuro podemos hacer un fetch de patterns
+        setImagenPatterns([]);
+      }
+    } catch (err) {
+      console.error("❌ Error enviando imagen médica:", err);
+      setImagenError("Error de conexión con el servidor de imagen.");
+    } finally {
+      setLoadingImagen(false);
+    }
+  }
+
+  async function handleImagenChat(e) {
+    e.preventDefault();
+    setImgChatError("");
+    setImgChatAnswer("");
+
+    if (!imgChatQuestion.trim()) {
+      setImgChatError("Escribe una pregunta para la IA radiológica.");
+      return;
+    }
+
+    const token = localStorage.getItem("galenos_token");
+    if (!token) {
+      setImgChatError("No hay sesión activa. Vuelve a iniciar sesión.");
+      return;
+    }
+
+    try {
+      setImgChatLoading(true);
+      const body = {
+        patient_alias: aliasAnalitica || "el paciente",
+        summary: imagenSummary,
+        patterns: imagenPatterns,
+        question: imgChatQuestion,
+      };
+
+      const res = await fetch(`${API}/imaging/chat`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(body),
+      });
+
+      const raw = await res.text();
+      // console.log("👉 Respuesta chat imagen (raw):", raw);
+
+      if (!res.ok) {
+        let msg = "No se ha podido generar una respuesta para la imagen médica.";
+        try {
+          const errData = JSON.parse(raw);
+          if (errData.detail) msg = errData.detail;
+        } catch {
+          // ignore
+        }
+        setImgChatError(msg);
+        return;
+      }
+
+      let data;
+      try {
+        data = JSON.parse(raw);
+      } catch {
+        setImgChatError("Respuesta inesperada del chat de imagen.");
+        return;
+      }
+
+      setImgChatAnswer(data.answer || "");
+    } catch (err) {
+      console.error("❌ Error en chat de imagen:", err);
+      setImgChatError("Error de conexión con el servidor de imagen.");
+    } finally {
+      setImgChatLoading(false);
+    }
   }
 
   return (
-    <section className="space-y-4">
-      {/* Cabecera + Invitaciones */}
-      <div className="border-b border-slate-200 pb-3 mb-3 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-        <div className="max-w-xl">
-          <h2 className="sr-h1 text-xl mb-1">Analíticas · IA (MVP)</h2>
-          <p className="sr-p text-sm text-sky-700 font-medium mb-2">
-            IA Médica con Visión: interpreta analíticas, identifica patrones y resume hallazgos en lenguaje clínico.
-          </p>
-          <p className="sr-p text-sm text-slate-600">
-            Sube una analítica en PDF o imagen. Esta versión MVP utiliza marcadores de ejemplo y
-            genera un resumen clínico orientativo y un diagnóstico diferencial a valorar.
-            La decisión final es siempre del médico responsable.
-          </p>
-        </div>
+    <main className="sr-container py-6 space-y-8">
+      <header className="space-y-2">
+        <h1 className="text-2xl font-bold">Panel médico · Galenos.pro</h1>
+        <p className="text-sm text-slate-600">
+          Sube analíticas e imágenes médicas vinculadas a tus pacientes. Galenos te ayuda a
+          interpretar de forma prudente los resultados, sin sustituir tu criterio clínico.
+        </p>
+      </header>
 
-        <div className="sr-card max-w-md w-full">
-          <h3 className="sr-h1 text-sm mb-1">Invitar a un colega</h3>
-          <p className="sr-small text-slate-600 mb-2">
-            Genera un enlace privado para que otro médico pueda darse de alta en Galenos.pro.
-            Puedes enviarle el texto por correo, WhatsApp o el canal que prefieras.
-          </p>
-
-          <button
-            type="button"
-            onClick={handleCreateInvite}
-            disabled={inviteLoading}
-            className="sr-btn-secondary w-full mb-2 disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            {inviteLoading ? "Creando invitación..." : "Generar enlace de invitación"}
-          </button>
-
-          {inviteError && (
-            <p className="sr-small text-red-600 mb-1">{inviteError}</p>
-          )}
-
-          {inviteUrl && (
-            <div className="space-y-2 mt-1">
-              <p className="sr-small text-slate-600">
-                Enlace generado. Copia y pega este texto donde quieras:
-              </p>
-              <textarea
-                readOnly
-                className="sr-input w-full text-xs h-28 bg-slate-50"
-                value={`Hola, te invito a probar Galenos.pro (panel de apoyo para médicos).\n\nPuedes darte de alta desde este enlace seguro:\n${inviteUrl}\n\nGalenos.pro es una herramienta de apoyo, la decisión clínica final es siempre tuya.`}
-              />
-              <button
-                type="button"
-                onClick={handleCopyInvite}
-                className="sr-btn-primary w-full text-sm"
-              >
-                {inviteCopied ? "Copiado ✔" : "Copiar texto de invitación"}
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Formulario de subida */}
-      <form onSubmit={handleSubmit} className="space-y-4 sr-card">
-        <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-4">
-          <div className="flex-1">
-            <label className="sr-label" htmlFor="alias">
-              Alias del paciente
-            </label>
-            <input
-              id="alias"
-              type="text"
-              value={alias}
-              onChange={(e) => setAlias(e.target.value)}
-              className="sr-input w-full"
-              placeholder="Ej. Paciente A"
-            />
-          </div>
-
-          <div className="flex-1">
-            <label className="sr-label" htmlFor="file">
-              Analítica (PDF o imagen)
-            </label>
-            <input
-              id="file"
-              type="file"
-              accept=".pdf,image/*"
-              onChange={(e) => setFile(e.target.files[0] || null)}
-              className="sr-input w-full bg-white"
-            />
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            type="submit"
-            disabled={uploading}
-            className="sr-btn-primary disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            {uploading ? "Procesando con IA..." : "Enviar a IA"}
-          </button>
-
-          <button
-            type="button"
-            onClick={handleClearAll}
-            className="sr-btn-secondary text-sm"
-          >
-            Limpiar TODO
-          </button>
-
-          {file && (
-            <span className="sr-small text-slate-600 truncate max-w-xs">
-              {file.name}
-            </span>
-          )}
-        </div>
-
-        {error && (
-          <p className="sr-small text-red-600">
-            {error}
-          </p>
-        )}
-      </form>
-
-      {/* Resultado + chat */}
-      <div className="sr-card space-y-3">
-        <p className="sr-small text-slate-500">
-          Galenos.pro no diagnostica ni prescribe. Es una herramienta de apoyo al médico.
+      {/* BLOQUE ANALÍTICAS */}
+      <section className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 space-y-4">
+        <h2 className="text-lg font-semibold mb-1">Analíticas de laboratorio</h2>
+        <p className="text-sm text-slate-600 mb-2">
+          Sube analíticas (PDF, foto, captura de pantalla). Galenos extraerá los marcadores,
+          rangos y un resumen clínico orientativo.
         </p>
 
-        {!result && !uploading && (
-          <p className="sr-p text-sm text-slate-500">
-            Cuando subas una analítica, aquí aparecerán los marcadores detectados junto con un
-            resumen orientativo generado por IA. Esta versión MVP usa datos de ejemplo.
-          </p>
-        )}
-
-        {uploading && (
-          <p className="sr-p text-sm text-slate-600">
-            Procesando con IA...
-          </p>
-        )}
-
-        {result && (
-          <div className="space-y-4">
+        <form onSubmit={handleUploadAnalitica} className="space-y-3">
+          <div className="grid md:grid-cols-2 gap-3">
             <div>
-              <h3 className="sr-h1 text-lg mb-1">Resultado para {result.patient_alias}</h3>
-              <p className="sr-small text-slate-500">
-                Fichero: <span className="font-mono text-xs">{result.file_name}</span>
-              </p>
+              <label className="sr-label">Alias / identificador del paciente</label>
+              <input
+                type="text"
+                value={aliasAnalitica}
+                onChange={(e) => setAliasAnalitica(e.target.value)}
+                className="sr-input w-full"
+                placeholder="Ej. Paciente A, María 54 años..."
+              />
             </div>
-
             <div>
-              <h4 className="sr-h1 text-base mb-1">Marcadores (demo)</h4>
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-sm border border-slate-200 rounded-lg overflow-hidden">
-                  <thead className="bg-slate-50">
-                    <tr>
-                      <th className="px-3 py-2 text-left border-b border-slate-200">Parámetro</th>
-                      <th className="px-3 py-2 text-left border-b border-slate-200">Valor</th>
-                      <th className="px-3 py-2 text-left border-b border-slate-200">Rango</th>
-                      <th className="px-3 py-2 text-left border-b border-slate-200">Estado</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {result.markers?.map((m, idx) => (
-                      <tr key={idx} className="odd:bg-white even:bg-slate-50">
-                        <td className="px-3 py-2 border-b border-slate-100">{m.name}</td>
-                        <td className="px-3 py-2 border-b border-slate-100">{m.value}</td>
-                        <td className="px-3 py-2 border-b border-slate-100">{m.range}</td>
-                        <td className="px-3 py-2 border-b border-slate-100">
-                          <span
-                            className={
-                              m.status === "normal"
-                                ? "text-emerald-600"
-                                : "text-amber-700 font-medium"
-                            }
-                          >
-                            {m.status}
-                          </span>
-                        </td>
+              <label className="sr-label">Fichero de analítica (PDF o imagen)</label>
+              <input
+                type="file"
+                accept=".pdf,image/*"
+                onChange={(e) => setFileAnalitica(e.target.files?.[0] || null)}
+                className="sr-input w-full"
+              />
+            </div>
+          </div>
+
+          {analyticsError && (
+            <p className="text-sm text-red-600">{analyticsError}</p>
+          )}
+
+          <button
+            type="submit"
+            disabled={loadingAnalitica}
+            className="sr-btn-primary mt-2 disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {loadingAnalitica ? "Analizando analítica..." : "Analizar analítica"}
+          </button>
+        </form>
+
+        {/* Resultados de analítica */}
+        {(summary || markers.length > 0) && (
+          <div className="mt-4 space-y-4">
+            {summary && (
+              <div>
+                <h3 className="text-sm font-semibold mb-1">Resumen orientativo</h3>
+                <p className="text-sm text-slate-800 whitespace-pre-line">{summary}</p>
+              </div>
+            )}
+
+            {differential && (
+              <div>
+                <h3 className="text-sm font-semibold mb-1">
+                  Diagnóstico diferencial (orientativo)
+                </h3>
+                <p className="text-sm text-slate-800 whitespace-pre-line">
+                  {differential}
+                </p>
+              </div>
+            )}
+
+            {markers.length > 0 && (
+              <div>
+                <h3 className="text-sm font-semibold mb-2">Marcadores extraídos</h3>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-sm border border-slate-200 rounded-md overflow-hidden">
+                    <thead className="bg-slate-100">
+                      <tr>
+                        <th className="px-2 py-1 text-left">Marcador</th>
+                        <th className="px-2 py-1 text-left">Valor</th>
+                        <th className="px-2 py-1 text-left">Rango</th>
+                        <th className="px-2 py-1 text-left">Estado</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {markers.map((m, idx) => (
+                        <tr key={idx} className="border-t border-slate-200">
+                          <td className="px-2 py-1">{m.name}</td>
+                          <td className="px-2 py-1">
+                            {m.value !== null && m.value !== undefined ? m.value : ""}
+                          </td>
+                          <td className="px-2 py-1">{m.range || ""}</td>
+                          <td className="px-2 py-1">
+                            {m.status === "elevado" && (
+                              <span className="text-red-600 font-medium">Alto</span>
+                            )}
+                            {m.status === "bajo" && (
+                              <span className="text-amber-600 font-medium">Bajo</span>
+                            )}
+                            {m.status === "normal" && (
+                              <span className="text-emerald-700 font-medium">Normal</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </div>
+            )}
 
-            <div>
-              <h4 className="sr-h1 text-base mb-1">Resumen orientativo</h4>
-              <p className="sr-p text-sm whitespace-pre-line">
-                {result.summary}
-              </p>
-            </div>
-
-            <div>
-              <h4 className="sr-h1 text-base mb-1">Diagnóstico diferencial (orientativo)</h4>
-              <p className="sr-p text-sm whitespace-pre-line">
-                {result.differential}
-              </p>
-            </div>
-
-            {/* Mini chat clínico */}
-            <div className="mt-4 border-t border-slate-200 pt-3 space-y-2">
-              <h4 className="sr-h1 text-base mb-1">Preguntas rápidas a la IA (demo)</h4>
-              <p className="sr-small text-slate-500 mb-1">
-                Puedes hacer preguntas orientativas sobre esta analítica. Las respuestas son de apoyo
-                y no sustituyen tu criterio clínico.
-              </p>
-
-              <div className="flex justify-end mb-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setChatMessages([])}
-                  className="sr-btn-secondary text-xs"
-                >
-                  Limpiar chat
-                </button>
-              </div>
-
-              <div className="max-h-64 overflow-y-auto border border-slate-200 rounded-lg p-2 bg-slate-50 space-y-2 text-sm">
-                {chatMessages.length === 0 && (
-                  <p className="sr-small text-slate-500">
-                    Aún no hay preguntas. Escribe tu duda abajo para iniciar la conversación.
-                  </p>
-                )}
-                {chatMessages.map((m, idx) => (
-                  <div
-                    key={idx}
-                    className={m.from === "doctor" ? "text-right" : "text-left"}
-                  >
-                    <div
-                      className={
-                        m.from === "doctor"
-                          ? "inline-block rounded-xl bg-sky-600 text-white px-3 py-1.5 mb-0.5 max-w-[80%] text-left"
-                          : "inline-block rounded-xl bg-white text-slate-900 px-3 py-1.5 mb-0.5 border border-slate-200 max-w-[80%]"
-                      }
-                    >
-                      <span className="block whitespace-pre-line">{m.text}</span>
-                    </div>
-                    <div className="sr-small text-slate-500">
-                      {m.from === "doctor" ? "Tú" : "IA (demo)"}
-                    </div>
-                  </div>
-                ))}
-                {chatLoading && (
-                  <p className="sr-small text-slate-500">
-                    IA está generando una respuesta...
-                  </p>
-                )}
-              </div>
-
-              <form onSubmit={handleSendQuestion} className="flex gap-2 mt-2">
-                <input
-                  type="text"
-                  value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
-                  placeholder="Escribe una pregunta clínica orientativa..."
-                  className="sr-input flex-1 text-sm"
-                  disabled={chatLoading}
+            {/* Mini chat sobre analítica */}
+            <div className="mt-4 border-t border-slate-200 pt-4 space-y-2">
+              <h3 className="text-sm font-semibold">Preguntar sobre la analítica</h3>
+              <form onSubmit={handleAnalyticsChat} className="space-y-2">
+                <textarea
+                  className="sr-input w-full min-h-[60px]"
+                  value={chatQuestion}
+                  onChange={(e) => setChatQuestion(e.target.value)}
+                  placeholder="Ej. ¿Cómo interpretarías la evolución de la PCR y los leucocitos?"
                 />
+                {chatError && (
+                  <p className="text-sm text-red-600">{chatError}</p>
+                )}
                 <button
                   type="submit"
-                  disabled={chatLoading || !result}
-                  className="sr-btn-secondary whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed text-sm"
+                  disabled={chatLoading}
+                  className="sr-btn-secondary disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  Enviar
+                  {chatLoading ? "Pensando..." : "Preguntar a la IA clínica"}
                 </button>
               </form>
+
+              {chatAnswer && (
+                <div className="mt-2">
+                  <h4 className="text-xs font-semibold mb-1">
+                    Respuesta orientativa (no vinculante)
+                  </h4>
+                  <p className="text-sm text-slate-800 whitespace-pre-line">
+                    {chatAnswer}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         )}
-      </div>
-    </section>
+      </section>
+
+      {/* BLOQUE IMÁGENES MÉDICAS */}
+      <section className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 space-y-4">
+        <h2 className="text-lg font-semibold mb-1">Imágenes médicas (RX / TAC / RM / ECO)</h2>
+        <p className="text-sm text-slate-600 mb-2">
+          Sube imágenes médicas vinculadas a un paciente (radiografía, TAC, RM, ecografía, etc.).
+          Galenos describirá los hallazgos de forma prudente y te ayudará a documentar.
+        </p>
+
+        <form onSubmit={handleUploadImagen} className="space-y-3">
+          <div className="grid md:grid-cols-3 gap-3">
+            <div>
+              <label className="sr-label">ID de paciente</label>
+              <input
+                type="number"
+                value={patientIdImagen}
+                onChange={(e) => setPatientIdImagen(e.target.value)}
+                className="sr-input w-full"
+                placeholder="Ej. 1"
+              />
+            </div>
+            <div>
+              <label className="sr-label">Tipo de estudio</label>
+              <select
+                className="sr-input w-full"
+                value={imgType}
+                onChange={(e) => setImgType(e.target.value)}
+              >
+                <option value="RX">RX</option>
+                <option value="TAC">TAC</option>
+                <option value="RM">RM</option>
+                <option value="ECO">ECO</option>
+                <option value="OTRO">Otro</option>
+              </select>
+            </div>
+            <div>
+              <label className="sr-label">Fichero de imagen o PDF</label>
+              <input
+                type="file"
+                accept=".pdf,image/*"
+                onChange={(e) => setFileImagen(e.target.files?.[0] || null)}
+                className="sr-input w-full"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="sr-label">
+              Contexto clínico (opcional, se envía a la IA)
+            </label>
+            <textarea
+              className="sr-input w-full min-h-[60px]"
+              value={imgContext}
+              onChange={(e) => setImgContext(e.target.value)}
+              placeholder="Ej. Tos y fiebre 3 días. Rx de control. Sin antecedentes respiratorios relevantes..."
+            />
+          </div>
+
+          {imagenError && (
+            <p className="text-sm text-red-600">{imagenError}</p>
+          )}
+
+          <button
+            type="submit"
+            disabled={loadingImagen}
+            className="sr-btn-primary mt-2 disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {loadingImagen ? "Analizando imagen..." : "Analizar imagen médica"}
+          </button>
+        </form>
+
+        {(imagenSummary || imagenPatterns.length > 0) && (
+          <div className="mt-4 space-y-4">
+            {imagenSummary && (
+              <div>
+                <h3 className="text-sm font-semibold mb-1">Resumen radiológico orientativo</h3>
+                <p className="text-sm text-slate-800 whitespace-pre-line">
+                  {imagenSummary}
+                </p>
+              </div>
+            )}
+
+            {imagenDifferential && (
+              <div>
+                <h3 className="text-sm font-semibold mb-1">
+                  Diagnóstico diferencial general (orientativo)
+                </h3>
+                <p className="text-sm text-slate-800 whitespace-pre-line">
+                  {imagenDifferential}
+                </p>
+              </div>
+            )}
+
+            {imagenPatterns.length > 0 && (
+              <div>
+                <h3 className="text-sm font-semibold mb-2">Patrones / hallazgos descritos</h3>
+                <ul className="list-disc list-inside text-sm text-slate-800 space-y-1">
+                  {imagenPatterns.map((p, idx) => (
+                    <li key={idx}>{p}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Mini chat sobre imagen */}
+            <div className="mt-4 border-t border-slate-200 pt-4 space-y-2">
+              <h3 className="text-sm font-semibold">
+                Preguntar sobre la imagen (apoyo radiológico)
+              </h3>
+              <form onSubmit={handleImagenChat} className="space-y-2">
+                <textarea
+                  className="sr-input w-full min-h-[60px]"
+                  value={imgChatQuestion}
+                  onChange={(e) => setImgChatQuestion(e.target.value)}
+                  placeholder="Ej. ¿Qué hallazgo destacarías en el informe? ¿Puede encajar con un proceso infeccioso?"
+                />
+                {imgChatError && (
+                  <p className="text-sm text-red-600">{imgChatError}</p>
+                )}
+                <button
+                  type="submit"
+                  disabled={imgChatLoading}
+                  className="sr-btn-secondary disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {imgChatLoading ? "Pensando..." : "Preguntar a la IA radiológica"}
+                </button>
+              </form>
+
+              {imgChatAnswer && (
+                <div className="mt-2">
+                  <h4 className="text-xs font-semibold mb-1">
+                    Respuesta orientativa (no vinculante)
+                  </h4>
+                  <p className="text-sm text-slate-800 whitespace-pre-line">
+                    {imgChatAnswer}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </section>
+    </main>
   );
 }
