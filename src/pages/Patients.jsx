@@ -1,4 +1,3 @@
-// src/pages/Patients.jsx — Gestión rápida de pacientes en Galenos.pro
 import React, { useEffect, useState } from "react";
 
 const API =
@@ -146,45 +145,4 @@ export default function Patients() {
             type="button"
             onClick={loadPatients}
             disabled={loading}
-            className="sr-btn-secondary disabled:opacity-60 disabled:cursor-not-allowed text-xs"
-          >
-            {loading ? "Actualizando..." : "Actualizar"}
-          </button>
-        </div>
-        <p className="text-sm text-slate-600">
-          Usa la columna <strong>ID</strong> para trabajar en el Panel (imágenes, notas, etc.).
-        </p>
-
-        <div className="overflow-x-auto mt-2">
-          <table className="min-w-full text-sm border border-slate-200 rounded-md overflow-hidden">
-            <thead className="bg-slate-100">
-              <tr>
-                <th className="px-2 py-1 text-left w-16">ID</th>
-                <th className="px-2 py-1 text-left">Alias</th>
-                <th className="px-2 py-1 text-left w-48">Creado</th>
-              </tr>
-            </thead>
-            <tbody>
-              {patients.length === 0 && !loading && (
-                <tr>
-                  <td colSpan={3} className="px-2 py-3 text-center text-slate-500">
-                    Aún no hay pacientes dados de alta.
-                  </td>
-                </tr>
-              )}
-              {patients.map((p) => (
-                <tr key={p.id} className="border-t border-slate-200">
-                  <td className="px-2 py-1 font-mono">{p.id}</td>
-                  <td className="px-2 py-1">{p.alias}</td>
-                  <td className="px-2 py-1 text-xs text-slate-500">
-                    {p.created_at ? new Date(p.created_at).toLocaleString() : ""}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-    </main>
-  );
-}
+            className="sr-btn-secondary disab
