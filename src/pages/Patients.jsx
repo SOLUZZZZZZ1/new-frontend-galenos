@@ -1,325 +1,190 @@
-// src/pages/Patients.jsx — Analíticas · IA (MVP + mini chat) para Galenos.pro
-import React, { useState } from "react";
+// src/pages/Patients.jsx — Gestión rápida de pacientes en Galenos.pro
+import React, { useEffect, useState } from "react";
 
-// URL del backend de Galenos (Render)
-const API = import.meta.env.VITE_API_URL || "https://galenos-backend.onrender.com";
+const API =
+  import.meta.env.VITE_API_URL || "https://galenos-backend.onrender.com";
 
 export default function Patients() {
-  const [alias, setAlias] = useState("Paciente A");
-  const [file, setFile] = useState(null);
-  const [uploading, setUploading] = useState(false);
-  const [result, setResult] = useState(null);
+  const [patients, setPatients] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [aliasNew, setAliasNew] = useState("");
+  const [creating, setCreating] = useState(false);
 
-  const [chatMessages, setChatMessages] = useState([]);
-  const [chatInput, setChatInput] = useState("");
-  const [chatLoading, setChatLoading] = useState(false);
-
-  async function handleSubmit(e) {
-    e.preventDefault();
+  async function loadPatients() {
     setError("");
-    setResult(null);
-    setChatMessages([]);
-
-    if (!file) {
-      setError("Por favor, sube una analítica en PDF o imagen.");
+    const token = localStorage.getItem("galenos_token");
+    if (!token) {
+      setError("No hay sesión activa. Vuelve a iniciar sesión.");
       return;
     }
-
     try {
-      setUploading(true);
-
-      const formData = new FormData();
-      formData.append("alias", alias);
-      formData.append("file", file);
-
-      console.log("🔥 Enviando analítica a:", `${API}/analytics/analyze`);
-
-      const res = await fetch(`${API}/analytics/analyze`, {
-        method: "POST",
-        body: formData,
+      setLoading(true);
+      const res = await fetch(`${API}/patients`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       });
-
       const raw = await res.text();
-      console.log("👉 Respuesta IA (raw):", raw);
-
       if (!res.ok) {
-        setError(`Error del servidor (${res.status}). Mira la consola.`);
+        let msg = "No se han podido cargar los pacientes.";
+        try {
+          const errData = JSON.parse(raw);
+          if (errData.detail) msg = errData.detail;
+        } catch {}
+        setError(msg);
         return;
       }
-
-      const data = JSON.parse(raw);
-      setResult(data);
+      let data;
+      try {
+        data = JSON.parse(raw);
+      } catch {
+        setError("Respuesta inesperada al listar pacientes.");
+        return;
+      }
+      setPatients(Array.isArray(data) ? data : []);
     } catch (err) {
-      console.error("❌ Error al llamar a IA de analíticas:", err);
-      setError("No se ha podido conectar con el backend de IA.");
+      console.error("❌ Error cargando pacientes:", err);
+      setError("Error de conexión al cargar pacientes.");
     } finally {
-      setUploading(false);
+      setLoading(false);
     }
   }
 
-  async function handleSendQuestion(e) {
+  useEffect(() => {
+    loadPatients();
+  }, []);
+
+  async function handleCreatePatient(e) {
     e.preventDefault();
-    if (!chatInput.trim() || !result) return;
-
-    const question = chatInput.trim();
-    setChatInput("");
-
-    const newMessages = [
-      ...chatMessages,
-      { from: "doctor", text: question },
-    ];
-    setChatMessages(newMessages);
-    setChatLoading(true);
     setError("");
-
+    if (!aliasNew.trim()) {
+      setError("Introduce un alias para el paciente (ej. 0001 - Nombre Apellidos).");
+      return;
+    }
+    const token = localStorage.getItem("galenos_token");
+    if (!token) {
+      setError("No hay sesión activa. Vuelve a iniciar sesión.");
+      return;
+    }
     try {
-      const payload = {
-        patient_alias: result.patient_alias,
-        file_name: result.file_name,
-        markers: result.markers,
-        summary: result.summary,
-        differential: result.differential,
-        question,
-      };
-
-      console.log("🔥 Enviando pregunta de chat a:", `${API}/analytics/chat`);
-
-      const res = await fetch(`${API}/analytics/chat`, {
+      setCreating(true);
+      const body = { alias: aliasNew.trim() };
+      const res = await fetch(`${API}/patients`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(body),
       });
-
       const raw = await res.text();
-      console.log("👉 Respuesta chat IA (raw):", raw);
-
       if (!res.ok) {
-        setError(`Error en el chat de IA (${res.status}). Mira la consola.`);
-        setChatLoading(false);
+        let msg = "No se ha podido crear el paciente.";
+        try {
+          const errData = JSON.parse(raw);
+          if (errData.detail) msg = errData.detail;
+        } catch {}
+        setError(msg);
         return;
       }
-
-      const data = JSON.parse(raw);
-      const aiText = data.answer || "No se ha podido generar una respuesta.";
-
-      setChatMessages([
-        ...newMessages,
-        { from: "ia", text: aiText },
-      ]);
+      let data;
+      try {
+        data = JSON.parse(raw);
+      } catch {
+        setError("Respuesta inesperada al crear paciente.");
+        return;
+      }
+      setAliasNew("");
+      setPatients((prev) => [data, ...prev]);
     } catch (err) {
-      console.error("❌ Error en el chat de IA:", err);
-      setError("No se ha podido conectar con el chat de IA.");
+      console.error("❌ Error creando paciente:", err);
+      setError("Error de conexión al crear paciente.");
     } finally {
-      setChatLoading(false);
+      setCreating(false);
     }
   }
 
   return (
-    <section className="space-y-4">
-      <div className="border-b border-slate-200 pb-3 mb-3">
-        <h2 className="sr-h1 text-xl mb-1">Analíticas · IA (MVP)</h2>
-        <p className="sr-p text-sm text-slate-600">
-          Sube una analítica en PDF o imagen. Esta versión MVP utiliza marcadores de ejemplo y
-          genera un resumen clínico orientativo y un diagnóstico diferencial a valorar.
-          La decisión final es siempre del médico responsable.
+    <main className="sr-container py-6 space-y-6">
+      <header className="space-y-2">
+        <h1 className="text-2xl font-bold">Pacientes</h1>
+        <p className="text-sm text-slate-600">
+          Aquí puedes dar de alta rápidamente pacientes (código + nombre) y ver sus IDs.
+          Usa esos IDs en el panel para vincular analíticas e imágenes.
         </p>
-      </div>
+      </header>
 
-      <form onSubmit={handleSubmit} className="space-y-4 sr-card">
-        <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-4">
-          <div className="flex-1">
-            <label className="sr-label" htmlFor="alias">
-              Alias del paciente
-            </label>
-            <input
-              id="alias"
-              type="text"
-              value={alias}
-              onChange={(e) => setAlias(e.target.value)}
-              className="sr-input w-full"
-              placeholder="Ej. Paciente A"
-            />
-          </div>
-
-          <div className="flex-1">
-            <label className="sr-label" htmlFor="file">
-              Analítica (PDF o imagen)
-            </label>
-            <input
-              id="file"
-              type="file"
-              accept=".pdf,image/*"
-              onChange={(e) => setFile(e.target.files[0] || null)}
-              className="sr-input w-full bg-white"
-            />
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3">
+      <section className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 space-y-3">
+        <h2 className="text-lg font-semibold">Alta rápida de paciente</h2>
+        <p className="text-sm text-slate-600">
+          Ejemplo de alias: <code>0001 - Pedro López Sierra</code>. Este alias es lo que verás en los listados y timeline.
+        </p>
+        <form onSubmit={handleCreatePatient} className="flex flex-col sm:flex-row gap-2 mt-2">
+          <input
+            type="text"
+            className="sr-input flex-1"
+            value={aliasNew}
+            onChange={(e) => setAliasNew(e.target.value)}
+            placeholder="0001 - Nombre Apellidos"
+          />
           <button
             type="submit"
-            disabled={uploading}
+            disabled={creating}
             className="sr-btn-primary disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            {uploading ? "Procesando con IA..." : "Enviar a IA"}
+            {creating ? "Creando..." : "Crear paciente"}
           </button>
-          {file && (
-            <span className="sr-small text-slate-600 truncate max-w-xs">
-              {file.name}
-            </span>
-          )}
+        </form>
+        {error && <p className="text-sm text-red-600 mt-1">{error}</p>}
+      </section>
+
+      <section className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 space-y-3">
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="text-lg font-semibold">Listado de pacientes</h2>
+          <button
+            type="button"
+            onClick={loadPatients}
+            disabled={loading}
+            className="sr-btn-secondary disabled:opacity-60 disabled:cursor-not-allowed text-xs"
+          >
+            {loading ? "Actualizando..." : "Actualizar"}
+          </button>
         </div>
-
-        {error && (
-          <p className="sr-small text-red-600">
-            {error}
-          </p>
-        )}
-      </form>
-
-      <div className="sr-card space-y-3">
-        <p className="sr-small text-slate-500">
-          Galenos.pro no diagnostica ni prescribe. Es una herramienta de apoyo al médico.
+        <p className="text-sm text-slate-600">
+          Usa la columna <strong>ID</strong> para trabajar en el Panel (imágenes, notas, etc.).
         </p>
 
-        {!result && !uploading && (
-          <p className="sr-p text-sm text-slate-500">
-            Cuando subas una analítica, aquí aparecerán los marcadores detectados junto con un
-            resumen orientativo generado por IA. Esta versión MVP usa datos de ejemplo.
-          </p>
-        )}
-
-        {uploading && (
-          <p className="sr-p text-sm text-slate-600">
-            Procesando con IA...
-          </p>
-        )}
-
-        {result && (
-          <div className="space-y-4">
-            <div>
-              <h3 className="sr-h1 text-lg mb-1">Resultado para {result.patient_alias}</h3>
-              <p className="sr-small text-slate-500">
-                Fichero: <span className="font-mono text-xs">{result.file_name}</span>
-              </p>
-            </div>
-
-            <div>
-              <h4 className="sr-h1 text-base mb-1">Marcadores (demo)</h4>
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-sm border border-slate-200 rounded-lg overflow-hidden">
-                  <thead className="bg-slate-50">
-                    <tr>
-                      <th className="px-3 py-2 text-left border-b border-slate-200">Parámetro</th>
-                      <th className="px-3 py-2 text-left border-b border-slate-200">Valor</th>
-                      <th className="px-3 py-2 text-left border-b border-slate-200">Rango</th>
-                      <th className="px-3 py-2 text-left border-b border-slate-200">Estado</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {result.markers?.map((m, idx) => (
-                      <tr key={idx} className="odd:bg-white even:bg-slate-50">
-                        <td className="px-3 py-2 border-b border-slate-100">{m.name}</td>
-                        <td className="px-3 py-2 border-b border-slate-100">{m.value}</td>
-                        <td className="px-3 py-2 border-b border-slate-100">{m.range}</td>
-                        <td className="px-3 py-2 border-b border-slate-100">
-                          <span
-                            className={
-                              m.status === "normal"
-                                ? "text-emerald-600"
-                                : "text-amber-700 font-medium"
-                            }
-                          >
-                            {m.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <div>
-              <h4 className="sr-h1 text-base mb-1">Resumen orientativo</h4>
-              <p className="sr-p text-sm whitespace-pre-line">
-                {result.summary}
-              </p>
-            </div>
-
-            <div>
-              <h4 className="sr-h1 text-base mb-1">Diagnóstico diferencial (orientativo)</h4>
-              <p className="sr-p text-sm whitespace-pre-line">
-                {result.differential}
-              </p>
-            </div>
-
-            {/* Mini chat clínico */}
-            <div className="mt-4 border-t border-slate-200 pt-3 space-y-2">
-              <h4 className="sr-h1 text-base mb-1">Preguntas rápidas a la IA (demo)</h4>
-              <p className="sr-small text-slate-500 mb-1">
-                Puedes hacer preguntas orientativas sobre esta analítica. Las respuestas son de apoyo
-                y no sustituyen tu criterio clínico.
-              </p>
-
-              <div className="max-h-64 overflow-y-auto border border-slate-200 rounded-lg p-2 bg-slate-50 space-y-2 text-sm">
-                {chatMessages.length === 0 && (
-                  <p className="sr-small text-slate-500">
-                    Aún no hay preguntas. Escribe tu duda abajo para iniciar la conversación.
-                  </p>
-                )}
-                {chatMessages.map((m, idx) => (
-                  <div
-                    key={idx}
-                    className={
-                      m.from === "doctor"
-                        ? "text-right"
-                        : "text-left"
-                    }
-                  >
-                    <div
-                      className={
-                        m.from === "doctor"
-                          ? "inline-block rounded-xl bg-sky-600 text-white px-3 py-1.5 mb-0.5 max-w-[80%] text-left"
-                          : "inline-block rounded-xl bg-white text-slate-900 px-3 py-1.5 mb-0.5 border border-slate-200 max-w-[80%]"
-                      }
-                    >
-                      <span className="block whitespace-pre-line">{m.text}</span>
-                    </div>
-                    <div className="sr-small text-slate-500">
-                      {m.from === "doctor" ? "Tú" : "IA (demo)"}
-                    </div>
-                  </div>
-                ))}
-                {chatLoading && (
-                  <p className="sr-small text-slate-500">
-                    IA está generando una respuesta...
-                  </p>
-                )}
-              </div>
-
-              <form onSubmit={handleSendQuestion} className="flex gap-2 mt-2">
-                <input
-                  type="text"
-                  value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
-                  placeholder="Escribe una pregunta clínica orientativa..."
-                  className="sr-input flex-1 text-sm"
-                  disabled={chatLoading}
-                />
-                <button
-                  type="submit"
-                  disabled={chatLoading || !result}
-                  className="sr-btn-secondary whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed text-sm"
-                >
-                  Enviar
-                </button>
-              </form>
-            </div>
-          </div>
-        )}
-      </div>
-    </section>
+        <div className="overflow-x-auto mt-2">
+          <table className="min-w-full text-sm border border-slate-200 rounded-md overflow-hidden">
+            <thead className="bg-slate-100">
+              <tr>
+                <th className="px-2 py-1 text-left w-16">ID</th>
+                <th className="px-2 py-1 text-left">Alias</th>
+                <th className="px-2 py-1 text-left w-48">Creado</th>
+              </tr>
+            </thead>
+            <tbody>
+              {patients.length === 0 && !loading && (
+                <tr>
+                  <td colSpan={3} className="px-2 py-3 text-center text-slate-500">
+                    Aún no hay pacientes dados de alta.
+                  </td>
+                </tr>
+              )}
+              {patients.map((p) => (
+                <tr key={p.id} className="border-t border-slate-200">
+                  <td className="px-2 py-1 font-mono">{p.id}</td>
+                  <td className="px-2 py-1">{p.alias}</td>
+                  <td className="px-2 py-1 text-xs text-slate-500">
+                    {p.created_at ? new Date(p.created_at).toLocaleString() : ""}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
   );
 }
