@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 
 const API =
   import.meta.env.VITE_API_URL || "https://galenos-backend.onrender.com";
@@ -58,7 +59,9 @@ export default function Patients() {
     e.preventDefault();
     setError("");
     if (!aliasNew.trim()) {
-      setError("Introduce un alias para el paciente (ej. 0001 - Nombre Apellidos).");
+      setError(
+        "Introduce un alias para el paciente (ej. 0001 - Nombre Apellidos)."
+      );
       return;
     }
     const token = localStorage.getItem("galenos_token");
@@ -109,17 +112,22 @@ export default function Patients() {
       <header className="space-y-2">
         <h1 className="text-2xl font-bold">Pacientes</h1>
         <p className="text-sm text-slate-600">
-          Aquí puedes dar de alta rápidamente pacientes (código + nombre) y ver sus IDs.
-          Usa esos IDs en el panel para vincular analíticas e imágenes.
+          Aquí puedes dar de alta rápidamente pacientes (código + nombre) y ver
+          sus IDs. Usa esos IDs en el panel para vincular analíticas e
+          imágenes.
         </p>
       </header>
 
       <section className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 space-y-3">
         <h2 className="text-lg font-semibold">Alta rápida de paciente</h2>
         <p className="text-sm text-slate-600">
-          Ejemplo de alias: <code>0001 - Pedro López Sierra</code>. Este alias es lo que verás en los listados y timeline.
+          Ejemplo de alias: <code>0001 - Pedro López Sierra</code>. Este alias
+          es lo que verás en los listados y timeline.
         </p>
-        <form onSubmit={handleCreatePatient} className="flex flex-col sm:flex-row gap-2 mt-2">
+        <form
+          onSubmit={handleCreatePatient}
+          className="flex flex-col sm:flex-row gap-2 mt-2"
+        >
           <input
             type="text"
             className="sr-input flex-1"
@@ -151,7 +159,8 @@ export default function Patients() {
           </button>
         </div>
         <p className="text-sm text-slate-600">
-          Usa la columna <strong>ID</strong> para trabajar en el Panel (imágenes, notas, etc.).
+          Usa la columna <strong>ID</strong> para trabajar en el Panel
+          (imágenes, notas, etc.).
         </p>
 
         <div className="overflow-x-auto mt-2">
@@ -168,7 +177,10 @@ export default function Patients() {
             <tbody>
               {patients.length === 0 && !loading && (
                 <tr>
-                  <td colSpan={4} className="px-2 py-3 text-center text-slate-500">
+                  <td
+                    colSpan={4}
+                    className="px-2 py-3 text-center text-slate-500"
+                  >
                     Aún no hay pacientes dados de alta.
                   </td>
                 </tr>
@@ -179,16 +191,18 @@ export default function Patients() {
                   <td className="px-2 py-1 font-mono">{p.id}</td>
                   <td className="px-2 py-1">{p.alias}</td>
                   <td className="px-2 py-1 text-xs text-slate-500">
-                    {p.created_at ? new Date(p.created_at).toLocaleString() : ""}
+                    {p.created_at
+                      ? new Date(p.created_at).toLocaleString()
+                      : ""}
                   </td>
 
                   <td className="px-2 py-1">
-                    <a
-                      href={`/PacienteDetalle/${p.id}`}
+                    <Link
+                      to={`/PacienteDetalle/${p.id}`}
                       className="text-blue-600 hover:text-blue-800 text-xs font-medium underline"
                     >
                       Ver
-                    </a>
+                    </Link>
                   </td>
                 </tr>
               ))}
