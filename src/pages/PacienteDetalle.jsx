@@ -1,3 +1,4 @@
+// src/pages/PacienteDetalle.jsx — Ficha completa del Paciente · Galenos.pro
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 
@@ -27,6 +28,14 @@ export default function PacienteDetalle() {
   const [editingNoteId, setEditingNoteId] = useState(null);
   const [editTitle, setEditTitle] = useState("");
   const [editContent, setEditContent] = useState("");
+
+  // Edición de datos del paciente
+  const [editingPatient, setEditingPatient] = useState(false);
+  const [editAlias, setEditAlias] = useState("");
+  const [editAge, setEditAge] = useState("");
+  const [editGender, setEditGender] = useState("");
+  const [editNotesPatient, setEditNotesPatient] = useState("");
+  const [savingPatient, setSavingPatient] = useState(false);
 
   // Bloques plegables
   const [open, setOpen] = useState({
@@ -80,7 +89,7 @@ export default function PacienteDetalle() {
         });
         setTimeline(await t.json());
       } catch (err) {
-        console.error("Error cargando datos del paciente:", err);
+        console.error("Error cargando ficha de paciente:", err);
         setError("No se pudo cargar la información del paciente.");
       } finally {
         setLoading(false);
@@ -167,6 +176,62 @@ export default function PacienteDetalle() {
     }
   }
 
+  // =========================
+  // EDITAR DATOS DEL PACIENTE
+  // =========================
+  function startEditPatient() {
+    if (!patient) return;
+    setEditAlias(patient.alias || "");
+    setEditAge(patient.age != null ? String(patient.age) : "");
+    setEditGender(patient.gender || "");
+    setEditNotesPatient(patient.notes || "");
+    setEditingPatient(true);
+  }
+
+  function cancelEditPatient() {
+    setEditingPatient(false);
+    setSavingPatient(false);
+  }
+
+  async function savePatient(e) {
+    e.preventDefault();
+    if (!patient) return;
+
+    try {
+      setSavingPatient(true);
+      const body = {
+        alias: editAlias.trim(),
+        age: editAge ? Number(editAge) : null,
+        gender: editGender || null,
+        notes: editNotesPatient || null,
+      };
+
+      const res = await fetch(`${API}/patients/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) {
+        console.error("Error al actualizar paciente:", await res.text());
+        alert("No se pudieron actualizar los datos del paciente.");
+        return;
+      }
+
+      const updated = await res.json();
+      setPatient(updated);
+      setEditingPatient(false);
+    } catch (err) {
+      console.error("Error guardando datos del paciente:", err);
+      alert("No se pudieron guardar los datos del paciente.");
+    } finally {
+      setSavingPatient(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="sr-container py-8">
@@ -191,7 +256,6 @@ export default function PacienteDetalle() {
     );
   }
 
-  // Utilidades sencillas
   const formatDate = (value) => {
     if (!value) return "-";
     const d = new Date(value);
@@ -212,7 +276,7 @@ export default function PacienteDetalle() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <h1 className="text-xl sm:text-2xl font-semibold text-slate-900">
-              Paciente: {patient.alias || patient.name || `ID ${patient.id}`}
+              Paciente: {patient.alias || `ID ${patient.id}`}
             </h1>
             <p className="text-sm text-slate-500 mt-1">
               ID interno: <span className="font-mono">{patient.id}</span>
@@ -243,23 +307,108 @@ export default function PacienteDetalle() {
         </button>
 
         {open.datos && (
-          <div className="px-4 py-4 sm:px-6 sm:py-5 text-sm text-slate-700 space-y-2">
-            <p>
-              <span className="font-medium">Alias: </span>
-              {patient.alias || "-"}
-            </p>
-            <p>
-              <span className="font-medium">Edad (si disponible): </span>
-              {patient.age || "-"}
-            </p>
-            <p>
-              <span className="font-medium">Sexo: </span>
-              {patient.gender || "-"}
-            </p>
-            <p>
-              <span className="font-medium">Notas generales: </span>
-              {patient.notes || "Sin notas generales registradas."}
-            </p>
+          <div className="px-4 py-4 sm:px-6 sm:py-5 text-sm text-slate-700 space-y-3">
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <p className="font-medium text-slate-800">Datos básicos</p>
+              {!editingPatient && (
+                <button
+                  type="button"
+                  onClick={startEditPatient}
+                  className="text-xs font-medium text-blue-600 hover:text-blue-700"
+                >
+                  Editar datos
+                </button>
+              )}
+            </div>
+
+            {editingPatient ? (
+              <form className="space-y-3" onSubmit={savePatient}>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">
+                    Alias
+                  </label>
+                  <input
+                    type="text"
+                    value={editAlias}
+                    onChange={(e) => setEditAlias(e.target.value)}
+                    className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">
+                      Edad
+                    </label>
+                    <input
+                      type="number"
+                      value={editAge}
+                      onChange={(e) => setEditAge(e.target.value)}
+                      className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      min={0}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">
+                      Sexo
+                    </label>
+                    <input
+                      type="text"
+                      value={editGender}
+                      onChange={(e) => setEditGender(e.target.value)}
+                      className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="H / M / Otro"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">
+                    Notas generales
+                  </label>
+                  <textarea
+                    value={editNotesPatient}
+                    onChange={(e) => setEditNotesPatient(e.target.value)}
+                    rows={3}
+                    className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-y"
+                  />
+                </div>
+                <div className="flex justify-end gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={cancelEditPatient}
+                    className="px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-300 text-slate-600 hover:bg-slate-50"
+                    disabled={savingPatient}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={savingPatient}
+                    className="px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60"
+                  >
+                    {savingPatient ? "Guardando..." : "Guardar datos"}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <div className="space-y-2">
+                <p>
+                  <span className="font-medium">Alias: </span>
+                  {patient.alias || "-"}
+                </p>
+                <p>
+                  <span className="font-medium">Edad (si disponible): </span>
+                  {patient.age != null ? patient.age : "-"}
+                </p>
+                <p>
+                  <span className="font-medium">Sexo: </span>
+                  {patient.gender || "-"}
+                </p>
+                <p>
+                  <span className="font-medium">Notas generales: </span>
+                  {patient.notes || "Sin notas generales registradas."}
+                </p>
+              </div>
+            )}
           </div>
         )}
       </section>
@@ -292,11 +441,9 @@ export default function PacienteDetalle() {
                     key={a.id}
                     className="border border-slate-200 rounded-lg px-3 py-2"
                   >
-                    <p className="font-medium text-slate-800">
-                      {a.title || "Analítica"}
-                    </p>
+                    <p className="font-medium text-slate-800">Analítica</p>
                     <p className="text-slate-500">
-                      Fecha: {formatDate(a.date || a.created_at)}
+                      Fecha: {formatDate(a.created_at)}
                     </p>
                     {a.summary && (
                       <p className="mt-1 text-slate-700 text-sm">
@@ -340,10 +487,10 @@ export default function PacienteDetalle() {
                     className="border border-slate-200 rounded-lg px-3 py-2"
                   >
                     <p className="font-medium text-slate-800">
-                      {img.modality || img.type || "Estudio de imagen"}
+                      {img.type || "Estudio de imagen"}
                     </p>
                     <p className="text-slate-500">
-                      Fecha: {formatDate(img.date || img.created_at)}
+                      Fecha: {formatDate(img.created_at)}
                     </p>
                     {img.summary && (
                       <p className="mt-1 text-slate-700 text-sm">
@@ -472,7 +619,7 @@ export default function PacienteDetalle() {
                           </button>
                         </div>
                         <p className="text-slate-500 text-xs mt-0.5">
-                          {formatDate(note.date || note.created_at)}
+                          {formatDate(note.created_at)}
                         </p>
                         <p className="mt-1 text-slate-700 whitespace-pre-wrap">
                           {note.content}
@@ -514,19 +661,14 @@ export default function PacienteDetalle() {
                   <li key={item.id} className="mb-4 ml-4">
                     <div className="absolute w-2 h-2 bg-blue-600 rounded-full -left-1 mt-2" />
                     <p className="text-xs text-slate-500">
-                      {formatDate(item.created_at || item.date)} ·{" "}
+                      {formatDate(item.created_at)} ·{" "}
                       <span className="uppercase tracking-wide">
-                        {item.type}
+                        {item.item_type}
                       </span>
                     </p>
                     <p className="font-medium text-slate-800 mt-0.5">
-                      {item.title || item.label || "Evento"}
+                      Evento
                     </p>
-                    {item.description && (
-                      <p className="text-slate-700 mt-0.5">
-                        {item.description}
-                      </p>
-                    )}
                   </li>
                 ))}
               </ol>
