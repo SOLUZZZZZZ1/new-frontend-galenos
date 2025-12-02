@@ -46,18 +46,21 @@ export default function PacienteDetalle() {
     timeline: false,
   });
 
+  // Evento seleccionado desde el timeline
+  const [focusedEvent, setFocusedEvent] = useState(null);
+
   function toggle(block) {
     setOpen((prev) => ({ ...prev, [block]: !prev[block] }));
   }
 
   // =========================
-  // LEER QUERY PARAMS (focus, item) — por si lo usamos luego
+  // LEER QUERY PARAMS (focus, item) — opcional
   // =========================
   const search =
     typeof window !== "undefined" ? window.location.search : "";
   const params = new URLSearchParams(search);
   const focus = params.get("focus"); // 'analytic' | 'imaging' | 'note' | 'patient' | null
-  const focusItem = params.get("item"); // id del item (por si luego queremos hacer scroll fino)
+  const focusItem = params.get("item"); // id del item (por si luego lo usamos)
 
   // =========================
   // CARGA DE DATOS DEL PACIENTE
@@ -302,6 +305,8 @@ export default function PacienteDetalle() {
 
   // Cuando haces click en un evento del timeline, abrimos el bloque adecuado
   const handleTimelineClick = (item) => {
+    setFocusedEvent(item);
+
     setOpen((prev) => {
       const next = { ...prev };
       next.timeline = true;
@@ -318,10 +323,20 @@ export default function PacienteDetalle() {
 
       return next;
     });
-
-    // Más adelante podríamos hacer scroll suave al bloque correspondiente.
-    console.log("Timeline click:", item);
   };
+
+  const focusedImagingId =
+    focusedEvent && focusedEvent.item_type === "imaging"
+      ? focusedEvent.item_id
+      : null;
+  const focusedAnalyticId =
+    focusedEvent && focusedEvent.item_type === "analytic"
+      ? focusedEvent.item_id
+      : null;
+  const focusedNoteId =
+    focusedEvent && focusedEvent.item_type === "note"
+      ? focusedEvent.item_id
+      : null;
 
   return (
     <div className="sr-container py-6 space-y-6">
@@ -490,22 +505,37 @@ export default function PacienteDetalle() {
               </p>
             ) : (
               <div className="space-y-3 text-sm">
-                {analytics.map((a) => (
-                  <div
-                    key={a.id}
-                    className="border border-slate-200 rounded-lg px-3 py-2"
-                  >
-                    <p className="font-medium text-slate-800">Analítica</p>
-                    <p className="text-slate-500">
-                      Fecha: {formatDate(a.created_at)}
-                    </p>
-                    {a.summary && (
-                      <p className="mt-1 text-slate-700 text-sm">
-                        {a.summary}
+                {analytics.map((a) => {
+                  const isFocused = focusedAnalyticId === a.id;
+                  return (
+                    <div
+                      key={a.id}
+                      className={
+                        "border rounded-lg px-3 py-2 " +
+                        (isFocused
+                          ? "border-blue-500 bg-blue-50"
+                          : "border-slate-200")
+                      }
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="font-medium text-slate-800">Analítica</p>
+                        {isFocused && (
+                          <span className="text-[10px] font-semibold text-blue-600">
+                            ← Evento seleccionado
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-slate-500">
+                        Fecha: {formatDate(a.created_at)}
                       </p>
-                    )}
-                  </div>
-                ))}
+                      {a.summary && (
+                        <p className="mt-1 text-slate-700 text-sm">
+                          {a.summary}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -535,24 +565,39 @@ export default function PacienteDetalle() {
               </p>
             ) : (
               <div className="space-y-3 text-sm">
-                {imaging.map((img) => (
-                  <div
-                    key={img.id}
-                    className="border border-slate-200 rounded-lg px-3 py-2"
-                  >
-                    <p className="font-medium text-slate-800">
-                      {img.type || "Estudio de imagen"}
-                    </p>
-                    <p className="text-slate-500">
-                      Fecha: {formatDate(img.created_at)}
-                    </p>
-                    {img.summary && (
-                      <p className="mt-1 text-slate-700 text-sm">
-                        {img.summary}
+                {imaging.map((img) => {
+                  const isFocused = focusedImagingId === img.id;
+                  return (
+                    <div
+                      key={img.id}
+                      className={
+                        "border rounded-lg px-3 py-2 " +
+                        (isFocused
+                          ? "border-blue-500 bg-blue-50"
+                          : "border-slate-200")
+                      }
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="font-medium text-slate-800">
+                          {img.type || "Estudio de imagen"}
+                        </p>
+                        {isFocused && (
+                          <span className="text-[10px] font-semibold text-blue-600">
+                            ← Evento seleccionado
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-slate-500">
+                        Fecha: {formatDate(img.created_at)}
                       </p>
-                    )}
-                  </div>
-                ))}
+                      {img.summary && (
+                        <p className="mt-1 text-slate-700 text-sm">
+                          {img.summary}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -589,153 +634,4 @@ export default function PacienteDetalle() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Contenido
-                </label>
-                <textarea
-                  value={newContent}
-                  onChange={(e) => setNewContent(e.target.value)}
-                  rows={3}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-y"
-                  placeholder="Detalle clínico, evolución, decisiones..."
-                />
-              </div>
-              <div className="flex justify-end">
-                <button
-                  type="submit"
-                  disabled={savingNote}
-                  className="inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  {savingNote ? "Guardando..." : "Guardar nota"}
-                </button>
-              </div>
-            </form>
-
-            {/* Listado de notas */}
-            <div className="space-y-3 text-sm">
-              {notes.length === 0 ? (
-                <p className="text-slate-500">
-                  Aún no hay notas clínicas para este paciente.
-                </p>
-              ) : (
-                notes.map((note) => (
-                  <div
-                    key={note.id}
-                    className="border border-slate-200 rounded-lg px-3 py-2"
-                  >
-                    {editingNoteId === note.id ? (
-                      <div className="space-y-2">
-                        <input
-                          type="text"
-                          value={editTitle}
-                          onChange={(e) => setEditTitle(e.target.value)}
-                          className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        />
-                        <textarea
-                          value={editContent}
-                          onChange={(e) => setEditContent(e.target.value)}
-                          rows={3}
-                          className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-y"
-                        />
-                        <div className="flex gap-2 justify-end pt-1">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setEditingNoteId(null);
-                              setEditTitle("");
-                              setEditContent("");
-                            }}
-                            className="px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-300 text-slate-600 hover:bg-slate-50"
-                          >
-                            Cancelar
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => updateNote(note.id)}
-                            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-600 text-white hover:bg-blue-700"
-                          >
-                            Guardar cambios
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="font-medium text-slate-800">
-                            {note.title || "Nota clínica"}
-                          </p>
-                          <button
-                            type="button"
-                            onClick={() => startEdit(note)}
-                            className="text-xs font-medium text-blue-600 hover:text-blue-700"
-                          >
-                            Editar
-                          </button>
-                        </div>
-                        <p className="text-slate-500 text-xs mt-0.5">
-                          {formatDate(note.created_at)}
-                        </p>
-                        <p className="mt-1 text-slate-700 whitespace-pre-wrap">
-                          {note.content}
-                        </p>
-                      </>
-                    )}
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        )}
-      </section>
-
-      {/* BLOQUE: TIMELINE */}
-      <section className="bg-white rounded-xl shadow-sm border border-slate-200 mb-8">
-        <button
-          type="button"
-          onClick={() => toggle("timeline")}
-          className="w-full flex items-center justify-between px-4 py-3 sm:px-6 border-b border-slate-200 hover:bg-slate-50 transition"
-        >
-          <span className="font-semibold text-slate-800">
-            Timeline del paciente
-          </span>
-          <span className="text-sm text-slate-500">
-            {open.timeline ? "Ocultar" : "Mostrar"}
-          </span>
-        </button>
-
-        {open.timeline && (
-          <div className="px-4 py-4 sm:px-6 sm:py-5">
-            {sortedTimeline.length === 0 ? (
-              <p className="text-sm text-slate-500">
-                No hay eventos en el timeline para este paciente.
-              </p>
-            ) : (
-              <ol className="relative border-l border-slate-200 text-sm">
-                {sortedTimeline.map((item) => (
-                  <li key={item.id} className="mb-4 ml-4">
-                    <div className="absolute w-2 h-2 bg-blue-600 rounded-full -left-1 mt-2" />
-                    <p className="text-xs text-slate-500">
-                      {formatDate(item.created_at)} ·{" "}
-                      <span className="uppercase tracking-wide">
-                        {item.item_type}
-                      </span>
-                    </p>
-                    <p className="mt-0.5">
-                      <button
-                        type="button"
-                        onClick={() => handleTimelineClick(item)}
-                        className="text-blue-600 hover:text-blue-800 underline text-xs font-medium"
-                      >
-                        Ver {timelineLabel(item.item_type)}
-                      </button>
-                    </p>
-                  </li>
-                ))}
-              </ol>
-            )}
-          </div>
-        )}
-      </section>
-    </div>
-  );
-}
+                <label className="block text-sm font-medium text
