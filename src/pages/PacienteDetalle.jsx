@@ -51,6 +51,15 @@ export default function PacienteDetalle() {
   }
 
   // =========================
+  // LEER QUERY PARAMS (focus, item)
+  // =========================
+  const search =
+    typeof window !== "undefined" ? window.location.search : "";
+  const params = new URLSearchParams(search);
+  const focus = params.get("focus"); // 'analytic' | 'imaging' | 'note' | 'patient' | null
+  const focusItem = params.get("item"); // id del item (por si luego queremos hacer scroll fino)
+
+  // =========================
   // CARGA DE DATOS DEL PACIENTE
   // =========================
   useEffect(() => {
@@ -103,6 +112,20 @@ export default function PacienteDetalle() {
       setError("Falta identificador de paciente o token.");
     }
   }, [id, token]);
+
+  // Abrir automáticamente el bloque si venimos con ?focus=...
+  useEffect(() => {
+    if (!focus) return;
+    setOpen((prev) => {
+      const next = { ...prev };
+      if (focus === "analytic") next.analiticas = true;
+      if (focus === "imaging") next.imagenes = true;
+      if (focus === "note") next.notas = true;
+      if (focus === "patient") next.datos = true;
+      next.timeline = true;
+      return next;
+    });
+  }, [focus]);
 
   // =========================
   // CREAR NOTA
@@ -268,6 +291,14 @@ export default function PacienteDetalle() {
     const db = new Date(b.created_at || b.date || 0).getTime();
     return db - da; // más reciente primero
   });
+
+  const timelineLabel = (itemType) => {
+    if (itemType === "imaging") return "imagen médica";
+    if (itemType === "analytic") return "analítica";
+    if (itemType === "note") return "nota clínica";
+    if (itemType === "patient") return "alta de paciente";
+    return "evento";
+  };
 
   return (
     <div className="sr-container py-6 space-y-6">
@@ -666,8 +697,13 @@ export default function PacienteDetalle() {
                         {item.item_type}
                       </span>
                     </p>
-                    <p className="font-medium text-slate-800 mt-0.5">
-                      Evento
+                    <p className="mt-0.5">
+                      <a
+                        href={`/PacienteDetalle/${id}?focus=${item.item_type}&item=${item.item_id}`}
+                        className="text-blue-600 hover:text-blue-800 underline text-xs font-medium"
+                      >
+                        Ver {timelineLabel(item.item_type)}
+                      </a>
                     </p>
                   </li>
                 ))}
