@@ -51,7 +51,7 @@ export default function PacienteDetalle() {
   }
 
   // =========================
-  // LEER QUERY PARAMS (focus, item)
+  // LEER QUERY PARAMS (focus, item) — por si lo usamos luego
   // =========================
   const search =
     typeof window !== "undefined" ? window.location.search : "";
@@ -298,6 +298,29 @@ export default function PacienteDetalle() {
     if (itemType === "note") return "nota clínica";
     if (itemType === "patient") return "alta de paciente";
     return "evento";
+  };
+
+  // Cuando haces click en un evento del timeline, abrimos el bloque adecuado
+  const handleTimelineClick = (item) => {
+    setOpen((prev) => {
+      const next = { ...prev };
+      next.timeline = true;
+
+      if (item.item_type === "imaging") {
+        next.imagenes = true;
+      } else if (item.item_type === "analytic") {
+        next.analiticas = true;
+      } else if (item.item_type === "note") {
+        next.notas = true;
+      } else if (item.item_type === "patient") {
+        next.datos = true;
+      }
+
+      return next;
+    });
+
+    // Más adelante podríamos hacer scroll suave al bloque correspondiente.
+    console.log("Timeline click:", item);
   };
 
   return (
@@ -698,12 +721,13 @@ export default function PacienteDetalle() {
                       </span>
                     </p>
                     <p className="mt-0.5">
-                      <a
-                        href={`/PacienteDetalle/${id}?focus=${item.item_type}&item=${item.item_id}`}
+                      <button
+                        type="button"
+                        onClick={() => handleTimelineClick(item)}
                         className="text-blue-600 hover:text-blue-800 underline text-xs font-medium"
                       >
                         Ver {timelineLabel(item.item_type)}
-                      </a>
+                      </button>
                     </p>
                   </li>
                 ))}
