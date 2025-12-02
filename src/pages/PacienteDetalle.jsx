@@ -46,6 +46,9 @@ export default function PacienteDetalle() {
     timeline: false,
   });
 
+  // Evento seleccionado desde el timeline
+  const [focusedEvent, setFocusedEvent] = useState(null);
+
   function toggle(block) {
     setOpen((prev) => ({ ...prev, [block]: !prev[block] }));
   }
@@ -277,8 +280,98 @@ export default function PacienteDetalle() {
     return "evento";
   };
 
+  // =========================
+  // MANEJO DE EVENTO SELECCIONADO DEL TIMELINE
+  // =========================
+  const handleTimelineClick = (item) => {
+    setFocusedEvent(item);
+    setOpen((prev) => ({
+      ...prev,
+      timeline: true,
+    }));
+  };
+
+  const focusedImaging =
+    focusedEvent && focusedEvent.item_type === "imaging"
+      ? imaging.find((img) => img.id === focusedEvent.item_id)
+      : null;
+
+  const focusedAnalytic =
+    focusedEvent && focusedEvent.item_type === "analytic"
+      ? analytics.find((a) => a.id === focusedEvent.item_id)
+      : null;
+
+  const focusedNote =
+    focusedEvent && focusedEvent.item_type === "note"
+      ? notes.find((n) => n.id === focusedEvent.item_id)
+      : null;
+
+  const hasFocusedDetail = focusedImaging || focusedAnalytic || focusedNote;
+
   return (
     <div className="sr-container py-6 space-y-6">
+      {/* DETALLE DEL EVENTO SELECCIONADO */}
+      {hasFocusedDetail && (
+        <section className="bg-blue-50 rounded-xl border border-blue-200 p-4 sm:p-5">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-sm font-semibold text-blue-800">
+              Detalle del evento seleccionado
+            </h2>
+            <button
+              type="button"
+              onClick={() => setFocusedEvent(null)}
+              className="text-xs text-blue-700 hover:text-blue-900 underline"
+            >
+              Quitar selección
+            </button>
+          </div>
+
+          <div className="mt-3 text-sm text-slate-800 space-y-2">
+            {focusedImaging && (
+              <>
+                <p className="font-medium">
+                  Imagen médica · {focusedImaging.type || "Estudio"}
+                </p>
+                <p className="text-xs text-slate-500">
+                  Fecha: {formatDate(focusedImaging.created_at)}
+                </p>
+                {focusedImaging.summary && (
+                  <p className="whitespace-pre-wrap">
+                    {focusedImaging.summary}
+                  </p>
+                )}
+              </>
+            )}
+
+            {focusedAnalytic && (
+              <>
+                <p className="font-medium">Analítica</p>
+                <p className="text-xs text-slate-500">
+                  Fecha: {formatDate(focusedAnalytic.created_at)}
+                </p>
+                {focusedAnalytic.summary && (
+                  <p className="whitespace-pre-wrap">
+                    {focusedAnalytic.summary}
+                  </p>
+                )}
+              </>
+            )}
+
+            {focusedNote && (
+              <>
+                <p className="font-medium">
+                  Nota clínica · {focusedNote.title || ""}
+                </p>
+                <p className="text-xs text-slate-500">
+                  Fecha: {formatDate(focusedNote.created_at)}
+                </p>
+                <p className="whitespace-pre-wrap">{focusedNote.content}</p>
+              </>
+            )}
+          </div>
+        </section>
+      )}
+
       {/* CABECERA PACIENTE */}
       <section className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 sm:p-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -674,8 +767,14 @@ export default function PacienteDetalle() {
                         {item.item_type}
                       </span>
                     </p>
-                    <p className="mt-0.5 text-slate-700">
-                      {timelineLabel(item.item_type)}
+                    <p className="mt-0.5">
+                      <button
+                        type="button"
+                        onClick={() => handleTimelineClick(item)}
+                        className="text-blue-600 hover:text-blue-800 underline text-xs font-medium"
+                      >
+                        Ver {timelineLabel(item.item_type)}
+                      </button>
                     </p>
                   </li>
                 ))}
