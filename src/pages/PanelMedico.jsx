@@ -36,6 +36,12 @@ export default function PanelMedico() {
   const [imagenDifferential, setImagenDifferential] = useState("");
   const [imagenPatterns, setImagenPatterns] = useState([]);
 
+  // Chat radiológico
+  const [imgChatQuestion, setImgChatQuestion] = useState("");
+  const [imgChatAnswer, setImgChatAnswer] = useState("");
+  const [imgChatError, setImgChatError] = useState("");
+  const [imgChatLoading, setImgChatLoading] = useState(false);
+
   const token = localStorage.getItem("galenos_token");
 
   // ========================
@@ -169,6 +175,8 @@ export default function PanelMedico() {
     setImagenSummary("");
     setImagenDifferential("");
     setImagenPatterns([]);
+    setImgChatAnswer("");
+    setImgChatError("");
 
     if (!token) {
       setImagenError("No hay sesión activa. Vuelve a iniciar sesión.");
@@ -238,6 +246,66 @@ export default function PanelMedico() {
       setImagenError("Error de conexión con el servidor de imagen.");
     } finally {
       setLoadingImagen(false);
+    }
+  }
+
+  async function handleImagingChat(e) {
+    e.preventDefault();
+    setImgChatError("");
+    setImgChatAnswer("");
+
+    if (!imagenSummary && (!imagenPatterns || imagenPatterns.length === 0)) {
+      setImgChatError("Primero analiza una imagen médica.");
+      return;
+    }
+    if (!imgChatQuestion.trim()) {
+      setImgChatError("Escribe una pregunta para la IA radiológica.");
+      return;
+    }
+
+    const payload = {
+      patient_alias: null,              // opcional
+      summary: imagenSummary || "",
+      patterns: imagenPatterns || [],
+      question: imgChatQuestion.trim(),
+    };
+
+    try {
+      setImgChatLoading(true);
+      const res = await fetch(`${API}/imaging/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify(payload),
+      });
+
+      const raw = await res.text();
+      console.log("👉 Respuesta chat imagen (raw):", raw);
+
+      if (!res.ok) {
+        let msg = "No se ha podido generar una respuesta de IA para la imagen médica.";
+        try {
+          const errData = JSON.parse(raw);
+          if (errData.detail) msg = errData.detail;
+        } catch {}
+        setImgChatError(msg);
+        return;
+      }
+
+      let data;
+      try {
+        data = JSON.parse(raw);
+      } catch {
+        setImgChatError("Respuesta inesperada del chat radiológico.");
+        return;
+      }
+
+      setImgChatAnswer(data.answer || "");
+      setImgChatQuestion("");
+    } catch (err) {
+      console.error("❌ Error chat imágenes:", err);
+      setImgChatError("Error de conexión con el chat de imágenes.");
+    } finally {
+      setImgChatLoading(false);
     }
   }
 
@@ -493,7 +561,7 @@ export default function PanelMedico() {
           </button>
         </form>
 
-        {(imagenSummary || imagenPatterns.length > 0) && (
+        {(imagenSummary || imagenDifferential || imagenPatterns.length > 0) && (
           <div className="mt-4 space-y-4">
             {imagenSummary && (
               <div>
@@ -529,6 +597,42 @@ export default function PanelMedico() {
                 </ul>
               </div>
             )}
+
+            {/* Mini chat radiológico */}
+            <div className="mt-4 border-t border-slate-200 pt-3 space-y-2">
+              <h4 className="text-sm font-semibold">
+                Preguntar sobre la imagen (IA radiológica orientativa)
+              </h4>
+              <form onSubmit={handleImagingChat} className="space-y-2">
+                <textarea
+                  className="sr-input w-full min-h-[60px]"
+                  value={imgChatQuestion}
+                  onChange={(e) => setImgChatQuestion(e.target.value)}
+                  placeholder="Ej. ¿Qué impresiona más relevante en esta imagen?"
+                />
+                {imgChatError && (
+                  <p className="text-sm text-red-600">{imgChatError}</p>
+                )}
+                <button
+                  type="submit"
+                  disabled={imgChatLoading}
+                  className="sr-btn-secondary disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {imgChatLoading ? "Pensando..." : "Preguntar a la IA radiológica"}
+                </button>
+              </form>
+
+              {imgChatAnswer && (
+                <div className="mt-2">
+                  <h5 className="text-xs font-semibold mb-1">
+                    Respuesta orientativa (no vinculante)
+                  </h5>
+                  <p className="text-sm text-slate-800 whitespace-pre-line">
+                    {imgChatAnswer}
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </section>
