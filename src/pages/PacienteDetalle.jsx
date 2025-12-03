@@ -340,6 +340,15 @@ export default function PacienteDetalle() {
                     {focusedImaging.summary}
                   </p>
                 )}
+                {focusedImaging.file_path && (
+                  <div className="mt-3">
+                    <img
+                      src={focusedImaging.file_path}
+                      alt={focusedImaging.type || "Imagen médica"}
+                      className="max-h-64 w-auto rounded-md border border-slate-300 object-contain bg-black/5"
+                    />
+                  </div>
+                )}
               </>
             )}
 
