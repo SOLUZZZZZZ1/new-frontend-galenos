@@ -327,6 +327,13 @@ export default function PacienteDetalle() {
           </div>
 
           <div className="mt-3 text-sm text-slate-800 space-y-2">
+            {/* DEBUG TEMPORAL: ver qué llega desde el backend */}
+            {focusedImaging && (
+              <pre className="text-[10px] text-red-600 whitespace-pre-wrap">
+                {JSON.stringify(focusedImaging, null, 2)}
+              </pre>
+            )}
+
             {focusedImaging && (
               <>
                 <p className="font-medium">
