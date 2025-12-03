@@ -357,125 +357,6 @@ export default function PacienteDetalle() {
 
   return (
     <div className="sr-container py-6 space-y-6">
-      {/* DETALLE DEL EVENTO SELECCIONADO */}
-      {hasFocusedDetail && (
-        <section className="bg-blue-50 rounded-xl border border-blue-200 p-4 sm:p-5">
-          <div className="flex items-center justify_between gap-2">
-            <h2 className="text-sm font-semibold text-blue-800">
-              Detalle del evento seleccionado
-            </h2>
-            <button
-              type="button"
-              onClick={() => setFocusedEvent(null)}
-              className="text-xs text-blue-700 hover:text-blue-900 underline"
-            >
-              Quitar selección
-            </button>
-          </div>
-
-          <div className="mt-3 text-sm text-slate-800 space-y-2">
-            {focusedImaging && (
-              <>
-                <p className="font-medium">
-                  Imagen médica · {focusedImaging.type || "Estudio"}
-                </p>
-                <p className="text-xs text-slate-500">
-                  Fecha: {formatDate(focusedImaging.created_at)}
-                </p>
-                {focusedImaging.summary && (
-                  <p className="whitespace-pre-wrap">
-                    {focusedImaging.summary}
-                  </p>
-                )}
-                {focusedImaging.file_path && (
-                  <div className="mt-3">
-                    <img
-                      src={focusedImaging.file_path}
-                      alt={focusedImaging.type || "Imagen médica"}
-                      className="max-h-64 w-auto rounded-md border border-slate-300 object-contain bg-black/5"
-                    />
-                  </div>
-                )}
-              </>
-            )}
-
-            {focusedAnalytic && (
-              <>
-                <p className="font-medium">Analítica</p>
-                <p className="text-xs text-slate-500">
-                  Fecha: {formatDate(focusedAnalytic.created_at)}
-                </p>
-                {focusedAnalytic.summary && (
-                  <p className="whitespace-pre-wrap">
-                    {focusedAnalytic.summary}
-                  </p>
-                )}
-
-                {Array.isArray(focusedAnalytic.markers) &&
-                  focusedAnalytic.markers.length > 0 && (
-                    <div className="mt-3 overflow-x-auto">
-                      <table className="min-w-full text-xs border border-slate-200 rounded-md overflow-hidden">
-                        <thead className="bg-slate-100">
-                          <tr>
-                            <th className="px-2 py-1 text-left">Marcador</th>
-                            <th className="px-2 py-1 text-left">Valor</th>
-                            <th className="px-2 py-1 text-left">Rango</th>
-                            <th className="px-2 py-1 text-left">Estado</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {focusedAnalytic.markers.map((m, idx) => (
-                            <tr key={idx} className="border-t border-slate-200">
-                              <td className="px-2 py-1">{m.name}</td>
-                              <td className="px-2 py-1">
-                                {m.value !== null && m.value !== undefined
-                                  ? m.value
-                                  : ""}
-                              </td>
-                              <td className="px-2 py-1">
-                                {m.range || ""}
-                              </td>
-                              <td className="px-2 py-1">
-                                {m.status === "elevado" && (
-                                  <span className="text-red-600 font-medium">
-                                    Alto
-                                  </span>
-                                )}
-                                {m.status === "bajo" && (
-                                  <span className="text-amber-600 font-medium">
-                                    Bajo
-                                  </span>
-                                )}
-                                {m.status === "normal" && (
-                                  <span className="text-emerald-700 font-medium">
-                                    Normal
-                                  </span>
-                                )}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-              </>
-            )}
-
-            {focusedNote && (
-              <>
-                <p className="font-medium">
-                  Nota clínica · {focusedNote.title || ""}
-                </p>
-                <p className="text-xs text-slate-500">
-                  Fecha: {formatDate(focusedNote.created_at)}
-                </p>
-                <p className="whitespace-pre-wrap">{focusedNote.content}</p>
-              </>
-            )}
-          </div>
-        </section>
-      )}
-
       {/* CABECERA PACIENTE */}
       <section className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 sm:p-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -855,7 +736,141 @@ export default function PacienteDetalle() {
         </button>
 
         {open.timeline && (
-          <div className="px-4 py-4 sm:px-6 sm:py-5">
+          <div className="px-4 py-4 sm:px-6 sm:py-5 space-y-4">
+            {/* DETALLE DEL EVENTO SELECCIONADO — AHORA AQUÍ, CERCA DEL TIMELINE */}
+            {hasFocusedDetail && (
+              <section className="bg-blue-50 rounded-xl border border-blue-200 p-4 sm:p-5">
+                <div className="flex items-center justify-between gap-2">
+                  <h2 className="text-sm font-semibold text-blue-800">
+                    Detalle del evento seleccionado
+                  </h2>
+                  <button
+                    type="button"
+                    onClick={() => setFocusedEvent(null)}
+                    className="text-xs text-blue-700 hover:text-blue-900 underline"
+                  >
+                    Quitar selección
+                  </button>
+                </div>
+
+                <div className="mt-3 text-sm text-slate-800 space-y-2">
+                  {focusedImaging && (
+                    <>
+                      <p className="font-medium">
+                        Imagen médica · {focusedImaging.type || "Estudio"}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        Fecha: {formatDate(focusedImaging.created_at)}
+                      </p>
+                      {focusedImaging.summary && (
+                        <p className="whitespace-pre-wrap">
+                          {focusedImaging.summary}
+                        </p>
+                      )}
+                      {focusedImaging.file_path && (
+                        <div className="mt-3">
+                          <img
+                            src={focusedImaging.file_path}
+                            alt={focusedImaging.type || "Imagen médica"}
+                            className="max-h-64 w-auto rounded-md border border-slate-300 object-contain bg-black/5"
+                          />
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {focusedAnalytic && (
+                    <>
+                      <p className="font-medium">Analítica</p>
+                      <p className="text-xs text-slate-500">
+                        Fecha: {formatDate(focusedAnalytic.created_at)}
+                      </p>
+                      {focusedAnalytic.summary && (
+                        <p className="whitespace-pre-wrap">
+                          {focusedAnalytic.summary}
+                        </p>
+                      )}
+
+                      {Array.isArray(focusedAnalytic.markers) &&
+                        focusedAnalytic.markers.length > 0 && (
+                          <div className="mt-3 overflow-x-auto">
+                            <table className="min-w-full text-xs border border-slate-200 rounded-md overflow-hidden">
+                              <thead className="bg-slate-100">
+                                <tr>
+                                  <th className="px-2 py-1 text-left">
+                                    Marcador
+                                  </th>
+                                  <th className="px-2 py-1 text-left">
+                                    Valor
+                                  </th>
+                                  <th className="px-2 py-1 text-left">
+                                    Rango
+                                  </th>
+                                  <th className="px-2 py-1 text-left">
+                                    Estado
+                                  </th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {focusedAnalytic.markers.map((m, idx) => (
+                                  <tr
+                                    key={idx}
+                                    className="border-t border-slate-200"
+                                  >
+                                    <td className="px-2 py-1">{m.name}</td>
+                                    <td className="px-2 py-1">
+                                      {m.value !== null &&
+                                      m.value !== undefined
+                                        ? m.value
+                                        : ""}
+                                    </td>
+                                    <td className="px-2 py-1">
+                                      {m.range || ""}
+                                    </td>
+                                    <td className="px-2 py-1">
+                                      {m.status === "elevado" && (
+                                        <span className="text-red-600 font-medium">
+                                          Alto
+                                        </span>
+                                      )}
+                                      {m.status === "bajo" && (
+                                        <span className="text-amber-600 font-medium">
+                                          Bajo
+                                        </span>
+                                      )}
+                                      {m.status === "normal" && (
+                                        <span className="text-emerald-700 font-medium">
+                                          Normal
+                                        </span>
+                                      )}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                    </>
+                  )}
+
+                  {focusedNote && (
+                    <>
+                      <p className="font-medium">
+                        Nota clínica · {focusedNote.title || ""}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        Fecha: {formatDate(focusedNote.created_at)}
+                      </p>
+                      <p className="whitespace-pre-wrap">
+                        {focusedNote.content}
+                      </p>
+                    </>
+                  )}
+                </div>
+              </section>
+            )}
+
+            {/* LISTA DEL TIMELINE */}
             {sortedTimeline.length === 0 ? (
               <p className="text-sm text-slate-500">
                 No hay eventos en el timeline para este paciente.
