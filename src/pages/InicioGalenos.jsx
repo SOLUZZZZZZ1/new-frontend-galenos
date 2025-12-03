@@ -78,32 +78,47 @@ export default function InicioGalenos() {
   return (
     <main className="min-h-[70vh] flex items-center justify-center px-4">
       <div className="sr-container grid md:grid-cols-2 gap-8 items-center">
+        {/* HERO PRINCIPAL */}
         <section>
-          <h1 className="text-3xl md:text-4xl font-bold mb-4">
-            Galenos.pro · Panel PRO de apoyo para médicos
+          {/* Claim pequeño */}
+          <p className="text-xs font-semibold tracking-[0.18em] text-sky-700 uppercase mb-2">
+            Copiloto clínico para médicos
+          </p>
+
+          {/* Titular fuerte */}
+          <h1 className="text-3xl md:text-4xl font-bold mb-3 text-slate-900">
+            Menos burocracia.
+            <span className="block text-sky-800">Más medicina.</span>
           </h1>
 
-          <p className="text-lg text-slate-700 mb-3">
-            Galenos.pro es un panel de apoyo con IA médica responsable diseñado
-            para médicos y clínicas. Analiza historias clínicas, evolutivos y
-            analíticas de laboratorio para ayudarte a ver mejor el cuadro
-            completo.
+          {/* Subtítulo corto */}
+          <p className="text-lg text-slate-700 mb-4">
+            Galenos.pro analiza historias clínicas, resume evolutivos y organiza
+            la información del paciente para que puedas tomar decisiones con más
+            contexto y menos carga administrativa.
           </p>
 
-          <p className="text-slate-700 mb-3">
-            No sustituye al criterio médico, sino que actúa como una capa extra
-            de revisión y contexto. Está pensado para profesionales que atienden
-            a muchos pacientes al día y necesitan apoyo para revisar la
-            información de forma rápida y ordenada.
-          </p>
+          {/* Beneficios rápidos */}
+          <div className="mb-4">
+            <h2 className="text-sm font-semibold text-slate-800 mb-1">
+              ¿En qué te ayuda en el día a día?
+            </h2>
+            <ul className="list-disc list-inside text-sm text-slate-700 space-y-1">
+              <li>Resume historias largas en lenguaje clínico claro.</li>
+              <li>Ordena episodios, diagnósticos y tratamientos previos.</li>
+              <li>Te sugiere preguntas orientativas para la anamnesis.</li>
+              <li>Centraliza la información en un único panel por paciente.</li>
+            </ul>
+          </div>
 
+          {/* Bloque de prueba PRO */}
           <div className="mb-4 rounded-md border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-slate-800">
             <p className="font-semibold mb-1">Acceso PRO con 3 días de prueba</p>
             <p className="mb-1">
               Para activar Galenos PRO tendrás que crear tu cuenta de médico,
-              iniciar sesión y, a continuación, dejar registrada tu tarjeta en Stripe.{" "}
-              <strong>No se realiza ningún cargo al inicio:</strong> dispones de{" "}
-              <strong>3 días de prueba gratuita</strong>.
+              iniciar sesión y, a continuación, dejar registrada tu tarjeta en
+              Stripe. <strong>No se realiza ningún cargo al inicio:</strong>{" "}
+              dispones de <strong>3 días de prueba gratuita</strong>.
             </p>
             <p className="text-xs text-slate-700">
               Solo se realizará el primer cobro si decides continuar después de
@@ -112,6 +127,7 @@ export default function InicioGalenos() {
             </p>
           </div>
 
+          {/* Botones de acción */}
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <button
               onClick={handleStripeCheckout}
@@ -144,12 +160,13 @@ export default function InicioGalenos() {
           </p>
         </section>
 
+        {/* COLUMNA DERECHA · EXPLICACIÓN DETALLADA */}
         <section className="bg-white/70 backdrop-blur-sm rounded-xl border border-slate-200 p-5 shadow-sm">
           <h2 className="text-lg font-semibold mb-2">
             ¿Qué hace Galenos.pro por ti?
           </h2>
           <p className="text-sm text-slate-700 mb-3">
-            Imagina un asistente que:
+            Imagina un asistente que trabaja contigo mientras pasas consulta:
           </p>
           <ul className="list-disc list-inside space-y-1 text-sm text-slate-700">
             <li>
@@ -177,7 +194,7 @@ export default function InicioGalenos() {
             <p className="text-sm text-slate-700 mb-2">
               Podrás subir analíticas de laboratorio (PDF o texto) y el sistema:
             </p>
-            <ul className="sr-list space-y-1">
+            <ul className="sr-list space-y-1 text-sm text-slate-700">
               <li>Convierte analíticas en tablas y gráficas.</li>
               <li>Compara resultados con analíticas previas.</li>
               <li>
