@@ -9,10 +9,13 @@ const API =
 export default function PanelMedico() {
   const navigate = useNavigate();
 
+  const token = localStorage.getItem("galenos_token");
+
   // ========================
   // ESTADO ANALÍTICAS
   // ========================
   const [alias, setAlias] = useState("Paciente A");
+  const [patientIdAnalitica, setPatientIdAnalitica] = useState("");
   const [fileAnalitica, setFileAnalitica] = useState(null);
   const [loadingAnalitica, setLoadingAnalitica] = useState(false);
   const [analyticsError, setAnalyticsError] = useState("");
@@ -42,8 +45,6 @@ export default function PanelMedico() {
   const [imgChatError, setImgChatError] = useState("");
   const [imgChatLoading, setImgChatLoading] = useState(false);
 
-  const token = localStorage.getItem("galenos_token");
-
   // ========================
   // HANDLERS ANALÍTICAS
   // ========================
@@ -53,6 +54,19 @@ export default function PanelMedico() {
     setAnalyticsResult(null);
     setChatAnswer("");
     setChatError("");
+
+    if (!token) {
+      setAnalyticsError("No hay sesión activa. Vuelve a iniciar sesión.");
+      return;
+    }
+
+    const pid = parseInt(patientIdAnalitica, 10);
+    if (!pid || Number.isNaN(pid)) {
+      setAnalyticsError(
+        "Introduce un ID de paciente válido (número). Puedes verlo en la página Pacientes."
+      );
+      return;
+    }
 
     if (!alias.trim()) {
       setAnalyticsError("Introduce un alias para la analítica (ej. 0001 - Nombre).");
@@ -69,8 +83,12 @@ export default function PanelMedico() {
 
     try {
       setLoadingAnalitica(true);
-      const res = await fetch(`${API}/analytics/analyze`, {
+      // IMPORTANTE: ahora usamos /analytics/upload/{patient_id} para ANALIZAR + GUARDAR
+      const res = await fetch(`${API}/analytics/upload/${pid}`, {
         method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
         body: formData,
       });
 
@@ -78,7 +96,7 @@ export default function PanelMedico() {
       console.log("👉 Respuesta IA analítica (raw):", raw);
 
       if (!res.ok) {
-        let msg = "No se ha podido analizar la analítica.";
+        let msg = "No se ha podido analizar y guardar la analítica.";
         try {
           const errData = JSON.parse(raw);
           if (errData.detail) msg = errData.detail;
@@ -95,7 +113,14 @@ export default function PanelMedico() {
         return;
       }
 
-      setAnalyticsResult(data);
+      // data incluye: id, patient_id, summary, differential, markers, created_at…
+      setAnalyticsResult({
+        patient_alias: alias.trim(),
+        file_name: data.file_name || fileAnalitica.name,
+        summary: data.summary,
+        differential: data.differential,
+        markers: data.markers || [],
+      });
     } catch (err) {
       console.error("❌ Error enviando analítica:", err);
       setAnalyticsError("Error de conexión con el servidor de analíticas.");
@@ -110,7 +135,7 @@ export default function PanelMedico() {
     setChatAnswer("");
 
     if (!analyticsResult) {
-      setChatError("Primero analiza una analítica.");
+      setChatError("Primero analiza y guarda una analítica.");
       return;
     }
     if (!chatQuestion.trim()) {
@@ -264,7 +289,7 @@ export default function PanelMedico() {
     }
 
     const payload = {
-      patient_alias: null,              // opcional
+      patient_alias: null, // opcional
       summary: imagenSummary || "",
       patterns: imagenPatterns || [],
       question: imgChatQuestion.trim(),
@@ -274,7 +299,10 @@ export default function PanelMedico() {
       setImgChatLoading(true);
       const res = await fetch(`${API}/imaging/chat`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify(payload),
       });
 
@@ -336,11 +364,21 @@ export default function PanelMedico() {
         <h2 className="text-lg font-semibold">Analíticas de laboratorio</h2>
         <p className="text-sm text-slate-600">
           Sube analíticas (PDF, foto, captura). Galenos extraerá marcadores, rangos y un resumen
-          clínico orientativo.
+          clínico orientativo. Usando el ID del paciente, la analítica se guardará en su ficha.
         </p>
 
         <form onSubmit={handleUploadAnalitica} className="space-y-3">
-          <div className="grid md:grid-cols-2 gap-3">
+          <div className="grid md:grid-cols-3 gap-3">
+            <div>
+              <label className="sr-label">ID de paciente</label>
+              <input
+                type="number"
+                value={patientIdAnalitica}
+                onChange={(e) => setPatientIdAnalitica(e.target.value)}
+                className="sr-input w-full"
+                placeholder="Ej. 1"
+              />
+            </div>
             <div>
               <label className="sr-label">Alias / identificador del paciente</label>
               <input
@@ -371,7 +409,9 @@ export default function PanelMedico() {
             disabled={loadingAnalitica}
             className="sr-btn-primary disabled:opacity-60 disabled:cursor-not-allowed mt-1"
           >
-            {loadingAnalitica ? "Analizando analítica..." : "Analizar analítica"}
+            {loadingAnalitica
+              ? "Analizando y guardando analítica..."
+              : "Analizar y guardar analítica"}
           </button>
         </form>
 
@@ -383,9 +423,7 @@ export default function PanelMedico() {
               </h3>
               <p className="text-xs text-slate-500">
                 Fichero:{" "}
-                <span className="font-mono">
-                  {analyticsResult.file_name}
-                </span>
+                <span className="font-mono">{analyticsResult.file_name}</span>
               </p>
             </div>
 
@@ -496,7 +534,7 @@ export default function PanelMedico() {
         </h2>
         <p className="text-sm text-slate-600">
           Indica el ID del paciente (lo puedes ver en la página Pacientes), el tipo de estudio
-          y sube la imagen o PDF correspondiente.
+          y sube la imagen o PDF correspondiente. Se guardará en la ficha de ese paciente.
         </p>
 
         <form onSubmit={handleUploadImagen} className="space-y-3">
