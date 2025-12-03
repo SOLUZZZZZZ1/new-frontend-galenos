@@ -54,57 +54,114 @@ export default function PacienteDetalle() {
   }
 
   // =========================
-  // CARGA DE DATOS DEL PACIENTE
+  // CARGA DE DATOS DEL PACIENTE (ROBUSTA)
   // =========================
   useEffect(() => {
     async function loadAll() {
-      try {
-        setLoading(true);
+      setLoading(true);
+      setError("");
 
-        // 1. Datos del paciente
+      if (!id || !token) {
+        setLoading(false);
+        setError("Falta identificador de paciente o token.");
+        return;
+      }
+
+      try {
+        // 1) Cargar SIEMPRE primero los datos básicos del paciente
         const p = await fetch(`${API}/patients/${id}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
+
+        if (!p.ok) {
+          console.error("Error HTTP en /patients:", p.status, await p.text());
+          setError("No se pudieron cargar los datos básicos del paciente.");
+          setLoading(false);
+          return;
+        }
+
         const patientData = await p.json();
         setPatient(patientData);
+      } catch (err) {
+        console.error("Error cargando /patients:", err);
+        setError("No se pudieron cargar los datos básicos del paciente.");
+        setLoading(false);
+        return;
+      }
 
-        // 2. Analíticas
+      // 2) El resto (analytics, imaging, notes, timeline) NO rompen la ficha
+      try {
         const a = await fetch(`${API}/analytics/by-patient/${id}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        setAnalytics(await a.json());
+        if (a.ok) {
+          setAnalytics(await a.json());
+        } else {
+          console.error(
+            "Error HTTP en /analytics/by-patient:",
+            a.status,
+            await a.text()
+          );
+        }
+      } catch (err) {
+        console.error("Error cargando analytics:", err);
+      }
 
-        // 3. Imágenes
+      try {
         const i = await fetch(`${API}/imaging/by-patient/${id}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        setImaging(await i.json());
+        if (i.ok) {
+          setImaging(await i.json());
+        } else {
+          console.error(
+            "Error HTTP en /imaging/by-patient:",
+            i.status,
+            await i.text()
+          );
+        }
+      } catch (err) {
+        console.error("Error cargando imaging:", err);
+      }
 
-        // 4. Notas
+      try {
         const n = await fetch(`${API}/notes/${id}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        setNotes(await n.json());
+        if (n.ok) {
+          setNotes(await n.json());
+        } else {
+          console.error(
+            "Error HTTP en /notes:",
+            n.status,
+            await n.text()
+          );
+        }
+      } catch (err) {
+        console.error("Error cargando notes:", err);
+      }
 
-        // 5. Timeline
+      try {
         const t = await fetch(`${API}/timeline/${id}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        setTimeline(await t.json());
+        if (t.ok) {
+          setTimeline(await t.json());
+        } else {
+          console.error(
+            "Error HTTP en /timeline:",
+            t.status,
+            await t.text()
+          );
+        }
       } catch (err) {
-        console.error("Error cargando ficha de paciente:", err);
-        setError("No se pudo cargar la información del paciente.");
-      } finally {
-        setLoading(false);
+        console.error("Error cargando timeline:", err);
       }
+
+      setLoading(false);
     }
 
-    if (id && token) {
-      loadAll();
-    } else {
-      setLoading(false);
-      setError("Falta identificador de paciente o token.");
-    }
+    loadAll();
   }, [id, token]);
 
   // =========================
@@ -270,7 +327,7 @@ export default function PacienteDetalle() {
     const da = new Date(a.created_at || a.date || 0).getTime();
     const db = new Date(b.created_at || b.date || 0).getTime();
     return db - da; // más reciente primero
-  });
+  };
 
   const timelineLabel = (itemType) => {
     if (itemType === "imaging") return "imagen médica";
