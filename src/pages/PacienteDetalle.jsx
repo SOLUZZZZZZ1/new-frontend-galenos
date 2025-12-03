@@ -68,7 +68,7 @@ export default function PacienteDetalle() {
       }
 
       try {
-        // 1) Cargar SIEMPRE primero los datos básicos del paciente
+        // 1) Cargar datos básicos del paciente
         const p = await fetch(`${API}/patients/${id}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -89,7 +89,7 @@ export default function PacienteDetalle() {
         return;
       }
 
-      // 2) El resto (analytics, imaging, notes, timeline) NO rompen la ficha
+      // 2) El resto NO rompe la ficha si falla
       try {
         const a = await fetch(`${API}/analytics/by-patient/${id}`, {
           headers: { Authorization: `Bearer ${token}` },
@@ -131,11 +131,7 @@ export default function PacienteDetalle() {
         if (n.ok) {
           setNotes(await n.json());
         } else {
-          console.error(
-            "Error HTTP en /notes:",
-            n.status,
-            await n.text()
-          );
+          console.error("Error HTTP en /notes:", n.status, await n.text());
         }
       } catch (err) {
         console.error("Error cargando notes:", err);
@@ -148,11 +144,7 @@ export default function PacienteDetalle() {
         if (t.ok) {
           setTimeline(await t.json());
         } else {
-          console.error(
-            "Error HTTP en /timeline:",
-            t.status,
-            await t.text()
-          );
+          console.error("Error HTTP en /timeline:", t.status, await t.text());
         }
       } catch (err) {
         console.error("Error cargando timeline:", err);
@@ -226,7 +218,6 @@ export default function PacienteDetalle() {
       const updated = await res.json();
 
       setNotes((prev) => prev.map((n) => (n.id === noteId ? updated : n)));
-
       setEditingNoteId(null);
       setEditTitle("");
       setEditContent("");
@@ -327,7 +318,7 @@ export default function PacienteDetalle() {
     const da = new Date(a.created_at || a.date || 0).getTime();
     const db = new Date(b.created_at || b.date || 0).getTime();
     return db - da; // más reciente primero
-  };
+  });
 
   const timelineLabel = (itemType) => {
     if (itemType === "imaging") return "imagen médica";
