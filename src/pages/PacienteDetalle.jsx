@@ -1,4 +1,3 @@
-// src/pages/PacienteDetalle.jsx — Ficha completa del Paciente · Galenos.pro
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 
@@ -361,7 +360,7 @@ export default function PacienteDetalle() {
       {/* DETALLE DEL EVENTO SELECCIONADO */}
       {hasFocusedDetail && (
         <section className="bg-blue-50 rounded-xl border border-blue-200 p-4 sm:p-5">
-          <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center justify_between gap-2">
             <h2 className="text-sm font-semibold text-blue-800">
               Detalle del evento seleccionado
             </h2>
@@ -375,13 +374,6 @@ export default function PacienteDetalle() {
           </div>
 
           <div className="mt-3 text-sm text-slate-800 space-y-2">
-            {/* DEBUG TEMPORAL: ver qué llega desde el backend */}
-            {focusedImaging && (
-              <pre className="text-[10px] text-red-600 whitespace-pre-wrap">
-                {JSON.stringify(focusedImaging, null, 2)}
-              </pre>
-            )}
-
             {focusedImaging && (
               <>
                 <p className="font-medium">
@@ -418,6 +410,54 @@ export default function PacienteDetalle() {
                     {focusedAnalytic.summary}
                   </p>
                 )}
+
+                {Array.isArray(focusedAnalytic.markers) &&
+                  focusedAnalytic.markers.length > 0 && (
+                    <div className="mt-3 overflow-x-auto">
+                      <table className="min-w-full text-xs border border-slate-200 rounded-md overflow-hidden">
+                        <thead className="bg-slate-100">
+                          <tr>
+                            <th className="px-2 py-1 text-left">Marcador</th>
+                            <th className="px-2 py-1 text-left">Valor</th>
+                            <th className="px-2 py-1 text-left">Rango</th>
+                            <th className="px-2 py-1 text-left">Estado</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {focusedAnalytic.markers.map((m, idx) => (
+                            <tr key={idx} className="border-t border-slate-200">
+                              <td className="px-2 py-1">{m.name}</td>
+                              <td className="px-2 py-1">
+                                {m.value !== null && m.value !== undefined
+                                  ? m.value
+                                  : ""}
+                              </td>
+                              <td className="px-2 py-1">
+                                {m.range || ""}
+                              </td>
+                              <td className="px-2 py-1">
+                                {m.status === "elevado" && (
+                                  <span className="text-red-600 font-medium">
+                                    Alto
+                                  </span>
+                                )}
+                                {m.status === "bajo" && (
+                                  <span className="text-amber-600 font-medium">
+                                    Bajo
+                                  </span>
+                                )}
+                                {m.status === "normal" && (
+                                  <span className="text-emerald-700 font-medium">
+                                    Normal
+                                  </span>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
               </>
             )}
 
