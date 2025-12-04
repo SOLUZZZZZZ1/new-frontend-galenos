@@ -1,4 +1,3 @@
-// src/pages/PanelMedico.jsx — Panel médico con Analíticas + Imágenes · Galenos.pro
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -26,6 +25,10 @@ export default function PanelMedico() {
   const [chatLoading, setChatLoading] = useState(false);
   const [chatError, setChatError] = useState("");
 
+  // Detección de duplicados (analíticas)
+  const [lastAnalyticId, setLastAnalyticId] = useState(null);
+  const [duplicateAnalytic, setDuplicateAnalytic] = useState(false);
+
   // ========================
   // ESTADO IMÁGENES
   // ========================
@@ -38,6 +41,10 @@ export default function PanelMedico() {
   const [imagenSummary, setImagenSummary] = useState("");
   const [imagenDifferential, setImagenDifferential] = useState("");
   const [imagenPatterns, setImagenPatterns] = useState([]);
+
+  // Detección de duplicados (imágenes)
+  const [lastImagenId, setLastImagenId] = useState(null);
+  const [duplicateImagen, setDuplicateImagen] = useState(false);
 
   // Chat radiológico
   const [imgChatQuestion, setImgChatQuestion] = useState("");
@@ -54,6 +61,7 @@ export default function PanelMedico() {
     setAnalyticsResult(null);
     setChatAnswer("");
     setChatError("");
+    setDuplicateAnalytic(false);
 
     if (!token) {
       setAnalyticsError("No hay sesión activa. Vuelve a iniciar sesión.");
@@ -113,8 +121,16 @@ export default function PanelMedico() {
         return;
       }
 
+      // Detectar duplicado: si el backend devuelve el mismo id que la última analítica subida
+      if (lastAnalyticId && data.id && data.id === lastAnalyticId) {
+        setDuplicateAnalytic(true);
+        setTimeout(() => setDuplicateAnalytic(false), 5000);
+      }
+      setLastAnalyticId(data.id || null);
+
       // data incluye: id, patient_id, summary, differential, markers, created_at…
       setAnalyticsResult({
+        id: data.id,
         patient_alias: alias.trim(),
         file_name: data.file_name || fileAnalitica.name,
         summary: data.summary,
@@ -202,6 +218,7 @@ export default function PanelMedico() {
     setImagenPatterns([]);
     setImgChatAnswer("");
     setImgChatError("");
+    setDuplicateImagen(false);
 
     if (!token) {
       setImagenError("No hay sesión activa. Vuelve a iniciar sesión.");
@@ -258,6 +275,13 @@ export default function PanelMedico() {
         setImagenError("Respuesta inesperada del servidor de imagen.");
         return;
       }
+
+      // Detectar duplicado de imagen por id devuelto
+      if (lastImagenId && data.id && data.id === lastImagenId) {
+        setDuplicateImagen(true);
+        setTimeout(() => setDuplicateImagen(false), 5000);
+      }
+      setLastImagenId(data.id || null);
 
       setImagenSummary(data.summary || "");
       setImagenDifferential(data.differential || "");
@@ -413,6 +437,13 @@ export default function PanelMedico() {
               ? "Analizando y guardando analítica..."
               : "Analizar y guardar analítica"}
           </button>
+
+          {duplicateAnalytic && (
+            <p className="mt-2 text-xs text-amber-700 flex items-center gap-1">
+              <span>⚠</span>
+              <span>Esta analítica ya estaba registrada (no se ha duplicado).</span>
+            </p>
+          )}
         </form>
 
         {analyticsResult && (
@@ -597,83 +628,15 @@ export default function PanelMedico() {
           >
             {loadingImagen ? "Analizando imagen..." : "Analizar imagen médica"}
           </button>
+
+          {duplicateImagen && (
+            <p className="mt-2 text-xs text-amber-700 flex items-center gap-1">
+              <span>⚠</span>
+              <span>Esta imagen ya estaba registrada (no se ha duplicado).</span>
+            </p>
+          )}
         </form>
 
         {(imagenSummary || imagenDifferential || imagenPatterns.length > 0) && (
           <div className="mt-4 space-y-4">
-            {imagenSummary && (
-              <div>
-                <h3 className="text-sm font-semibold mb-1">
-                  Resumen radiológico orientativo
-                </h3>
-                <p className="text-sm text-slate-800 whitespace-pre-line">
-                  {imagenSummary}
-                </p>
-              </div>
-            )}
-
-            {imagenDifferential && (
-              <div>
-                <h3 className="text-sm font-semibold mb-1">
-                  Diagnóstico diferencial general (orientativo)
-                </h3>
-                <p className="text-sm text-slate-800 whitespace-pre-line">
-                  {imagenDifferential}
-                </p>
-              </div>
-            )}
-
-            {imagenPatterns.length > 0 && (
-              <div>
-                <h3 className="text-sm font-semibold mb-2">
-                  Patrones / hallazgos descritos
-                </h3>
-                <ul className="list-disc list-inside text-sm text-slate-800 space-y-1">
-                  {imagenPatterns.map((p, idx) => (
-                    <li key={idx}>{p}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {/* Mini chat radiológico */}
-            <div className="mt-4 border-t border-slate-200 pt-3 space-y-2">
-              <h4 className="text-sm font-semibold">
-                Preguntar sobre la imagen (IA radiológica orientativa)
-              </h4>
-              <form onSubmit={handleImagingChat} className="space-y-2">
-                <textarea
-                  className="sr-input w-full min-h-[60px]"
-                  value={imgChatQuestion}
-                  onChange={(e) => setImgChatQuestion(e.target.value)}
-                  placeholder="Ej. ¿Qué impresiona más relevante en esta imagen?"
-                />
-                {imgChatError && (
-                  <p className="text-sm text-red-600">{imgChatError}</p>
-                )}
-                <button
-                  type="submit"
-                  disabled={imgChatLoading}
-                  className="sr-btn-secondary disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  {imgChatLoading ? "Pensando..." : "Preguntar a la IA radiológica"}
-                </button>
-              </form>
-
-              {imgChatAnswer && (
-                <div className="mt-2">
-                  <h5 className="text-xs font-semibold mb-1">
-                    Respuesta orientativa (no vinculante)
-                  </h5>
-                  <p className="text-sm text-slate-800 whitespace-pre-line">
-                    {imgChatAnswer}
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </section>
-    </main>
-  );
-}
+            {imagenSummary &&
