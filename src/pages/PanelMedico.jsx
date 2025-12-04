@@ -10,6 +10,79 @@ export default function PanelMedico() {
   const navigate = useNavigate();
 
   const token = localStorage.getItem("galenos_token");
+// ========================
+// CANCELACIÓN SUSCRIPCIÓN (PRO)
+// ========================
+const [showCancelPopup, setShowCancelPopup] = useState(false);
+const [cancelReasonCategory, setCancelReasonCategory] = useState("");
+const [cancelReasonText, setCancelReasonText] = useState("");
+const [cancelLoading, setCancelLoading] = useState(false);
+const [cancelMessage, setCancelMessage] = useState("");
+const [cancelError, setCancelError] = useState("");
+
+// ========================
+// CANCELAR SUSCRIPCIÓN
+// ========================
+async function handleCancelSubscription(e) {
+  e.preventDefault();
+  setCancelError("");
+  setCancelMessage("");
+
+  if (!cancelReasonCategory.trim()) {
+    setCancelError("Selecciona un motivo antes de continuar.");
+    return;
+  }
+
+  try {
+    setCancelLoading(true);
+
+    const res = await fetch(`${API}/billing/cancel`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        reason_category: cancelReasonCategory,
+        reason_text: cancelReasonText.trim(),
+      }),
+    });
+
+    const raw = await res.text();
+    console.log("👉 Respuesta cancelación (raw):", raw);
+
+    if (!res.ok) {
+      setCancelError("No se pudo cancelar la suscripción.");
+      return;
+    }
+
+    let data;
+    try {
+      data = JSON.parse(raw);
+    } catch {
+      setCancelError("Respuesta inesperada del servidor de pagos.");
+      return;
+    }
+
+    setCancelMessage("Suscripción cancelada correctamente.");
+    // Opcional: desactivar PRO en local
+    localStorage.removeItem("galenos_pro");
+  } catch (err) {
+    console.error("❌ Error cancelando suscripción:", err);
+    setCancelError("Error al conectar con el servidor de pagos.");
+  } finally {
+    setCancelLoading(false);
+  }
+}
+
+<button
+  type="button"
+  onClick={() => setShowCancelPopup(true)}
+  className="sr-btn-secondary text-sm whitespace-nowrap border-red-300 text-red-600 hover:bg-red-50"
+>
+  Cancelar suscripción PRO
+</button>
+
 
   // ========================
   // ESTADO ANALÍTICAS
@@ -741,13 +814,69 @@ export default function PanelMedico() {
                   </h5>
                   <p className="text-sm text-slate-800 whitespace-pre-line">
                     {imgChatAnswer}
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </section>
-    </main>
-  );
-}
+{/* ======================== */}
+{/* POPUP CANCELAR SUSCRIPCIÓN */}
+{/* ======================== */}
+{showCancelPopup && (
+  <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+    <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md space-y-4 border border-slate-300">
+      <h2 className="text-lg font-semibold text-slate-900">
+        Cancelar suscripción PRO
+      </h2>
+
+      <p className="text-sm text-slate-700">
+        Antes de cancelar, ¿puedes indicarnos el motivo? Nos ayuda a mejorar Galenos.
+      </p>
+
+      <div className="space-y-2">
+        <select
+          className="sr-input w-full"
+          value={cancelReasonCategory}
+          onChange={(e) => setCancelReasonCategory(e.target.value)}
+        >
+          <option value="">Selecciona un motivo…</option>
+          <option value="no_valor">No me ha aportado valor</option>
+          <option value="no_tiempo">No he tenido tiempo para probarlo bien</option>
+          <option value="dificil_uso">No entendí cómo usarlo</option>
+          <option value="ia_mala">La IA no interpretó bien mis estudios</option>
+          <option value="falta_funcionalidad">Falta alguna funcionalidad que necesito</option>
+          <option value="precio">El precio no encaja</option>
+          <option value="otro">Otro motivo…</option>
+        </select>
+
+        <textarea
+          className="sr-input w-full min-h-[70px]"
+          placeholder="Explica un poco más (opcional)…"
+          value={cancelReasonText}
+          onChange={(e) => setCancelReasonText(e.target.value)}
+        ></textarea>
+      </div>
+
+      {cancelError && (
+        <p className="text-sm text-red-600">{cancelError}</p>
+      )}
+
+      {cancelMessage && (
+        <p className="text-sm text-emerald-700">{cancelMessage}</p>
+      )}
+
+      <div className="flex justify-between mt-4">
+        <button
+          className="sr-btn-secondary px-4 py-2"
+          onClick={() => setShowCancelPopup(false)}
+        >
+          Cerrar
+        </button>
+        <button
+          className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700 disabled:opacity-60"
+          disabled={cancelLoading}
+          onClick={handleCancelSubscription}
+        >
+          {cancelLoading ? "Cancelando…" : "Cancelar definitivamente"}
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
+          
