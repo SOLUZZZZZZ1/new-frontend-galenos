@@ -128,9 +128,8 @@ export default function InicioGalenos() {
               dispones de <strong>3 días de prueba gratuita</strong>.
             </p>
             <p className="text-xs text-slate-700">
-              Solo se realizará el primer cobro si decides continuar después de la prueba.
-              Podrás cancelar la suscripción antes de que termine el período de prueba para que
-              no se cargue nada.
+              La primera cuota se cobrará solo si continúas utilizando Galenos después del
+              período de prueba.
             </p>
           </div>
 
@@ -160,13 +159,12 @@ export default function InicioGalenos() {
           )}
 
           <p className="mt-4 text-xs text-slate-500">
-            Pagos seguros gestionados por Stripe. Podrás cancelar la suscripción en cualquier
-            momento antes de que termine el período de prueba para que no se realice ningún cargo.
+            Pagos seguros gestionados por Stripe.
           </p>
         </div>
 
         {/* COLUMNA DERECHA: BLOQUES EXPLICATIVOS */}
-        <div className="space-y-5 bg-white/70 backdrop-blur-sm rounded-xl border border-slate-200 p-5 shadow-sm">
+        <div className="space-y-5 bg_WHITE/70 backdrop-blur-sm rounded-xl border border-slate-200 p-5 shadow-sm">
           {/* Bloque 1: Historias clínicas */}
           <div>
             <h2 className="text-sm font-semibold mb-1 text-slate-900">
@@ -268,8 +266,8 @@ export default function InicioGalenos() {
             Empieza a usar Galenos.pro en tu próxima consulta
           </h2>
           <p className="text-sm md:text-base text-slate-700 max-w-2xl mx-auto">
-            Prueba Galenos PRO durante 3 días sin coste inicial. Si no te ayuda a ganar tiempo
-            y claridad con tus pacientes, puedes cancelar la suscripción antes del primer cargo.
+            Prueba Galenos PRO durante 3 días sin coste inicial. La primera cuota se realiza
+            automáticamente tras la prueba gratuita.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-3 justify-center mt-3">
