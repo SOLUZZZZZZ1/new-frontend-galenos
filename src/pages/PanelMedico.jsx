@@ -637,6 +637,83 @@ export default function PanelMedico() {
           )}
         </form>
 
-        {(imagenSummary || imagenDifferential || imagenPatterns.length > 0) && (
+                        {(imagenSummary || imagenDifferential || imagenPatterns.length > 0) && (
           <div className="mt-4 space-y-4">
-            {imagenSummary &&
+            {imagenSummary && (
+              <div>
+                <h3 className="text-sm font-semibold mb-1">
+                  Resumen radiológico orientativo
+                </h3>
+                <p className="text-sm text-slate-800 whitespace-pre-line">
+                  {imagenSummary}
+                </p>
+              </div>
+            )}
+
+            {imagenDifferential && (
+              <div>
+                <h3 className="text-sm font-semibold mb-1">
+                  Diagnóstico diferencial general (orientativo)
+                </h3>
+                <p className="text-sm text-slate-800 whitespace-pre-line">
+                  {imagenDifferential}
+                </p>
+              </div>
+            )}
+
+            {imagenPatterns.length > 0 && (
+              <div>
+                <h3 className="text-sm font-semibold mb-2">
+                  Patrones / hallazgos descritos
+                </h3>
+                <ul className="list-disc list-inside text-sm text-slate-800 space-y-1">
+                  {imagenPatterns.map((p, idx) => (
+                    <li key={idx}>{p}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Mini chat radiológico */}
+            <div className="mt-4 border-t border-slate-200 pt-3 space-y-2">
+              <h4 className="text-sm font-semibold">
+                Preguntar sobre la imagen (IA radiológica orientativa)
+              </h4>
+              <form onSubmit={handleImagingChat} className="space-y-2">
+                <textarea
+                  className="sr-input w-full min-h-[60px]"
+                  value={imgChatQuestion}
+                  onChange={(e) => setImgChatQuestion(e.target.value)}
+                  placeholder="Ej. ¿Qué impresiona más relevante en esta imagen?"
+                />
+                {imgChatError && (
+                  <p className="text-sm text-red-600">{imgChatError}</p>
+                )}
+                <button
+                  type="submit"
+                  disabled={imgChatLoading}
+                  className="sr-btn-secondary disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {imgChatLoading ? "Pensando..." : "Preguntar a la IA radiológica"}
+                </button>
+              </form>
+
+              {imgChatAnswer && (
+                <div className="mt-2">
+                  <h5 className="text-xs font-semibold mb-1">
+                    Respuesta orientativa (no vinculante)
+                  </h5>
+                  <p className="text-sm text-slate-800 whitespace-pre-line">
+                    {imgChatAnswer}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </section>
+    </main>
+  );
+}
+
+
