@@ -1,3 +1,4 @@
+// src/pages/PanelMedico.jsx — Panel médico con Analíticas + Imágenes · Galenos.pro
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -16,6 +17,7 @@ export default function PanelMedico() {
   const [alias, setAlias] = useState("Paciente A");
   const [patientIdAnalitica, setPatientIdAnalitica] = useState("");
   const [fileAnalitica, setFileAnalitica] = useState(null);
+  const [examDateAnalitica, setExamDateAnalitica] = useState("");
   const [loadingAnalitica, setLoadingAnalitica] = useState(false);
   const [analyticsError, setAnalyticsError] = useState("");
   const [analyticsResult, setAnalyticsResult] = useState(null);
@@ -36,21 +38,22 @@ export default function PanelMedico() {
   const [imgType, setImgType] = useState("RX");
   const [imgContext, setImgContext] = useState("");
   const [fileImagen, setFileImagen] = useState(null);
+  const [examDateImagen, setExamDateImagen] = useState("");
   const [loadingImagen, setLoadingImagen] = useState(false);
   const [imagenError, setImagenError] = useState("");
   const [imagenSummary, setImagenSummary] = useState("");
   const [imagenDifferential, setImagenDifferential] = useState("");
   const [imagenPatterns, setImagenPatterns] = useState([]);
 
-  // Detección de duplicados (imágenes)
-  const [lastImagenId, setLastImagenId] = useState(null);
-  const [duplicateImagen, setDuplicateImagen] = useState(false);
-
   // Chat radiológico
   const [imgChatQuestion, setImgChatQuestion] = useState("");
   const [imgChatAnswer, setImgChatAnswer] = useState("");
   const [imgChatError, setImgChatError] = useState("");
   const [imgChatLoading, setImgChatLoading] = useState(false);
+
+  // Detección de duplicados (imágenes)
+  const [lastImagenId, setLastImagenId] = useState(null);
+  const [duplicateImagen, setDuplicateImagen] = useState(false);
 
   // ========================
   // HANDLERS ANALÍTICAS
@@ -88,6 +91,9 @@ export default function PanelMedico() {
     const formData = new FormData();
     formData.append("alias", alias.trim());
     formData.append("file", fileAnalitica);
+    if (examDateAnalitica) {
+      formData.append("exam_date", examDateAnalitica);
+    }
 
     try {
       setLoadingAnalitica(true);
@@ -128,7 +134,7 @@ export default function PanelMedico() {
       }
       setLastAnalyticId(data.id || null);
 
-      // data incluye: id, patient_id, summary, differential, markers, created_at…
+      // data incluye: id, patient_id, summary, differential, markers, created_at, exam_date…
       setAnalyticsResult({
         id: data.id,
         patient_alias: alias.trim(),
@@ -136,6 +142,8 @@ export default function PanelMedico() {
         summary: data.summary,
         differential: data.differential,
         markers: data.markers || [],
+        exam_date: data.exam_date || null,
+        created_at: data.created_at || null,
       });
     } catch (err) {
       console.error("❌ Error enviando analítica:", err);
@@ -242,6 +250,9 @@ export default function PanelMedico() {
     formData.append("img_type", imgType || "imagen");
     if (imgContext && imgContext.trim()) {
       formData.append("context", imgContext.trim());
+    }
+    if (examDateImagen) {
+      formData.append("exam_date", examDateImagen);
     }
     formData.append("file", fileImagen);
 
@@ -392,7 +403,7 @@ export default function PanelMedico() {
         </p>
 
         <form onSubmit={handleUploadAnalitica} className="space-y-3">
-          <div className="grid md:grid-cols-3 gap-3">
+          <div className="grid md:grid-cols-4 gap-3">
             <div>
               <label className="sr-label">ID de paciente</label>
               <input
@@ -411,6 +422,15 @@ export default function PanelMedico() {
                 onChange={(e) => setAlias(e.target.value)}
                 className="sr-input w-full"
                 placeholder="0001 - Nombre Apellidos"
+              />
+            </div>
+            <div>
+              <label className="sr-label">Fecha de la analítica</label>
+              <input
+                type="date"
+                className="sr-input w-full"
+                value={examDateAnalitica}
+                onChange={(e) => setExamDateAnalitica(e.target.value)}
               />
             </div>
             <div>
@@ -456,6 +476,12 @@ export default function PanelMedico() {
                 Fichero:{" "}
                 <span className="font-mono">{analyticsResult.file_name}</span>
               </p>
+              {analyticsResult.exam_date && (
+                <p className="text-xs text-slate-500">
+                  Fecha de la analítica:{" "}
+                  {new Date(analyticsResult.exam_date).toLocaleDateString()}
+                </p>
+              )}
             </div>
 
             {analyticsResult.summary && (
@@ -564,12 +590,13 @@ export default function PanelMedico() {
           Imágenes médicas (RX / TAC / RM / ECO)
         </h2>
         <p className="text-sm text-slate-600">
-          Indica el ID del paciente (lo puedes ver en la página Pacientes), el tipo de estudio
-          y sube la imagen o PDF correspondiente. Se guardará en la ficha de ese paciente.
+          Indica el ID del paciente (lo puedes ver en la página Pacientes), el tipo de estudio,
+          la fecha del estudio y sube la imagen o PDF correspondiente. Se guardará en la ficha
+          de ese paciente.
         </p>
 
         <form onSubmit={handleUploadImagen} className="space-y-3">
-          <div className="grid md:grid-cols-3 gap-3">
+          <div className="grid md:grid-cols-4 gap-3">
             <div>
               <label className="sr-label">ID de paciente</label>
               <input
@@ -593,6 +620,15 @@ export default function PanelMedico() {
                 <option value="ECO">ECO</option>
                 <option value="OTRO">Otro</option>
               </select>
+            </div>
+            <div>
+              <label className="sr-label">Fecha del estudio</label>
+              <input
+                type="date"
+                className="sr-input w-full"
+                value={examDateImagen}
+                onChange={(e) => setExamDateImagen(e.target.value)}
+              />
             </div>
             <div>
               <label className="sr-label">Fichero de imagen o PDF</label>
@@ -637,7 +673,7 @@ export default function PanelMedico() {
           )}
         </form>
 
-                        {(imagenSummary || imagenDifferential || imagenPatterns.length > 0) && (
+        {(imagenSummary || imagenDifferential || imagenPatterns.length > 0) && (
           <div className="mt-4 space-y-4">
             {imagenSummary && (
               <div>
@@ -715,5 +751,3 @@ export default function PanelMedico() {
     </main>
   );
 }
-
-
