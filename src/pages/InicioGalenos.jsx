@@ -133,7 +133,7 @@ export default function InicioGalenos() {
             </p>
           </div>
 
-          {/* Botones de acción */}
+          {/* Botones de acción (HERO) */}
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <button
               onClick={handleStripeCheckout}
@@ -164,7 +164,7 @@ export default function InicioGalenos() {
         </div>
 
         {/* COLUMNA DERECHA: BLOQUES EXPLICATIVOS */}
-        <div className="space-y-5 bg_WHITE/70 backdrop-blur-sm rounded-xl border border-slate-200 p-5 shadow-sm">
+        <div className="space-y-5 bg-white/70 backdrop-blur-sm rounded-xl border border-slate-200 p-5 shadow-sm">
           {/* Bloque 1: Historias clínicas */}
           <div>
             <h2 className="text-sm font-semibold mb-1 text-slate-900">
@@ -261,7 +261,7 @@ export default function InicioGalenos() {
 
       {/* CTA FINAL */}
       <section className="bg-white py-10 border-t border-slate-200">
-        <div className="sr-container px-4 max-w-4xl mx-auto text-center space-y-4">
+        <div className="sr-container px-4 max-w-4xl mx_auto text-center space-y-4">
           <h2 className="text-2xl font-semibold text-slate-900">
             Empieza a usar Galenos.pro en tu próxima consulta
           </h2>
@@ -278,7 +278,7 @@ export default function InicioGalenos() {
             >
               {stripeLoading
                 ? "Conectando con Stripe..."
-                : "Activar Galenos PRO (3 días gratis)"}
+                : "Comenzar prueba PRO (3 días gratis)"}
             </button>
             <button
               type="button"
