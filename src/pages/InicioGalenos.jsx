@@ -1,4 +1,4 @@
-// src/pages/InicioGalenos.jsx — Landing Galenos.pro con IA Médica y botón PRO (Stripe)
+// src/pages/InicioGalenos.jsx — Landing Galenos.pro optimizada para suscripción PRO
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -15,12 +15,8 @@ export default function InicioGalenos() {
   async function handleStripeCheckout() {
     setStripeError("");
 
-    // 1) Comprobar si el usuario está logueado ANTES de ir a Stripe
-    // ⚠️ IMPORTANTE: usamos el mismo token que en LoginMedico: "galenos_token"
     const token = localStorage.getItem("galenos_token");
     if (!token) {
-      // Si no hay sesión, lo enviamos primero al alta directa.
-      // El parámetro ?next=pro nos sirve para volver luego al flujo PRO.
       nav("/alta-medico?next=pro");
       return;
     }
@@ -56,14 +52,12 @@ export default function InicioGalenos() {
         return;
       }
 
-      // 2) Abrimos Stripe en una pestaña nueva
       const newWin = window.open(
         data.checkout_url,
         "_blank",
         "noopener,noreferrer"
       );
 
-      // Fallback por si el navegador bloquea el pop-up
       if (!newWin) {
         window.location.href = data.checkout_url;
       }
@@ -76,54 +70,67 @@ export default function InicioGalenos() {
   }
 
   return (
-    <main className="min-h-[70vh] flex items-center justify-center px-4">
-      <div className="sr-container grid md:grid-cols-2 gap-8 items-center">
-        {/* HERO PRINCIPAL */}
-        <section>
-          {/* Claim pequeño */}
+    <main className="min-h-[80vh] flex flex-col">
+      {/* HERO PRINCIPAL */}
+      <section className="sr-container flex-1 grid md:grid-cols-2 gap-10 items-center px-4 py-10">
+        {/* COLUMNA IZQUIERDA: MENSAJE PRINCIPAL */}
+        <div>
           <p className="text-xs font-semibold tracking-[0.18em] text-sky-700 uppercase mb-2">
-            Copiloto clínico para médicos
+            IA clínica prudente para médicos
           </p>
 
-          {/* Titular fuerte */}
           <h1 className="text-3xl md:text-4xl font-bold mb-3 text-slate-900">
             Menos burocracia.
             <span className="block text-sky-800">Más medicina.</span>
           </h1>
 
-          {/* Subtítulo corto */}
-          <p className="text-lg text-slate-700 mb-4">
-            Galenos.pro analiza historias clínicas, resume evolutivos y organiza
-            la información del paciente para que puedas tomar decisiones con más
-            contexto y menos carga administrativa.
+          <p className="text-lg text-slate-700 mb-5">
+            Galenos.pro te ayuda a leer historias clínicas extensas, interpretar analíticas,
+            organizar imágenes médicas y mantener un timeline por paciente, para que puedas
+            centrarte en la parte importante: el paciente y tus decisiones clínicas.
           </p>
 
-          {/* Beneficios rápidos */}
-          <div className="mb-4">
-            <h2 className="text-sm font-semibold text-slate-800 mb-1">
-              ¿En qué te ayuda en el día a día?
-            </h2>
-            <ul className="list-disc list-inside text-sm text-slate-700 space-y-1">
-              <li>Resume historias largas en lenguaje clínico claro.</li>
-              <li>Ordena episodios, diagnósticos y tratamientos previos.</li>
-              <li>Te sugiere preguntas orientativas para la anamnesis.</li>
-              <li>Centraliza la información en un único panel por paciente.</li>
-            </ul>
+          <div className="grid gap-2 mb-5 text-sm text-slate-700">
+            <div className="flex gap-2">
+              <span className="text-sky-700 mt-[2px]">✓</span>
+              <p>
+                Resume historias y evolutivos largos en lenguaje clínico claro y prudente.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <span className="text-sky-700 mt-[2px]">✓</span>
+              <p>
+                Extrae marcadores de analíticas, destaca valores fuera de rango y los guarda en
+                la ficha del paciente.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <span className="text-sky-700 mt-[2px]">✓</span>
+              <p>
+                Analiza imágenes (RX / TAC / RM / ECO), genera un resumen prudente y enlaza los
+                estudios al timeline del paciente.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <span className="text-sky-700 mt-[2px]">✓</span>
+              <p>
+                Mantiene un timeline clínico con notas, analíticas e imágenes, todo en un único panel.
+              </p>
+            </div>
           </div>
 
           {/* Bloque de prueba PRO */}
-          <div className="mb-4 rounded-md border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-slate-800">
+          <div className="mb-5 rounded-md border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-slate-800">
             <p className="font-semibold mb-1">Acceso PRO con 3 días de prueba</p>
             <p className="mb-1">
-              Para activar Galenos PRO tendrás que crear tu cuenta de médico,
-              iniciar sesión y, a continuación, dejar registrada tu tarjeta en
-              Stripe. <strong>No se realiza ningún cargo al inicio:</strong>{" "}
+              Crea tu cuenta de médico, inicia sesión y activa Galenos PRO dejando registrada tu
+              tarjeta en Stripe. <strong>No se realiza ningún cargo al inicio:</strong>{" "}
               dispones de <strong>3 días de prueba gratuita</strong>.
             </p>
             <p className="text-xs text-slate-700">
-              Solo se realizará el primer cobro si decides continuar después de
-              la prueba. Podrás cancelar la suscripción antes de que termine el
-              período de prueba para que no se cargue nada.
+              Solo se realizará el primer cobro si decides continuar después de la prueba.
+              Podrás cancelar la suscripción antes de que termine el período de prueba para que
+              no se cargue nada.
             </p>
           </div>
 
@@ -136,9 +143,145 @@ export default function InicioGalenos() {
             >
               {stripeLoading
                 ? "Conectando con Stripe..."
-                : "Acceder a Galenos PRO (3 días gratis)"}
+                : "Activar Galenos PRO (3 días gratis)"}
             </button>
 
+            <button
+              type="button"
+              onClick={() => nav("/login")}
+              className="inline-flex items-center justify-center rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            >
+              Ya tengo cuenta
+            </button>
+          </div>
+
+          {stripeError && (
+            <p className="mt-3 text-sm text-red-600">{stripeError}</p>
+          )}
+
+          <p className="mt-4 text-xs text-slate-500">
+            Pagos seguros gestionados por Stripe. Podrás cancelar la suscripción en cualquier
+            momento antes de que termine el período de prueba para que no se realice ningún cargo.
+          </p>
+        </div>
+
+        {/* COLUMNA DERECHA: BLOQUES EXPLICATIVOS */}
+        <div className="space-y-5 bg-white/70 backdrop-blur-sm rounded-xl border border-slate-200 p-5 shadow-sm">
+          {/* Bloque 1: Historias clínicas */}
+          <div>
+            <h2 className="text-sm font-semibold mb-1 text-slate-900">
+              1. Historias clínicas y evolutivos
+            </h2>
+            <p className="text-sm text-slate-700 mb-2">
+              Sube o pega evolutivos largos, informes y anotaciones. Galenos:
+            </p>
+            <ul className="list-disc list-inside space-y-1 text-sm text-slate-700">
+              <li>Resume la información clave en lenguaje clínico.</li>
+              <li>Te ayuda a identificar episodios, diagnósticos previos y tratamientos.</li>
+              <li>Te propone preguntas orientativas para la anamnesis.</li>
+            </ul>
+          </div>
+
+          {/* Bloque 2: Analíticas */}
+          <div className="border-t border-slate-200 pt-4">
+            <h2 className="text-sm font-semibold mb-1 text-slate-900">
+              2. Analíticas de laboratorio con IA
+            </h2>
+            <p className="text-sm text-slate-700 mb-2">
+              Sube analíticas (PDF o imagen) y Galenos:
+            </p>
+            <ul className="list-disc list-inside space-y-1 text-sm text-slate-700">
+              <li>Convierte parámetros en una tabla estructurada por marcadores.</li>
+              <li>Detecta valores fuera de rango (alto / bajo / normal).</li>
+              <li>Permite ver la evolución de un marcador a lo largo del tiempo.</li>
+              <li>Guarda cada analítica con su fecha clínica real en la ficha del paciente.</li>
+            </ul>
+          </div>
+
+          {/* Bloque 3: Imágenes médicas */}
+          <div className="border-t border-slate-200 pt-4">
+            <h2 className="text-sm font-semibold mb-1 text-slate-900">
+              3. Imágenes médicas (RX / TAC / RM / ECO)
+            </h2>
+            <p className="text-sm text-slate-700 mb-2">
+              Sube estudios de imagen y Galenos genera un resumen prudente:
+            </p>
+            <ul className="list-disc list-inside space-y-1 text-sm text-slate-700">
+              <li>Describe hallazgos visuales en lenguaje neutro.</li>
+              <li>Resalta patrones e imágenes relevantes para tu reflexión clínica.</li>
+              <li>Evita duplicados, enlazando el estudio a la ficha del paciente y al timeline.</li>
+            </ul>
+            <p className="sr-small mt-2 text-slate-500">
+              Galenos.pro no diagnostica ni prescribe. Es una herramienta de apoyo diseñada para
+              médicos, no para pacientes.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* SECCIÓN: 10 GB + ESPACIO ESCALABLE */}
+      <section className="bg-slate-50 border-t border-slate-200 py-10">
+        <div className="sr-container px-4 max-w-5xl mx-auto space-y-6">
+          <div className="max-w-2xl">
+            <h2 className="text-2xl font-bold text-slate-900 mb-2">
+              10 GB de almacenamiento clínico seguro e inteligente
+            </h2>
+            <p className="text-slate-700 text-sm md:text-base">
+              Galenos incluye <strong>10 GB de almacenamiento cifrado</strong>, suficientes para
+              conservar años de evolución clínica sin preocuparte por el espacio:
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-4 text-sm text-slate-700">
+            <div className="bg-white rounded-lg border border-slate-200 p-4">
+              <p className="font-semibold mb-2">Capacidad real</p>
+              <ul className="list-disc list-inside space-y-1">
+                <li>Más de <strong>3.000 analíticas</strong> completas.</li>
+                <li>Cientos de <strong>imágenes médicas</strong> RX/TAC/RM/ECO.</li>
+                <li>Timeline clínico completo de tus pacientes.</li>
+              </ul>
+            </div>
+            <div className="bg-white rounded-lg border border-slate-200 p-4">
+              <p className="font-semibold mb-2">Almacenamiento inteligente</p>
+              <ul className="list-disc list-inside space-y-1">
+                <li>Detección de duplicados para no consumir espacio innecesario.</li>
+                <li>Marcadores y patrones enlazados a cada estudio.</li>
+                <li>Todo organizado por paciente, fecha y tipo de evento.</li>
+              </ul>
+            </div>
+            <div className="bg-white rounded-lg border border-slate-200 p-4">
+              <p className="font-semibold mb-2">Escalable cuando lo necesites</p>
+              <ul className="list-disc list-inside space-y-1">
+                <li>+10 GB, +50 GB o +100 GB opcionales.</li>
+                <li>Planes específicos para centros y clínicas.</li>
+                <li>Sin migraciones ni complicaciones: solo más espacio.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* CTA FINAL */}
+      <section className="bg-white py-10 border-t border-slate-200">
+        <div className="sr-container px-4 max-w-4xl mx-auto text-center space-y-4">
+          <h2 className="text-2xl font-semibold text-slate-900">
+            Empieza a usar Galenos.pro en tu próxima consulta
+          </h2>
+          <p className="text-sm md:text-base text-slate-700 max-w-2xl mx-auto">
+            Prueba Galenos PRO durante 3 días sin coste inicial. Si no te ayuda a ganar tiempo
+            y claridad con tus pacientes, puedes cancelar la suscripción antes del primer cargo.
+          </p>
+
+          <div className="flex flex-col sm:flex-row gap-3 justify-center mt-3">
+            <button
+              onClick={handleStripeCheckout}
+              disabled={stripeLoading}
+              className="inline-flex items-center justify-center rounded-md bg-blue-600 px-5 py-2.5 text-sm font-medium text-white shadow hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {stripeLoading
+                ? "Conectando con Stripe..."
+                : "Activar Galenos PRO (3 días gratis)"}
+            </button>
             <button
               type="button"
               onClick={() => nav("/login")}
@@ -148,68 +291,12 @@ export default function InicioGalenos() {
             </button>
           </div>
 
-          {stripeError && (
-            <p className="mt-3 text-sm text-red-600">{stripeError}</p>
-          )}
-
-          <p className="mt-4 text-xs text-slate-500">
-            Pagos seguros gestionados por Stripe. Para activar la prueba
-            gratuita es necesario indicar una tarjeta. Podrás cancelar la
-            suscripción en cualquier momento antes de que termine el período de
-            prueba para que no se realice ningún cargo.
+          <p className="text-xs text-slate-500 mt-2">
+            Galenos.pro no reemplaza el juicio clínico ni emite diagnósticos. Es un soporte
+            orientativo para médicos, no una herramienta para pacientes.
           </p>
-        </section>
-
-        {/* COLUMNA DERECHA · EXPLICACIÓN DETALLADA */}
-        <section className="bg-white/70 backdrop-blur-sm rounded-xl border border-slate-200 p-5 shadow-sm">
-          <h2 className="text-lg font-semibold mb-2">
-            ¿Qué hace Galenos.pro por ti?
-          </h2>
-          <p className="text-sm text-slate-700 mb-3">
-            Imagina un asistente que trabaja contigo mientras pasas consulta:
-          </p>
-          <ul className="list-disc list-inside space-y-1 text-sm text-slate-700">
-            <li>
-              Lee la historia clínica y el evolutivo del paciente — incluso si
-              son muchas páginas.
-            </li>
-            <li>
-              Resume la información clave en lenguaje clínico, con cuidado y sin
-              alarmismos.
-            </li>
-            <li>
-              Te ayuda a organizar la información por episodios, diagnósticos
-              previos, tratamientos y respuestas.
-            </li>
-            <li>
-              Te propone preguntas orientativas para la anamnesis, basadas en el
-              perfil del paciente.
-            </li>
-          </ul>
-
-          <div className="mt-4 border-t border-slate-200 pt-4">
-            <h3 className="text-sm font-semibold mb-2">
-              Módulo de analíticas (en desarrollo avanzado)
-            </h3>
-            <p className="text-sm text-slate-700 mb-2">
-              Podrás subir analíticas de laboratorio (PDF o texto) y el sistema:
-            </p>
-            <ul className="sr-list space-y-1 text-sm text-slate-700">
-              <li>Convierte analíticas en tablas y gráficas.</li>
-              <li>Compara resultados con analíticas previas.</li>
-              <li>
-                Señala tendencias (mejoría, empeoramiento, cambios sutiles).
-              </li>
-              <li>Genera un informe clínico orientativo y prudente.</li>
-              <li>Guarda el historial por paciente.</li>
-            </ul>
-            <p className="sr-small mt-4 text-slate-500">
-              Galenos.pro no diagnostica ni prescribe. Es una herramienta de
-              apoyo diseñada para médicos.
-            </p>
-          </div>
-        </section>
-      </div>
+        </div>
+      </section>
     </main>
   );
 }
