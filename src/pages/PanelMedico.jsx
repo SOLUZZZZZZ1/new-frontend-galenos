@@ -445,7 +445,7 @@ async function handleCancelSubscription(e) {
     }
   }
 
-  // ========================
+    // ========================
   // RENDER
   // ========================
   return (
@@ -458,13 +458,22 @@ async function handleCancelSubscription(e) {
             interpretar de forma prudente los resultados, sin sustituir tu criterio clínico.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => navigate("/pacientes")}
-          className="sr-btn-secondary text-sm whitespace-nowrap"
-        >
-          Gestionar pacientes
-        </button>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <button
+            type="button"
+            onClick={() => navigate("/pacientes")}
+            className="sr-btn-secondary text-sm whitespace-nowrap"
+          >
+            Gestionar pacientes
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowCancelPopup(true)}
+            className="sr-btn-secondary text-sm whitespace-nowrap border-red-300 text-red-600 hover:bg-red-50"
+          >
+            Cancelar suscripción PRO
+          </button>
+        </div>
       </header>
 
       {/* BLOQUE ANALÍTICAS */}
@@ -814,69 +823,76 @@ async function handleCancelSubscription(e) {
                   </h5>
                   <p className="text-sm text-slate-800 whitespace-pre-line">
                     {imgChatAnswer}
-{/* ======================== */}
-{/* POPUP CANCELAR SUSCRIPCIÓN */}
-{/* ======================== */}
-{showCancelPopup && (
-  <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-    <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md space-y-4 border border-slate-300">
-      <h2 className="text-lg font-semibold text-slate-900">
-        Cancelar suscripción PRO
-      </h2>
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </section>
 
-      <p className="text-sm text-slate-700">
-        Antes de cancelar, ¿puedes indicarnos el motivo? Nos ayuda a mejorar Galenos.
-      </p>
+      {/* POPUP CANCELAR SUSCRIPCIÓN */}
+      {showCancelPopup && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md space-y-4 border border-slate-300">
+            <h2 className="text-lg font-semibold text-slate-900">
+              Cancelar suscripción PRO
+            </h2>
 
-      <div className="space-y-2">
-        <select
-          className="sr-input w-full"
-          value={cancelReasonCategory}
-          onChange={(e) => setCancelReasonCategory(e.target.value)}
-        >
-          <option value="">Selecciona un motivo…</option>
-          <option value="no_valor">No me ha aportado valor</option>
-          <option value="no_tiempo">No he tenido tiempo para probarlo bien</option>
-          <option value="dificil_uso">No entendí cómo usarlo</option>
-          <option value="ia_mala">La IA no interpretó bien mis estudios</option>
-          <option value="falta_funcionalidad">Falta alguna funcionalidad que necesito</option>
-          <option value="precio">El precio no encaja</option>
-          <option value="otro">Otro motivo…</option>
-        </select>
+            <p className="text-sm text-slate-700">
+              Antes de cancelar, ¿puedes indicarnos el motivo? Nos ayuda a mejorar Galenos.
+            </p>
 
-        <textarea
-          className="sr-input w-full min-h-[70px]"
-          placeholder="Explica un poco más (opcional)…"
-          value={cancelReasonText}
-          onChange={(e) => setCancelReasonText(e.target.value)}
-        ></textarea>
-      </div>
+            <div className="space-y-2">
+              <select
+                className="sr-input w-full"
+                value={cancelReasonCategory}
+                onChange={(e) => setCancelReasonCategory(e.target.value)}
+              >
+                <option value="">Selecciona un motivo…</option>
+                <option value="no_valor">No me ha aportado valor</option>
+                <option value="no_tiempo">No he tenido tiempo para probarlo bien</option>
+                <option value="dificil_uso">No entendí cómo usarlo</option>
+                <option value="ia_mala">La IA no interpretó bien mis estudios</option>
+                <option value="falta_funcionalidad">Falta alguna funcionalidad que necesito</option>
+                <option value="precio">El precio no encaja</option>
+                <option value="otro">Otro motivo…</option>
+              </select>
 
-      {cancelError && (
-        <p className="text-sm text-red-600">{cancelError}</p>
+              <textarea
+                className="sr-input w-full min-h-[70px]"
+                placeholder="Explica un poco más (opcional)…"
+                value={cancelReasonText}
+                onChange={(e) => setCancelReasonText(e.target.value)}
+              ></textarea>
+            </div>
+
+            {cancelError && (
+              <p className="text-sm text-red-600">{cancelError}</p>
+            )}
+
+            {cancelMessage && (
+              <p className="text-sm text-emerald-700">{cancelMessage}</p>
+            )}
+
+            <div className="flex justify-between mt-4">
+              <button
+                className="sr-btn-secondary px-4 py-2"
+                onClick={() => setShowCancelPopup(false)}
+              >
+                Cerrar
+              </button>
+              <button
+                className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700 disabled:opacity-60"
+                disabled={cancelLoading}
+                onClick={handleCancelSubscription}
+              >
+                {cancelLoading ? "Cancelando…" : "Cancelar definitivamente"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
-
-      {cancelMessage && (
-        <p className="text-sm text-emerald-700">{cancelMessage}</p>
-      )}
-
-      <div className="flex justify-between mt-4">
-        <button
-          className="sr-btn-secondary px-4 py-2"
-          onClick={() => setShowCancelPopup(false)}
-        >
-          Cerrar
-        </button>
-        <button
-          className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700 disabled:opacity-60"
-          disabled={cancelLoading}
-          onClick={handleCancelSubscription}
-        >
-          {cancelLoading ? "Cancelando…" : "Cancelar definitivamente"}
-        </button>
-      </div>
-    </div>
-  </div>
-)}
-
-          
+    </main>
+  );
+}
