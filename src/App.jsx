@@ -13,6 +13,7 @@ import SolicitarAcceso from "./pages/SolicitarAcceso.jsx";
 import AdminPanel from "./pages/AdminPanel.jsx";
 import Patients from "./pages/Patients.jsx";
 import PacienteDetalle from "./pages/PacienteDetalle.jsx";
+import DashboardMedico from "./pages/DashboardMedico.jsx";
 
 // Wrapper para rutas que requieren estar logueado (cualquier médico)
 function RequireAuth({ children }) {
@@ -79,6 +80,17 @@ function App() {
               </RequireAuth>
             }
           />
+
+          {/* Dashboard médico — requiere login */}
+          <Route
+            path="/dashboard"
+            element={
+              <RequireAuth>
+                <DashboardMedico />
+              </RequireAuth>
+            }
+          />
+
 
           {/* Panel administrador — requiere login */}
           <Route
