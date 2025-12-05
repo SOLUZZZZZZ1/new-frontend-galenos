@@ -14,7 +14,13 @@ export default function LoginMedico() {
 
   const navigate = useNavigate();
   const location = useLocation();
-  const from = (location.state && location.state.from && location.state.from.pathname) || "/panel-medico";
+
+  // ✅ Cambio importante: si no hay "from", enviamos al nuevo Dashboard
+  const from =
+    (location.state &&
+      location.state.from &&
+      location.state.from.pathname) ||
+    "/dashboard";
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -60,7 +66,6 @@ export default function LoginMedico() {
         return;
       }
 
-      // Token estándar tipo FastAPI: { access_token, token_type }
       const token = data.access_token || data.token || null;
 
       if (!token) {
@@ -75,7 +80,7 @@ export default function LoginMedico() {
         localStorage.setItem("galenos_name", data.name);
       }
 
-      // Navegamos al panel (o a la ruta original almacenada)
+      // ✅ Ahora, tras login, va al Dashboard por defecto
       navigate(from, { replace: true });
     } catch (err) {
       console.error("❌ Error en petición de login:", err);
@@ -136,7 +141,7 @@ export default function LoginMedico() {
             disabled={loading}
             className="sr-btn-primary w-full disabled:opacity-60 disabled:cursor-not-allowed mt-2"
           >
-            {loading ? "Entrando..." : "Entrar al Panel Médico"}
+            {loading ? "Entrando..." : "Entrar al Panel"}
           </button>
         </form>
 
