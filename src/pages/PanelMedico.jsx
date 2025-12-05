@@ -10,79 +10,6 @@ export default function PanelMedico() {
   const navigate = useNavigate();
 
   const token = localStorage.getItem("galenos_token");
-// ========================
-// CANCELACIÓN SUSCRIPCIÓN (PRO)
-// ========================
-const [showCancelPopup, setShowCancelPopup] = useState(false);
-const [cancelReasonCategory, setCancelReasonCategory] = useState("");
-const [cancelReasonText, setCancelReasonText] = useState("");
-const [cancelLoading, setCancelLoading] = useState(false);
-const [cancelMessage, setCancelMessage] = useState("");
-const [cancelError, setCancelError] = useState("");
-
-// ========================
-// CANCELAR SUSCRIPCIÓN
-// ========================
-async function handleCancelSubscription(e) {
-  e.preventDefault();
-  setCancelError("");
-  setCancelMessage("");
-
-  if (!cancelReasonCategory.trim()) {
-    setCancelError("Selecciona un motivo antes de continuar.");
-    return;
-  }
-
-  try {
-    setCancelLoading(true);
-
-    const res = await fetch(`${API}/billing/cancel`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        reason_category: cancelReasonCategory,
-        reason_text: cancelReasonText.trim(),
-      }),
-    });
-
-    const raw = await res.text();
-    console.log("👉 Respuesta cancelación (raw):", raw);
-
-    if (!res.ok) {
-      setCancelError("No se pudo cancelar la suscripción.");
-      return;
-    }
-
-    let data;
-    try {
-      data = JSON.parse(raw);
-    } catch {
-      setCancelError("Respuesta inesperada del servidor de pagos.");
-      return;
-    }
-
-    setCancelMessage("Suscripción cancelada correctamente.");
-    // Opcional: desactivar PRO en local
-    localStorage.removeItem("galenos_pro");
-  } catch (err) {
-    console.error("❌ Error cancelando suscripción:", err);
-    setCancelError("Error al conectar con el servidor de pagos.");
-  } finally {
-    setCancelLoading(false);
-  }
-}
-
-<button
-  type="button"
-  onClick={() => setShowCancelPopup(true)}
-  className="sr-btn-secondary text-sm whitespace-nowrap border-red-300 text-red-600 hover:bg-red-50"
->
-  Cancelar suscripción PRO
-</button>
-
 
   // ========================
   // ESTADO ANALÍTICAS
@@ -129,6 +56,16 @@ async function handleCancelSubscription(e) {
   const [duplicateImagen, setDuplicateImagen] = useState(false);
 
   // ========================
+  // CANCELACIÓN SUSCRIPCIÓN PRO
+  // ========================
+  const [showCancelPopup, setShowCancelPopup] = useState(false);
+  const [cancelReasonCategory, setCancelReasonCategory] = useState("");
+  const [cancelReasonText, setCancelReasonText] = useState("");
+  const [cancelLoading, setCancelLoading] = useState(false);
+  const [cancelMessage, setCancelMessage] = useState("");
+  const [cancelError, setCancelError] = useState("");
+
+  // ========================
   // HANDLERS ANALÍTICAS
   // ========================
   async function handleUploadAnalitica(e) {
@@ -170,7 +107,6 @@ async function handleCancelSubscription(e) {
 
     try {
       setLoadingAnalitica(true);
-      // IMPORTANTE: ahora usamos /analytics/upload/{patient_id} para ANALIZAR + GUARDAR
       const res = await fetch(`${API}/analytics/upload/${pid}`, {
         method: "POST",
         headers: {
@@ -200,14 +136,12 @@ async function handleCancelSubscription(e) {
         return;
       }
 
-      // Detectar duplicado: si el backend devuelve el mismo id que la última analítica subida
       if (lastAnalyticId && data.id && data.id === lastAnalyticId) {
         setDuplicateAnalytic(true);
         setTimeout(() => setDuplicateAnalytic(false), 5000);
       }
       setLastAnalyticId(data.id || null);
 
-      // data incluye: id, patient_id, summary, differential, markers, created_at, exam_date…
       setAnalyticsResult({
         id: data.id,
         patient_alias: alias.trim(),
@@ -360,7 +294,6 @@ async function handleCancelSubscription(e) {
         return;
       }
 
-      // Detectar duplicado de imagen por id devuelto
       if (lastImagenId && data.id && data.id === lastImagenId) {
         setDuplicateImagen(true);
         setTimeout(() => setDuplicateImagen(false), 5000);
@@ -397,7 +330,7 @@ async function handleCancelSubscription(e) {
     }
 
     const payload = {
-      patient_alias: null, // opcional
+      patient_alias: null,
       summary: imagenSummary || "",
       patterns: imagenPatterns || [],
       question: imgChatQuestion.trim(),
@@ -445,7 +378,60 @@ async function handleCancelSubscription(e) {
     }
   }
 
-    // ========================
+  // ========================
+  // CANCELAR SUSCRIPCIÓN
+  // ========================
+  async function handleCancelSubscription(e) {
+    e.preventDefault();
+    setCancelError("");
+    setCancelMessage("");
+
+    if (!cancelReasonCategory.trim()) {
+      setCancelError("Selecciona un motivo antes de continuar.");
+      return;
+    }
+
+    try {
+      setCancelLoading(true);
+
+      const res = await fetch(`${API}/billing/cancel`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          reason_category: cancelReasonCategory,
+          reason_text: cancelReasonText.trim(),
+        }),
+      });
+
+      const raw = await res.text();
+      console.log("👉 Respuesta cancelación (raw):", raw);
+
+      if (!res.ok) {
+        setCancelError("No se pudo cancelar la suscripción.");
+        return;
+      }
+
+      let data;
+      try {
+        data = JSON.parse(raw);
+      } catch {
+        setCancelError("Respuesta inesperada del servidor de pagos.");
+        return;
+      }
+
+      setCancelMessage("Suscripción cancelada correctamente.");
+    } catch (err) {
+      console.error("❌ Error cancelando suscripción:", err);
+      setCancelError("Error al conectar con el servidor de pagos.");
+    } finally {
+      setCancelLoading(false);
+    }
+  }
+
+  // ========================
   // RENDER
   // ========================
   return (
@@ -458,7 +444,14 @@ async function handleCancelSubscription(e) {
             interpretar de forma prudente los resultados, sin sustituir tu criterio clínico.
           </p>
         </div>
-        <div className="flex flex-col sm:flex-row gap-2">
+        <div className="flex flex-wrap gap-2 justify-end">
+          <button
+            type="button"
+            onClick={() => navigate("/dashboard")}
+            className="sr-btn-secondary text-sm whitespace-nowrap"
+          >
+            Ir al dashboard
+          </button>
           <button
             type="button"
             onClick={() => navigate("/pacientes")}
