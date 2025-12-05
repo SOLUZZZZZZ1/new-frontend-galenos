@@ -9,9 +9,17 @@ export default function NavbarGalenos() {
   const loggedIn = Boolean(localStorage.getItem("galenos_token"));
   const email = localStorage.getItem("galenos_email") || "";
 
+  // ✅ Ruta "Inicio" dinámica:
+  //   - si NO hay sesión → "/"
+  //   - si hay sesión → "/dashboard"
+  const homePath = loggedIn ? "/dashboard" : "/";
+
   function isActive(path) {
     if (path === "/panel-medico") {
       return loc.pathname.startsWith("/panel-medico");
+    }
+    if (path === "/dashboard") {
+      return loc.pathname.startsWith("/dashboard");
     }
     return loc.pathname === path;
   }
@@ -28,18 +36,17 @@ export default function NavbarGalenos() {
         {/* Logo + marca */}
         <button
           type="button"
-          onClick={() => nav("/")}
+          onClick={() => nav(homePath)}  {/* ✅ Logo lleva a homePath */}
           className="flex items-center gap-3 group"
         >
           {/* Logo imagen 3D */}
           <div className="h-14 w-14 rounded-2xl overflow-hidden shadow-sm border border-slate-200 bg-slate-50 flex items-center justify-center">
-         <img
-         src="/galenos-logo.png"
-         alt="Galenos.pro"
-         className="h-14 w-14 object-contain group-hover:scale-105 transition-transform duration-150"
-      />
-      </div>
-
+            <img
+              src="/galenos-logo.png"
+              alt="Galenos.pro"
+              className="h-14 w-14 object-contain group-hover:scale-105 transition-transform duration-150"
+            />
+          </div>
 
           {/* Texto de marca */}
           <div className="flex flex-col text-left leading-tight">
@@ -54,10 +61,11 @@ export default function NavbarGalenos() {
 
         {/* Navegación */}
         <nav className="flex items-center gap-3 text-sm">
+          {/* ✅ Inicio apunta a homePath */}
           <Link
-            to="/"
+            to={homePath}
             className={`px-3 py-1.5 rounded-full border text-xs sm:text-sm ${
-              isActive("/")
+              isActive(homePath)
                 ? "border-sky-500 bg-sky-50 text-sky-700"
                 : "border-transparent text-slate-600 hover:border-slate-200 hover:bg-slate-50"
             }`}
