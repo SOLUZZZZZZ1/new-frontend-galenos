@@ -9,17 +9,14 @@ export default function NavbarGalenos() {
   const loggedIn = Boolean(localStorage.getItem("galenos_token"));
   const email = localStorage.getItem("galenos_email") || "";
 
-  // ✅ Ruta "Inicio" dinámica:
-  //   - si NO hay sesión → "/"
-  //   - si hay sesión → "/dashboard"
+  // Ruta "Inicio":
+  // - si NO hay sesión → "/"
+  // - si hay sesión → "/dashboard"
   const homePath = loggedIn ? "/dashboard" : "/";
 
   function isActive(path) {
     if (path === "/panel-medico") {
       return loc.pathname.startsWith("/panel-medico");
-    }
-    if (path === "/dashboard") {
-      return loc.pathname.startsWith("/dashboard");
     }
     return loc.pathname === path;
   }
@@ -36,7 +33,7 @@ export default function NavbarGalenos() {
         {/* Logo + marca */}
         <button
           type="button"
-          onClick={() => nav(homePath)}  {/* ✅ Logo lleva a homePath */}
+          onClick={() => nav(homePath)}
           className="flex items-center gap-3 group"
         >
           {/* Logo imagen 3D */}
@@ -61,7 +58,7 @@ export default function NavbarGalenos() {
 
         {/* Navegación */}
         <nav className="flex items-center gap-3 text-sm">
-          {/* ✅ Inicio apunta a homePath */}
+          {/* Inicio dinámico */}
           <Link
             to={homePath}
             className={`px-3 py-1.5 rounded-full border text-xs sm:text-sm ${
