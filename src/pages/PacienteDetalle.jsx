@@ -1,3 +1,4 @@
+// src/pages/PacienteDetalle.jsx — Ficha de paciente completa · Galenos.pro
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 
@@ -72,7 +73,7 @@ export default function PacienteDetalle() {
       }
 
       try {
-        // 1) Cargar datos básicos del paciente
+        // 1) Datos básicos del paciente
         const p = await fetch(`${API}/patients/${id}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -93,7 +94,7 @@ export default function PacienteDetalle() {
         return;
       }
 
-      // 2) El resto NO rompe la ficha si falla
+      // 2) El resto no rompe la ficha si falla algo
       try {
         const a = await fetch(`${API}/analytics/by-patient/${id}`, {
           headers: { Authorization: `Bearer ${token}` },
@@ -143,8 +144,15 @@ export default function PacienteDetalle() {
 
       try {
         const t = await fetch(`${API}/timeline/${id}`, {
-          headers: { Authorization: { Authorization: `Bearer ${token}` },
+          headers: { Authorization: `Bearer ${token}` },
         });
+        if (t.ok) {
+          setTimeline(await t.json());
+        } else {
+          console.error("Error HTTP en /timeline:", t.status, await t.text());
+        }
+      } catch (err) {
+        console.error("Error cargando timeline:", err);
       }
 
       setLoading(false);
@@ -152,3 +160,950 @@ export default function PacienteDetalle() {
 
     loadAll();
   }, [id, token]);
+
+  // =========================
+  // CREAR NOTA
+  // =========================
+  async function createNote(e) {
+    e.preventDefault();
+    if (!newTitle.trim() || !newContent.trim()) return;
+
+    try {
+      setSavingNote(true);
+
+      const res = await fetch(`${API}/notes/${id}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          title: newTitle.trim(),
+          content: newContent.trim(),
+        }),
+      });
+
+      const data = await res.json();
+      setNotes((prev) => [...prev, data]);
+      setNewTitle("");
+      setNewContent("");
+    } catch (err) {
+      console.error("Error creando nota:", err);
+      alert("Error creando nota.");
+    } finally {
+      setSavingNote(false);
+    }
+  }
+
+  // =========================
+  // EDITAR NOTA
+  // =========================
+  function startEdit(note) {
+    setEditingNoteId(note.id);
+    setEditTitle(note.title || "");
+    setEditContent(note.content || "");
+  }
+
+  async function updateNote(noteId) {
+    if (!editTitle.trim() || !editContent.trim()) return;
+
+    try {
+      const res = await fetch(`${API}/notes/note/${noteId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          title: editTitle.trim(),
+          content: editContent.trim(),
+        }),
+      });
+
+      const updated = await res.json();
+
+      setNotes((prev) => prev.map((n) => (n.id === noteId ? updated : n)));
+      setEditingNoteId(null);
+      setEditTitle("");
+      setEditContent("");
+    } catch (error) {
+      console.error("Error al actualizar nota:", error);
+      alert("No se pudo actualizar la nota.");
+    }
+  }
+
+  // =========================
+  // EDITAR DATOS DEL PACIENTE
+  // =========================
+  function startEditPatient() {
+    if (!patient) return;
+    setEditAlias(patient.alias || "");
+    setEditAge(patient.age != null ? String(patient.age) : "");
+    setEditGender(patient.gender || "");
+    setEditNotesPatient(patient.notes || "");
+    setEditingPatient(true);
+  }
+
+  function cancelEditPatient() {
+    setEditingPatient(false);
+    setSavingPatient(false);
+  }
+
+  async function savePatient(e) {
+    e.preventDefault();
+    if (!patient) return;
+
+    try {
+      setSavingPatient(true);
+      const body = {
+        alias: editAlias.trim(),
+        age: editAge ? Number(editAge) : null,
+        gender: editGender || null,
+        notes: editNotesPatient || null,
+      };
+
+      const res = await fetch(`${API}/patients/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) {
+        console.error("Error al actualizar paciente:", await res.text());
+        alert("No se pudieron actualizar los datos del paciente.");
+        return;
+      }
+
+      const updated = await res.json();
+      setPatient(updated);
+      setEditingPatient(false);
+    } catch (err) {
+      console.error("Error guardando datos del paciente:", err);
+      alert("No se pudieron guardar los datos del paciente.");
+    } finally {
+      setSavingPatient(false);
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="sr-container py-8">
+        <p className="text-slate-600">Cargando ficha del paciente...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="sr-container py-8">
+        <p className="text-red-600">{error}</p>
+      </div>
+    );
+  }
+
+  if (!patient) {
+    return (
+      <div className="sr-container py-8">
+        <p className="text-slate-600">Paciente no encontrado.</p>
+      </div>
+    );
+  }
+
+  const formatDate = (value) => {
+    if (!value) return "-";
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return value;
+    return d.toLocaleDateString();
+  };
+
+  const sortedTimeline = [...timeline].sort((a, b) => {
+    const da = new Date(a.created_at || a.date || 0).getTime();
+    const db = new Date(b.created_at || b.date || 0).getTime();
+    return db - da; // más reciente primero
+  });
+
+  const timelineLabel = (itemType) => {
+    if (itemType === "imaging") return "imagen médica";
+    if (itemType === "analytic") return "analítica";
+    if (itemType === "note") return "nota clínica";
+    if (itemType === "patient") return "alta de paciente";
+    return "evento";
+  };
+
+  // MANEJO DE EVENTO SELECCIONADO DEL TIMELINE
+  const handleTimelineClick = (item) => {
+    setFocusedEvent(item);
+    setOpen((prev) => ({
+      ...prev,
+      timeline: true,
+    }));
+  };
+
+  const focusedImaging =
+    focusedEvent && focusedEvent.item_type === "imaging"
+      ? imaging.find((img) => img.id === focusedEvent.item_id)
+      : null;
+
+  const focusedAnalytic =
+    focusedEvent && focusedEvent.item_type === "analytic"
+      ? analytics.find((a) => a.id === focusedEvent.item_id)
+      : null;
+
+  const focusedNote =
+    focusedEvent && focusedEvent.item_type === "note"
+      ? notes.find((n) => n.id === focusedEvent.item_id)
+      : null;
+
+  const hasFocusedDetail = focusedImaging || focusedAnalytic || focusedNote;
+
+  // =========================
+  // ÍNDICE DE MARCADORES PARA EVOLUCIÓN
+  // =========================
+  const markerIndex = {};
+  analytics.forEach((a) => {
+    if (!a || !Array.isArray(a.markers)) return;
+    a.markers.forEach((m) => {
+      if (!m || !m.name) return;
+      const name = m.name;
+      if (!markerIndex[name]) {
+        markerIndex[name] = [];
+      }
+      markerIndex[name].push({
+        date: a.exam_date || a.created_at,
+        value: m.value,
+        range: m.range,
+        status: m.status,
+      });
+    });
+  });
+
+  const markerNames = Object.keys(markerIndex).sort((a, b) =>
+    a.localeCompare(b, "es", { sensitivity: "base" })
+  );
+
+  const selectedMarkerSeries = selectedMarker
+    ? [...(markerIndex[selectedMarker] || [])].sort(
+        (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+      )
+    : [];
+
+  return (
+    <div className="sr-container py-6 space-y-6">
+      {/* CABECERA PACIENTE + Navegación */}
+      <section className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 sm:p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-semibold text-slate-900">
+              Paciente: {patient.alias || `ID ${patient.id}`}
+            </h1>
+            <p className="text-sm text-slate-500 mt-1">
+              ID interno: <span className="font-mono">{patient.id}</span>
+              {patient.created_at && (
+                <>
+                  {" "}
+                  · Alta: <span>{formatDate(patient.created_at)}</span>
+                </>
+              )}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2 justify-end">
+            <button
+              type="button"
+              onClick={() => navigate("/dashboard")}
+              className="sr-btn-secondary text-xs sm:text-sm"
+            >
+              Volver al dashboard
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate("/pacientes")}
+              className="sr-btn-secondary text-xs sm:text-sm"
+            >
+              Volver a pacientes
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* BLOQUE: DATOS DEL PACIENTE */}
+      <section className="bg-white rounded-xl shadow-sm border border-slate-200">
+        <button
+          type="button"
+          onClick={() => toggle("datos")}
+          className="w-full flex items-center justify-between px-4 py-3 sm:px-6 border-b border-slate-200 hover:bg-slate-50 transition"
+        >
+          <span className="font-semibold text-slate-800">
+            Datos del paciente
+          </span>
+          <span className="text-sm text-slate-500">
+            {open.datos ? "Ocultar" : "Mostrar"}
+          </span>
+        </button>
+
+        {open.datos && (
+          <div className="px-4 py-4 sm:px-6 sm:py-5 text-sm text-slate-700 space-y-3">
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <p className="font-medium text-slate-800">Datos básicos</p>
+              {!editingPatient && (
+                <button
+                  type="button"
+                  onClick={startEditPatient}
+                  className="text-xs font-medium text-blue-600 hover:text-blue-700"
+                >
+                  Editar datos
+                </button>
+              )}
+            </div>
+
+            {editingPatient ? (
+              <form className="space-y-3" onSubmit={savePatient}>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">
+                    Alias
+                  </label>
+                  <input
+                    type="text"
+                    value={editAlias}
+                    onChange={(e) => setEditAlias(e.target.value)}
+                    className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">
+                      Edad
+                    </label>
+                    <input
+                      type="number"
+                      value={editAge}
+                      onChange={(e) => setEditAge(e.target.value)}
+                      className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      min={0}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">
+                      Sexo
+                    </label>
+                    <input
+                      type="text"
+                      value={editGender}
+                      onChange={(e) => setEditGender(e.target.value)}
+                      className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="H / M / Otro"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">
+                    Notas generales
+                  </label>
+                  <textarea
+                    value={editNotesPatient}
+                    onChange={(e) => setEditNotesPatient(e.target.value)}
+                    rows={3}
+                    className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-y"
+                  />
+                </div>
+                <div className="flex justify-end gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={cancelEditPatient}
+                    className="px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-300 text-slate-600 hover:bg-slate-50"
+                    disabled={savingPatient}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={savingPatient}
+                    className="px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60"
+                  >
+                    {savingPatient ? "Guardando..." : "Guardar datos"}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <div className="space-y-2">
+                <p>
+                  <span className="font-medium">Alias: </span>
+                  {patient.alias || "-"}
+                </p>
+                <p>
+                  <span className="font-medium">Edad (si disponible): </span>
+                  {patient.age != null ? patient.age : "-"}
+                </p>
+                <p>
+                  <span className="font-medium">Sexo: </span>
+                  {patient.gender || "-"}
+                </p>
+                <p>
+                  <span className="font-medium">Notas generales: </span>
+                  {patient.notes || "Sin notas generales registradas."}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+      </section>
+
+      {/* BLOQUE: ANALÍTICAS */}
+      <section className="bg-white rounded-xl shadow_sm border border-slate-200">
+        <button
+          type="button"
+          onClick={() => toggle("analiticas")}
+          className="w-full flex items_center justify-between px-4 py-3 sm:px-6 border-b border-slate-200 hover:bg-slate-50 transition"
+        >
+          <span className="font-semibold text-slate-800">
+            Analíticas de laboratorio
+          </span>
+          <span className="text-sm text-slate-500">
+            {open.analiticas ? "Ocultar" : "Mostrar"}
+          </span>
+        </button>
+
+        {open.analiticas && (
+          <>
+            <div className="px-4 py-4 sm:px-6 sm:py-5">
+              {analytics.length === 0 ? (
+                <p className="text-sm text-slate-500">
+                  No hay analíticas registradas para este paciente.
+                </p>
+              ) : (
+                <div className="space-y-3 text-sm">
+                  {analytics.map((a) => (
+                    <div
+                      key={a.id}
+                      className="border border-slate-200 rounded-lg px-3 py-2 space-y-2"
+                    >
+                      <p className="font-medium text-slate-800">Analítica</p>
+                      <p className="text-slate-500">
+                        Fecha: {formatDate(a.exam_date || a.created_at)}
+                      </p>
+                      {a.summary && (
+                        <p className="mt-1 text-slate-700 text-sm">
+                          {a.summary}
+                        </p>
+                      )}
+
+                      {Array.isArray(a.markers) && a.markers.length > 0 && (
+                        <div className="mt-2 overflow-x-auto">
+                          <table className="min-w-full text-xs border border-slate-200 rounded-md overflow-hidden">
+                            <thead className="bg-slate-100">
+                              <tr>
+                                <th className="px-2 py-1 text-left">Marcador</th>
+                                <th className="px-2 py-1 text-left">Valor</th>
+                                <th className="px-2 py-1 text-left">Rango</th>
+                                <th className="px-2 py-1 text-left">Estado</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {a.markers.map((m, idx) => (
+                                <tr
+                                  key={idx}
+                                  className="border-t border-slate-200"
+                                >
+                                  <td className="px-2 py-1">{m.name}</td>
+                                  <td className="px-2 py-1">
+                                    {m.value !== null && m.value !== undefined
+                                      ? m.value
+                                      : ""}
+                                  </td>
+                                  <td className="px-2 py-1">
+                                    {m.range || ""}
+                                  </td>
+                                  <td className="px-2 py-1">
+                                    {m.status === "elevado" && (
+                                      <span className="text-red-600 font-medium">
+                                        Alto
+                                      </span>
+                                    )}
+                                    {m.status === "bajo" && (
+                                      <span className="text-amber-600 font-medium">
+                                        Bajo
+                                      </span>
+                                    )}
+                                    {m.status === "normal" && (
+                                      <span className="text-emerald-700 font-medium">
+                                        Normal
+                                      </span>
+                                    )}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* EVOLUCIÓN DE UN MARCADOR */}
+            {markerNames.length > 0 && (
+              <div className="px-4 py-4 sm:px-6 sm:py-5 border-t border-slate-200 space-y-3">
+                <h3 className="text-sm font-semibold text-slate-800">
+                  Evolución de un marcador
+                </h3>
+
+                <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+                  <label className="text-xs text-slate-600">
+                    Selecciona un marcador:
+                  </label>
+                  <select
+                    className="sr-input w-full sm:w-auto text-sm"
+                    value={selectedMarker}
+                    onChange={(e) => setSelectedMarker(e.target.value)}
+                  >
+                    <option value="">— Elige un marcador —</option>
+                    {markerNames.map((name) => (
+                      <option key={name} value={name}>
+                        {name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {selectedMarker && selectedMarkerSeries.length === 0 && (
+                  <p className="text-xs text-slate-500">
+                    No hay valores registrados para este marcador.
+                  </p>
+                )}
+
+                {selectedMarker && selectedMarkerSeries.length > 0 && (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full text-xs border border-slate-200 rounded-md overflow-hidden">
+                      <thead className="bg-slate-100">
+                        <tr>
+                          <th className="px-2 py-1 text-left">Fecha</th>
+                          <th className="px-2 py-1 text-left">Valor</th>
+                          <th className="px-2 py-1 text-left">Rango</th>
+                          <th className="px-2 py-1 text-left">Estado</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedMarkerSeries.map((point, idx) => (
+                          <tr key={idx} className="border-t border-slate-200">
+                            <td className="px-2 py-1">
+                              {formatDate(point.date)}
+                            </td>
+                            <td className="px-2 py-1">
+                              {point.value !== null &&
+                              point.value !== undefined
+                                ? point.value
+                                : ""}
+                            </td>
+                            <td className="px-2 py-1">
+                              {point.range || ""}
+                            </td>
+                            <td className="px-2 py-1">
+                              {point.status === "elevado" && (
+                                <span className="text-red-600 font-medium">
+                                  Alto
+                                </span>
+                              )}
+                              {point.status === "bajo" && (
+                                <span className="text-amber-600 font-medium">
+                                  Bajo
+                                </span>
+                              )}
+                              {point.status === "normal" && (
+                                <span className="text-emerald-700 font-medium">
+                                  Normal
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+          </>
+        )}
+      </section>
+
+      {/* BLOQUE: IMÁGENES */}
+      <section className="bg-white rounded-xl shadow-sm border border-slate-200">
+        <button
+          type="button"
+          onClick={() => toggle("imagenes")}
+          className="w-full flex items-center justify-between px-4 py-3 sm:px-6 border-b border-slate-200 hover:bg-slate-50 transition"
+        >
+          <span className="font-semibold text-slate-800">
+            Imágenes médicas
+          </span>
+          <span className="text-sm text-slate-500">
+            {open.imagenes ? "Ocultar" : "Mostrar"}
+          </span>
+        </button>
+
+        {open.imagenes && (
+          <div className="px-4 py-4 sm:px-6 sm:py-5">
+            {imaging.length === 0 ? (
+              <p className="text-sm text-slate-500">
+                No hay estudios de imagen registrados para este paciente.
+              </p>
+            ) : (
+              <div className="space-y-3 text-sm">
+                {imaging.map((img) => (
+                  <div
+                    key={img.id}
+                    className="border border-slate-200 rounded-lg px-3 py-2"
+                  >
+                    <p className="font-medium text-slate-800">
+                      {img.type || "Estudio de imagen"}
+                    </p>
+                    <p className="text-slate-500">
+                      Fecha: {formatDate(img.exam_date || img.created_at)}
+                    </p>
+                    {img.summary && (
+                      <p className="mt-1 text-slate-700 text-sm">
+                        {img.summary}
+                      </p>
+                    )}
+                    {img.file_path && (
+                      <div className="mt-3">
+                        <img
+                          src={img.file_path}
+                          alt={img.type || "Imagen médica"}
+                          className="max-h-64 w-auto rounded-md border border-slate-300 object-contain bg-black/5"
+                        />
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </section>
+
+      {/* BLOQUE: NOTAS CLÍNICAS */}
+      <section className="bg-white rounded-xl shadow-sm border border-slate-200">
+        <button
+          type="button"
+          onClick={() => toggle("notas")}
+          className="w-full flex items-center justify-between px-4 py-3 sm:px-6 border-b border-slate-200 hover:bg-slate-50 transition"
+        >
+          <span className="font-semibold text-slate-800">Notas clínicas</span>
+          <span className="text-sm text-slate-500">
+            {open.notas ? "Ocultar" : "Mostrar"}
+          </span>
+        </button>
+
+        {open.notas && (
+          <div className="px-4 py-4 sm:px-6 sm:py-5 space-y-6">
+            {/* Formulario nueva nota */}
+            <form onSubmit={createNote} className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Título de la nota
+                </label>
+                <input
+                  type="text"
+                  value={newTitle}
+                  onChange={(e) => setNewTitle(e.target.value)}
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Motivo, diagnóstico provisional, etc."
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Contenido
+                </label>
+                <textarea
+                  value={newContent}
+                  onChange={(e) => setNewContent(e.target.value)}
+                  rows={3}
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-y"
+                  placeholder="Detalle clínico, evolución, decisiones..."
+                />
+              </div>
+              <div className="flex justify-end">
+                <button
+                  type="submit"
+                  disabled={savingNote}
+                  className="inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {savingNote ? "Guardando..." : "Guardar nota"}
+                </button>
+              </div>
+            </form>
+
+            {/* Listado de notas */}
+            <div className="space-y-3 text-sm">
+              {notes.length === 0 ? (
+                <p className="text-slate-500">
+                  Aún no hay notas clínicas para este paciente.
+                </p>
+              ) : (
+                notes.map((note) => (
+                  <div
+                    key={note.id}
+                    className="border border-slate-200 rounded-lg px-3 py-2"
+                  >
+                    {editingNoteId === note.id ? (
+                      <div className="space-y-2">
+                        <input
+                          type="text"
+                          value={editTitle}
+                          onChange={(e) => setEditTitle(e.target.value)}
+                          className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        />
+                        <textarea
+                          value={editContent}
+                          onChange={(e) => setEditContent(e.target.value)}
+                          rows={3}
+                          className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-y"
+                        />
+                        <div className="flex gap-2 justify-end pt-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingNoteId(null);
+                              setEditTitle("");
+                              setEditContent("");
+                            }}
+                            className="px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-300 text-slate-600 hover:bg-slate-50"
+                          >
+                            Cancelar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => updateNote(note.id)}
+                            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-600 text-white hover:bg-blue-700"
+                          >
+                            Guardar cambios
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="font-medium text-slate-800">
+                            {note.title || "Nota clínica"}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => startEdit(note)}
+                            className="text-xs font-medium text-blue-600 hover:text-blue-700"
+                          >
+                            Editar
+                          </button>
+                        </div>
+                        <p className="text-slate-500 text-xs mt-0.5">
+                          {formatDate(note.created_at)}
+                        </p>
+                        <p className="mt-1 text-slate-700 whitespace-pre-wrap">
+                          {note.content}
+                        </p>
+                      </>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* BLOQUE: TIMELINE */}
+      <section className="bg-white rounded-xl shadow-sm border border-slate-200 mb-8">
+        <button
+          type="button"
+          onClick={() => toggle("timeline")}
+          className="w-full flex items-center justify-between px-4 py-3 sm:px-6 border-b border-slate-200 hover:bg-slate-50 transition"
+        >
+          <span className="font-semibold text-slate-800">
+            Timeline del paciente
+          </span>
+          <span className="text-sm text-slate-500">
+            {open.timeline ? "Ocultar" : "Mostrar"}
+          </span>
+        </button>
+
+        {open.timeline && (
+          <div className="px-4 py-4 sm:px-6 sm:py-5 space-y-4">
+            {/* DETALLE DEL EVENTO SELECCIONADO */}
+            {hasFocusedDetail && (
+              <section className="bg-blue-50 rounded-xl border border-blue-200 p-4 sm:p-5">
+                <div className="flex items-center justify-between gap-2">
+                  <h2 className="text-sm font-semibold text-blue-800">
+                    Detalle del evento seleccionado
+                  </h2>
+                  <button
+                    type="button"
+                    onClick={() => setFocusedEvent(null)}
+                    className="text-xs text-blue-700 hover:text-blue-900 underline"
+                  >
+                    Quitar selección
+                  </button>
+                </div>
+
+                <div className="mt-3 text-sm text-slate-800 space-y-2">
+                  {focusedImaging && (
+                    <>
+                      <p className="font-medium">
+                        Imagen médica · {focusedImaging.type || "Estudio"}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        Fecha:{" "}
+                        {formatDate(
+                          focusedImaging.exam_date || focusedImaging.created_at
+                        )}
+                      </p>
+                      {focusedImaging.summary && (
+                        <p className="whitespace-pre-wrap">
+                          {focusedImaging.summary}
+                        </p>
+                      )}
+                      {focusedImaging.file_path && (
+                        <div className="mt-3">
+                          <img
+                            src={focusedImaging.file_path}
+                            alt={focusedImaging.type || "Imagen médica"}
+                            className="max-h-64 w-auto rounded-md border border-slate-300 object-contain bg-black/5"
+                          />
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {focusedAnalytic && (
+                    <>
+                      <p className="font-medium">Analítica</p>
+                      <p className="text-xs text-slate-500">
+                        Fecha:{" "}
+                        {formatDate(
+                          focusedAnalytic.exam_date ||
+                            focusedAnalytic.created_at
+                        )}
+                      </p>
+                      {focusedAnalytic.summary && (
+                        <p className="whitespace-pre-wrap">
+                          {focusedAnalytic.summary}
+                        </p>
+                      )}
+
+                      {Array.isArray(focusedAnalytic.markers) &&
+                        focusedAnalytic.markers.length > 0 && (
+                          <div className="mt-3 overflow-x-auto">
+                            <table className="min-w-full text-xs border border-slate-200 rounded-md overflow-hidden">
+                              <thead className="bg-slate-100">
+                                <tr>
+                                  <th className="px-2 py-1 text-left">
+                                    Marcador
+                                  </th>
+                                  <th className="px-2 py-1 text-left">
+                                    Valor
+                                  </th>
+                                  <th className="px-2 py-1 text-left">
+                                    Rango
+                                  </th>
+                                  <th className="px-2 py-1 text-left">
+                                    Estado
+                                  </th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {focusedAnalytic.markers.map((m, idx) => (
+                                  <tr
+                                    key={idx}
+                                    className="border-t border-slate-200"
+                                  >
+                                    <td className="px-2 py-1">{m.name}</td>
+                                    <td className="px-2 py-1">
+                                      {m.value !== null &&
+                                      m.value !== undefined
+                                        ? m.value
+                                        : ""}
+                                    </td>
+                                    <td className="px-2 py-1">
+                                      {m.range || ""}
+                                    </td>
+                                    <td className="px-2 py-1">
+                                      {m.status === "elevado" && (
+                                        <span className="text-red-600 font-medium">
+                                          Alto
+                                        </span>
+                                      )}
+                                      {m.status === "bajo" && (
+                                        <span className="text-amber-600 font-medium">
+                                          Bajo
+                                        </span>
+                                      )}
+                                      {m.status === "normal" && (
+                                        <span className="text-emerald-700 font-medium">
+                                          Normal
+                                        </span>
+                                      )}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                    </>
+                  )}
+
+                  {focusedNote && (
+                    <>
+                      <p className="font-medium">
+                        Nota clínica · {focusedNote.title || ""}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        Fecha: {formatDate(focusedNote.created_at)}
+                      </p>
+                      <p className="whitespace-pre-wrap">
+                        {focusedNote.content}
+                      </p>
+                    </>
+                  )}
+                </div>
+              </section>
+            )}
+
+            {/* LISTA DEL TIMELINE */}
+            {sortedTimeline.length === 0 ? (
+              <p className="text-sm text-slate-500">
+                No hay eventos en el timeline para este paciente.
+              </p>
+            ) : (
+              <ol className="relative border-l border-slate-200 text-sm">
+                {sortedTimeline.map((item) => (
+                  <li key={item.id} className="mb-4 ml-4">
+                    <div className="absolute w-2 h-2 bg-blue-600 rounded-full -left-1 mt-2" />
+                    <p className="text-xs text-slate-500">
+                      {formatDate(item.created_at)} ·{" "}
+                      <span className="uppercase tracking-wide">
+                        {item.item_type}
+                      </span>
+                    </p>
+                    <p className="mt-0.5">
+                      <button
+                        type="button"
+                        onClick={() => handleTimelineClick(item)}
+                        className="text-blue-600 hover:text-blue-800 underline text-xs font-medium"
+                      >
+                        Ver {timelineLabel(item.item_type)}
+                      </button>
+                    </p>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
