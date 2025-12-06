@@ -211,7 +211,7 @@ export default function InicioGalenos() {
             </ul>
             <p className="sr-small mt-2 text-slate-500">
               Galenos.pro no diagnostica ni prescribe. Es una herramienta de apoyo diseñada para
-              médicos, no para pacientes.
+              médicos.
             </p>
           </div>
         </div>
@@ -291,7 +291,7 @@ export default function InicioGalenos() {
 
           <p className="text-xs text-slate-500 mt-2">
             Galenos.pro no reemplaza el juicio clínico ni emite diagnósticos. Es un soporte
-            orientativo para médicos, no una herramienta para pacientes.
+            orientativo para médicos.
           </p>
         </div>
       </section>
