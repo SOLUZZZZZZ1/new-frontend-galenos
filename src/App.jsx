@@ -113,7 +113,7 @@ function App() {
             © {new Date().getFullYear()} Galenos.pro · Herramienta de apoyo al médico.
           </p>
           <p className="sr-small text-slate-500">
-            La decisión clínica final corresponde siempre al médico responsable।
+            La decisión clínica final corresponde siempre al médico responsable
           </p>
         </div>
       </footer>
