@@ -10,7 +10,7 @@ export default function RegistroMedicoLibre() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Si viene ?next=pro o similar, lo respetamos
+  // Si viene ?next=pro o similar, lo podremos usar más adelante
   const params = new URLSearchParams(location.search);
   const next = params.get("next") || "/dashboard";
 
@@ -55,7 +55,7 @@ export default function RegistroMedicoLibre() {
       return;
     }
     if (!alias.trim()) {
-      setError("Introduce un alias profesional (será visible en De Guardia).");
+      setError("Introduce un alias profesional (será necesario para De Guardia).");
       return;
     }
     if (!password || !password2) {
@@ -100,40 +100,15 @@ export default function RegistroMedicoLibre() {
         return;
       }
 
-      let data;
-      try {
-        data = JSON.parse(raw);
-      } catch (err) {
-        console.error("❌ [Registro] No se pudo parsear JSON:", err);
-        setError("Respuesta inesperada del servidor de registro.");
-        return;
-      }
+      // Si llega aquí, el registro ha ido bien aunque el backend no devuelva token.
+      setInfo(
+        "Registro completado correctamente. Ahora puedes iniciar sesión con tu correo y contraseña."
+      );
 
-      const token = data.access_token || data.token || null;
-
-      if (!token) {
-        setInfo(
-          "Registro completado, pero el servidor no devolvió token. Intenta iniciar sesión manualmente."
-        );
-        return;
-      }
-
-      // Guardar datos básicos en localStorage
-      localStorage.setItem("galenos_token", token);
-      localStorage.setItem("galenos_email", data.email || email || "");
-      if (data.name || name) {
-        localStorage.setItem("galenos_name", data.name || name);
-      }
-      if (data.alias || alias) {
-        localStorage.setItem("galenos_alias", data.alias || alias);
-      }
-      if (data.specialty || specialty) {
-        localStorage.setItem("galenos_specialty", data.specialty || specialty);
-      }
-
-      setInfo("Registro completado. Redirigiendo al panel...");
-      // Redirigir a la ruta deseada
-      navigate(next, { replace: true });
+      // Redirigimos al login después de un pequeño delay
+      setTimeout(() => {
+        navigate("/login", { replace: true });
+      }, 1500);
     } catch (err) {
       console.error("❌ [Registro] Error al conectar con el backend:", err);
       setError("No se ha podido conectar con el servidor de registro.");
@@ -148,8 +123,8 @@ export default function RegistroMedicoLibre() {
         <header className="space-y-1">
           <h1 className="sr-h1 text-2xl">Alta de médico · Galenos.pro</h1>
           <p className="sr-p text-sm text-slate-600">
-            Crea tu cuenta profesional. Más adelante podrás activar Galenos PRO con 3 días de
-            prueba desde tu panel. No se te cobrará nada al registrarte.
+            Crea tu cuenta profesional. Después de registrarte, podrás acceder con tu correo y
+            contraseña, y más adelante activar Galenos PRO con 3 días de prueba desde tu panel.
           </p>
         </header>
 
