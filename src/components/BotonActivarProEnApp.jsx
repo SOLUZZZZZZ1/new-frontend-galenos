@@ -1,3 +1,4 @@
+
 // Botón interno para activar PRO: comprueba el perfil y luego abre Stripe.
 
 import React from "react";
@@ -11,17 +12,23 @@ export default function BotonActivarProEnApp() {
 
   async function handleActivatePro() {
     const token = localStorage.getItem("galenos_token");
-    if (!token) return nav("/login");
 
-    // 1) Comprobar perfil médico (requiere token)
+    // 1) Sin sesión → al login
+    if (!token) {
+      nav("/login");
+      return;
+    }
+
+    // 2) Comprobar perfil médico (en tabla doctor_profiles)
     try {
       const resProfile = await fetch(`${API}/doctor/profile/me`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
       if (resProfile.status === 404) {
-        // No tiene perfil → completar antes de Stripe
-        return nav("/perfil-medico");
+        // No tiene perfil → ir a /perfil (pantalla de creación/lectura)
+        nav("/perfil");
+        return;
       }
 
       if (!resProfile.ok) {
@@ -35,10 +42,15 @@ export default function BotonActivarProEnApp() {
       return;
     }
 
-    // 2) Crear sesión de Stripe
-    //    ⚠ Aquí NO enviamos cabeceras personalizadas para evitar problemas de CORS.
+    // 3) Crear sesión de Stripe asociada al médico autenticado
     try {
-      const res = await fetch(`${API}/billing/create-checkout-session`);
+      const res = await fetch(`${API}/billing/create-checkout-session`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
       const raw = await res.text();
       console.log("[Stripe raw]:", raw);
 
@@ -61,15 +73,8 @@ export default function BotonActivarProEnApp() {
         return;
       }
 
-      // Abrir Stripe
-      const win = window.open(
-        data.checkout_url,
-        "_blank",
-        "noopener,noreferrer"
-      );
-      if (!win) {
-        window.location.href = data.checkout_url;
-      }
+      // 4) Redirigir directamente a Stripe (sin popups, sin pasar por React Router)
+      window.location.href = data.checkout_url;
     } catch (err) {
       console.error("Stripe error:", err);
       alert("No se pudo conectar con Stripe.");
