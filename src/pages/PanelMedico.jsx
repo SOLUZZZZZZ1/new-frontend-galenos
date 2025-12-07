@@ -61,7 +61,6 @@ export default function PanelMedico() {
       }
 
       setCancelMessage("Suscripción cancelada correctamente.");
-      // Opcional: desactivar PRO en local
       localStorage.removeItem("galenos_pro");
     } catch (err) {
       console.error("❌ Error cancelando suscripción:", err);
@@ -503,19 +502,394 @@ export default function PanelMedico() {
             </div>
             <div>
               <label className="sr-label">Fichero de analítica</label>
-              {/* etc, resto del render como en tu versión */}
+              <input
+                type="file"
+                accept=".pdf,image/*"
+                onChange={(e) => setFileAnalitica(e.target.files?.[0] || null)}
+                className="sr-input w-full"
+              />
             </div>
           </div>
-          {/* ... sigue igual que en el código anterior que ya te he pegado completo ... */}
+
+          {analyticsError && (
+            <p className="text-sm text-red-600">{analyticsError}</p>
+          )}
+
+          <button
+            type="submit"
+            disabled={loadingAnalitica}
+            className="sr-btn-primary disabled:opacity-60 disabled:cursor-not-allowed mt-1"
+          >
+            {loadingAnalitica
+              ? "Analizando y guardando analítica..."
+              : "Analizar y guardar analítica"}
+          </button>
+
+          {duplicateAnalytic && (
+            <p className="mt-2 text-xs text-amber-700 flex items-center gap-1">
+              <span>⚠</span>
+              <span>Esta analítica ya estaba registrada (no se ha duplicado).</span>
+            </p>
+          )}
         </form>
+
+        {analyticsResult && (
+          <div className="mt-4 space-y-4">
+            <div>
+              <h3 className="text-sm font-semibold mb-1">
+                Resultado para {analyticsResult.patient_alias}
+              </h3>
+              <p className="text-xs text-slate-500">
+                Fichero:{" "}
+                <span className="font-mono">{analyticsResult.file_name}</span>
+              </p>
+              {analyticsResult.exam_date && (
+                <p className="text-xs text-slate-500">
+                  Fecha de la analítica:{" "}
+                  {new Date(analyticsResult.exam_date).toLocaleDateString()}
+                </p>
+              )}
+            </div>
+
+            {analyticsResult.summary && (
+              <div>
+                <h4 className="text-sm font-semibold mb-1">Resumen orientativo</h4>
+                <p className="text-sm text-slate-800 whitespace-pre-line">
+                  {analyticsResult.summary}
+                </p>
+              </div>
+            )}
+
+            {analyticsResult.differential && (
+              <div>
+                <h4 className="text-sm font-semibold mb-1">
+                  Diagnóstico diferencial (orientativo)
+                </h4>
+                <p className="text-sm text-slate-800 whitespace-pre-line">
+                  {analyticsResult.differential}
+                </p>
+              </div>
+            )}
+
+            {Array.isArray(analyticsResult.markers) &&
+              analyticsResult.markers.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-semibold mb-2">
+                    Marcadores extraídos
+                  </h4>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full text-xs border border-slate-200 rounded-md overflow-hidden">
+                      <thead className="bg-slate-100">
+                        <tr>
+                          <th className="px-2 py-1 text-left">Marcador</th>
+                          <th className="px-2 py-1 text-left">Valor</th>
+                          <th className="px-2 py-1 text-left">Rango</th>
+                          <th className="px-2 py-1 text-left">Estado</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {analyticsResult.markers.map((m, idx) => (
+                          <tr key={idx} className="border-t border-slate-200">
+                            <td className="px-2 py-1">{m.name}</td>
+                            <td className="px-2 py-1">
+                              {m.value !== null && m.value !== undefined
+                                ? m.value
+                                : ""}
+                            </td>
+                            <td className="px-2 py-1">{m.range || ""}</td>
+                            <td className="px-2 py-1">
+                              {m.status === "elevado" && (
+                                <span className="text-red-600 font-medium">
+                                  Alto
+                                </span>
+                              )}
+                              {m.status === "bajo" && (
+                                <span className="text-amber-600 font-medium">
+                                  Bajo
+                                </span>
+                              )}
+                              {m.status === "normal" && (
+                                <span className="text-emerald-700 font-medium">
+                                  Normal
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+            {/* Mini chat analíticas */}
+            <div className="mt-4 border-t border-slate-200 pt-3 space-y-2">
+              <h4 className="text-sm font-semibold">
+                Preguntar sobre la analítica (IA clínica orientativa)
+              </h4>
+              <form onSubmit={handleAnalyticsChat} className="space-y-2">
+                <textarea
+                  className="sr-input w-full min-h-[60px]"
+                  value={chatQuestion}
+                  onChange={(e) => setChatQuestion(e.target.value)}
+                  placeholder="Ej. ¿Cómo interpretarías la evolución de PCR y leucocitos?"
+                />
+                {chatError && (
+                  <p className="text-sm text-red-600">{chatError}</p>
+                )}
+                <button
+                  type="submit"
+                  disabled={chatLoading}
+                  className="sr-btn-secondary disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {chatLoading ? "Pensando..." : "Preguntar a la IA clínica"}
+                </button>
+              </form>
+
+              {chatAnswer && (
+                <div className="mt-2">
+                  <h5 className="text-xs font-semibold mb-1">
+                    Respuesta orientativa (no vinculante)
+                  </h5>
+                  <p className="text-sm text-slate-800 whitespace-pre-line">
+                    {chatAnswer}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </section>
 
-      {/* BLOQUE IMÁGENES y POPUP cancelación PRO también como en tu código completo */}
-      {/* ... (resto del JSX igual que en el código anterior) ... */}
+      {/* BLOQUE IMÁGENES MÉDICAS */}
+      <section className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 space-y-4">
+        <h2 className="text-lg font-semibold">
+          Imágenes médicas (RX / TAC / RM / ECO)
+        </h2>
+        <p className="text-sm text-slate-600">
+          Indica el ID de paciente (lo puedes ver en la página Pacientes), el tipo de estudio,
+          la fecha del estudio y sube la imagen o PDF correspondiente. Se guardará en la ficha
+          de ese paciente.
+        </p>
 
+        <form onSubmit={handleUploadImagen} className="space-y-3">
+          <div className="grid md:grid-cols-4 gap-3">
+            <div>
+              <label className="sr-label">ID de paciente</label>
+              <input
+                type="number"
+                className="sr-input w-full"
+                value={patientIdImagen}
+                onChange={(e) => setPatientIdImagen(e.target.value)}
+                placeholder="Ej. 1"
+              />
+            </div>
+            <div>
+              <label className="sr-label">Tipo de estudio</label>
+              <select
+                className="sr-input w-full"
+                value={imgType}
+                onChange={(e) => setImgType(e.target.value)}
+              >
+                <option value="RX">RX</option>
+                <option value="TAC">TAC</option>
+                <option value="RM">RM</option>
+                <option value="ECO">ECO</option>
+                <option value="OTRO">Otro</option>
+              </select>
+            </div>
+            <div>
+              <label className="sr-label">Fecha del estudio</label>
+              <input
+                type="date"
+                className="sr-input w-full"
+                value={examDateImagen}
+                onChange={(e) => setExamDateImagen(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="sr-label">Fichero de imagen o PDF</label>
+              <input
+                type="file"
+                accept=".pdf,image/*"
+                className="sr-input w-full"
+                onChange={(e) => setFileImagen(e.target.files?.[0] || null)}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="sr-label">
+              Contexto clínico (opcional, se envía a la IA)
+            </label>
+            <textarea
+              className="sr-input w-full min-h-[60px]"
+              value={imgContext}
+              onChange={(e) => setImgContext(e.target.value)}
+              placeholder="Ej. Tos 3 días, fiebre, Rx de control..."
+            />
+          </div>
+
+          {imagenError && (
+            <p className="text-sm text-red-600">{imagenError}</p>
+          )}
+
+          <button
+            type="submit"
+            disabled={loadingImagen}
+            className="sr-btn-primary disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {loadingImagen ? "Analizando imagen..." : "Analizar imagen médica"}
+          </button>
+
+          {duplicateImagen && (
+            <p className="mt-2 text-xs text-amber-700 flex items-center gap-1">
+              <span>⚠</span>
+              <span>Esta imagen ya estaba registrada (no se ha duplicado).</span>
+            </p>
+          )}
+        </form>
+
+        {(imagenSummary ||
+          imagenDifferential ||
+          imagenPatterns.length > 0) && (
+          <div className="mt-4 space-y-4">
+            {imagenSummary && (
+              <div>
+                <h3 className="text-sm font-semibold mb-1">
+                  Resumen radiológico orientativo
+                </h3>
+                <p className="text-sm text-slate-800 whitespace-pre-line">
+                  {imagenSummary}
+                </p>
+              </div>
+            )}
+
+            {imagenDifferential && (
+              <div>
+                <h3 className="text-sm font-semibold mb-1">
+                  Diagnóstico diferencial general (orientativo)
+                </h3>
+                <p className="text-sm text-slate-800 whitespace-pre-line">
+                  {imagenDifferential}
+                </p>
+              </div>
+            )}
+
+            {imagenPatterns.length > 0 && (
+              <div>
+                <h3 className="text-sm font-semibold mb-2">
+                  Patrones / hallazgos descritos
+                </h3>
+                <ul className="list-disc list-inside text-sm text-slate-800 space-y-1">
+                  {imagenPatterns.map((p, idx) => (
+                    <li key={idx}>{p}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Mini chat radiológico */}
+            <div className="mt-4 border-t border-slate-200 pt-3 space-y-2">
+              <h4 className="text-sm font-semibold">
+                Preguntar sobre la imagen (IA radiológica orientativa)
+              </h4>
+              <form onSubmit={handleImagingChat} className="space-y-2">
+                <textarea
+                  className="sr-input w-full min-h-[60px]"
+                  value={imgChatQuestion}
+                  onChange={(e) => setImgChatQuestion(e.target.value)}
+                  placeholder="Ej. ¿Qué impresiona más relevante en esta imagen?"
+                />
+                {imgChatError && (
+                  <p className="text-sm text-red-600">{imgChatError}</p>
+                )}
+                <button
+                  type="submit"
+                  disabled={imgChatLoading}
+                  className="sr-btn-secondary disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {imgChatLoading
+                    ? "Pensando..."
+                    : "Preguntar a la IA radiológica"}
+                </button>
+              </form>
+
+              {imgChatAnswer && (
+                <div className="mt-2">
+                  <h5 className="text-xs font-semibold mb-1">
+                    Respuesta orientativa (no vinculante)
+                  </h5>
+                  <p className="text-sm text-slate-800 whitespace-pre-line">
+                    {imgChatAnswer}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* POPUP CANCELAR SUSCRIPCIÓN */}
       {showCancelPopup && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          {/* popup */}
+          <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md space-y-4 border border-slate-300">
+            <h2 className="text-lg font-semibold text-slate-900">
+              Cancelar suscripción PRO
+            </h2>
+
+            <p className="text-sm text-slate-700">
+              Antes de cancelar, ¿puedes indicarnos el motivo? Nos ayuda a mejorar Galenos.
+            </p>
+
+            <div className="space-y-2">
+              <select
+                className="sr-input w-full"
+                value={cancelReasonCategory}
+                onChange={(e) => setCancelReasonCategory(e.target.value)}
+              >
+                <option value="">Selecciona un motivo…</option>
+                <option value="no_valor">No me ha aportado valor</option>
+                <option value="no_tiempo">No he tenido tiempo para probarlo bien</option>
+                <option value="dificil_uso">No entendí cómo usarlo</option>
+                <option value="ia_mala">La IA no interpretó bien mis estudios</option>
+                <option value="falta_funcionalidad">Falta alguna funcionalidad que necesito</option>
+                <option value="precio">El precio no encaja</option>
+                <option value="otro">Otro motivo…</option>
+              </select>
+
+              <textarea
+                className="sr-input w-full min-h-[70px]"
+                placeholder="Explica un poco más (opcional)…"
+                value={cancelReasonText}
+                onChange={(e) => setCancelReasonText(e.target.value)}
+              />
+            </div>
+
+            {cancelError && (
+              <p className="text-sm text-red-600">{cancelError}</p>
+            )}
+
+            {cancelMessage && (
+              <p className="text-sm text-emerald-700">{cancelMessage}</p>
+            )}
+
+            <div className="flex justify-between mt-4">
+              <button
+                className="sr-btn-secondary px-4 py-2"
+                onClick={() => setShowCancelPopup(false)}
+              >
+                Cerrar
+              </button>
+              <button
+                className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700 disabled:opacity-60"
+                disabled={cancelLoading}
+                onClick={handleCancelSubscription}
+              >
+                {cancelLoading ? "Cancelando…" : "Cancelar definitivamente"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </main>
