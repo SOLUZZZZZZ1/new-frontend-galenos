@@ -2,7 +2,6 @@
 // Botón interno para activar PRO: comprueba perfil médico y luego abre Stripe Checkout.
 
 import React from "react";
-import axios from "axios";
 import { useNavigate } from "react-router-dom";
 
 const API =
@@ -20,18 +19,22 @@ export default function BotonActivarProEnApp() {
 
     // 1) Comprobar que hay perfil médico creado
     try {
-      await axios.get(`${API}/doctor/profile/me`, {
+      const resProfile = await fetch(`${API}/doctor/profile/me`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
-    } catch (err) {
-      const status = err?.response?.status;
-      if (status === 404) {
+      if (resProfile.status === 404) {
         // No hay perfil médico → llevar a la pantalla de perfil
         nav("/perfil-medico");
         return;
       }
+      if (!resProfile.ok) {
+        console.error("Error /doctor/profile/me:", await resProfile.text());
+        alert("No se ha podido comprobar el perfil médico.");
+        return;
+      }
+    } catch (err) {
       console.error("Error comprobando perfil médico:", err);
       alert("No se ha podido comprobar el perfil médico.");
       return;
@@ -39,8 +42,25 @@ export default function BotonActivarProEnApp() {
 
     // 2) Crear sesión de Stripe para la prueba PRO
     try {
-      const res = await axios.get(`${API}/billing/create-checkout-session`);
-      const url = res.data?.checkout_url;
+      const resStripe = await fetch(`${API}/billing/create-checkout-session`);
+      const raw = await resStripe.text();
+      console.log("[PRO] Respuesta create-checkout-session (raw):", raw);
+
+      if (!resStripe.ok) {
+        alert("No se ha podido iniciar el pago en Stripe.");
+        return;
+      }
+
+      let data;
+      try {
+        data = JSON.parse(raw);
+      } catch (err) {
+        console.error("No se pudo parsear JSON de Stripe:", err);
+        alert("Respuesta inesperada del servidor de pagos.");
+        return;
+      }
+
+      const url = data?.checkout_url;
       if (!url) {
         alert("El servidor no ha devuelto una URL de pago.");
         return;
