@@ -93,8 +93,7 @@ export default function NavbarGalenos() {
             <Link to="/perfil" className="sr-nav-link">
              Mi perfil
              </Link>
-              }`}
-            >
+              
               Acceder
             </Link>
           ) : (
