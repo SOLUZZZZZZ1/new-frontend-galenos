@@ -1,5 +1,4 @@
-
-// Botón interno para activar PRO: comprueba el perfil y luego abre Stripe.
+// Botón interno para activar PRO: comprueba el perfil en backend y luego abre Stripe.
 
 import React from "react";
 import { useNavigate } from "react-router-dom";
@@ -13,26 +12,29 @@ export default function BotonActivarProEnApp() {
   async function handleActivatePro() {
     const token = localStorage.getItem("galenos_token");
 
-    // 1) Sin sesión → al login
+    // 1) Sin sesión → al login (no al alta)
     if (!token) {
       nav("/login");
       return;
     }
 
-    // 2) Comprobar perfil médico (en tabla doctor_profiles)
+    // 2) Comprobar perfil médico REAL (tabla doctor_profiles)
     try {
       const resProfile = await fetch(`${API}/doctor/profile/me`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
+      const rawProfile = await resProfile.text();
+      console.log("👉 [/botón PRO] /doctor/profile/me (raw):", rawProfile);
+
       if (resProfile.status === 404) {
-        // No tiene perfil → ir a /perfil (pantalla de creación/lectura)
+        // No tiene perfil → ir a /perfil (formulario de perfil médico, NO alta de usuario)
         nav("/perfil");
         return;
       }
 
       if (!resProfile.ok) {
-        console.error("Error perfil:", await resProfile.text());
+        console.error("Error perfil:", rawProfile);
         alert("No se pudo comprobar tu perfil médico.");
         return;
       }
@@ -73,7 +75,7 @@ export default function BotonActivarProEnApp() {
         return;
       }
 
-      // 4) Redirigir directamente a Stripe (sin popups, sin pasar por React Router)
+      // 4) Redirigir directamente a Stripe (sin popups ni navegación SPA)
       window.location.href = data.checkout_url;
     } catch (err) {
       console.error("Stripe error:", err);
