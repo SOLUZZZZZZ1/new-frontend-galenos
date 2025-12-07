@@ -2,7 +2,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-// URL del backend de Galenos (Render)
 const API =
   import.meta.env.VITE_API_URL || "https://galenos-backend.onrender.com";
 
@@ -42,6 +41,7 @@ export default function PanelMedico() {
   const [imagenSummary, setImagenSummary] = useState("");
   const [imagenDifferential, setImagenDifferential] = useState("");
   const [imagenPatterns, setImagenPatterns] = useState([]);
+  const [imagenFileUrl, setImagenFileUrl] = useState("");
 
   const [imgChatQuestion, setImgChatQuestion] = useState("");
   const [imgChatAnswer, setImgChatAnswer] = useState("");
@@ -76,7 +76,9 @@ export default function PanelMedico() {
     }
 
     if (!alias.trim()) {
-      setAnalyticsError("Introduce un alias para la analítica (ej. 0001 - Nombre).");
+      setAnalyticsError(
+        "Introduce un alias para la analítica (ej. 0001 - Nombre)."
+      );
       return;
     }
     if (!fileAnalitica) {
@@ -126,13 +128,46 @@ export default function PanelMedico() {
       }
       setLastAnalyticId(data.id || null);
 
+      // Normalizar marcadores para asegurar que se pintan siempre
+      const markersRaw = data.markers || data.marker_list || [];
+      const markers = Array.isArray(markersRaw)
+        ? markersRaw.map((m) => {
+            const value = m.value ?? m.marker_value ?? null;
+            const refMin = m.ref_min ?? null;
+            const refMax = m.ref_max ?? null;
+
+            let status = m.status || m.flag || "";
+            if (!status && value != null && refMin != null && refMax != null) {
+              if (value > refMax) status = "elevado";
+              else if (value < refMin) status = "bajo";
+              else status = "normal";
+            }
+
+            const range =
+              m.range ||
+              (refMin != null || refMax != null
+                ? `${refMin ?? ""}${refMin != null && refMax != null ? " - " : ""}${
+                    refMax ?? ""
+                  }`
+                : "");
+
+            return {
+              name: m.name || m.marker_name || "",
+              value: value,
+              range,
+              status,
+              unit: m.unit || m.units || "",
+            };
+          })
+        : [];
+
       setAnalyticsResult({
         id: data.id,
         patient_alias: alias.trim(),
         file_name: data.file_name || fileAnalitica.name,
         summary: data.summary,
         differential: data.differential,
-        markers: data.markers || [],
+        markers,
         exam_date: data.exam_date || null,
         created_at: data.created_at || null,
       });
@@ -216,6 +251,7 @@ export default function PanelMedico() {
     setImagenSummary("");
     setImagenDifferential("");
     setImagenPatterns([]);
+    setImagenFileUrl("");
     setImgChatAnswer("");
     setImgChatError("");
     setDuplicateImagen(false);
@@ -291,6 +327,17 @@ export default function PanelMedico() {
         );
       } else {
         setImagenPatterns([]);
+      }
+
+      // Intentar sacar URL o ruta de la imagen del backend
+      const fileUrl = data.file_url || data.file_path || "";
+      if (fileUrl) {
+        // Si es ruta relativa, añadimos API delante
+        if (fileUrl.startsWith("http")) {
+          setImagenFileUrl(fileUrl);
+        } else {
+          setImagenFileUrl(`${API}${fileUrl.startsWith("/") ? "" : "/"}${fileUrl}`);
+        }
       }
     } catch (err) {
       console.error("❌ Error imagen médica:", err);
@@ -534,6 +581,7 @@ export default function PanelMedico() {
                               {m.value !== null && m.value !== undefined
                                 ? m.value
                                 : ""}
+                              {m.unit ? ` ${m.unit}` : ""}
                             </td>
                             <td className="px-2 py-1">{m.range || ""}</td>
                             <td className="px-2 py-1">
@@ -550,6 +598,11 @@ export default function PanelMedico() {
                               {m.status === "normal" && (
                                 <span className="text-emerald-700 font-medium">
                                   Normal
+                                </span>
+                              )}
+                              {!m.status && (
+                                <span className="text-slate-500">
+                                  -
                                 </span>
                               )}
                             </td>
@@ -693,7 +746,8 @@ export default function PanelMedico() {
 
         {(imagenSummary ||
           imagenDifferential ||
-          imagenPatterns.length > 0) && (
+          imagenPatterns.length > 0 ||
+          imagenFileUrl) && (
           <div className="mt-4 space-y-4">
             {imagenSummary && (
               <div>
@@ -727,6 +781,22 @@ export default function PanelMedico() {
                     <li key={idx}>{p}</li>
                   ))}
                 </ul>
+              </div>
+            )}
+
+            {imagenFileUrl && (
+              <div>
+                <h3 className="text-sm font-semibold mb-1">
+                  Imagen original
+                </h3>
+                <a
+                  href={imagenFileUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-sm text-blue-600 underline"
+                >
+                  Abrir imagen en otra pestaña
+                </a>
               </div>
             )}
 
