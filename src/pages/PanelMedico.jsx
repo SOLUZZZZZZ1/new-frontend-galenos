@@ -25,9 +25,7 @@ export default function PanelMedico() {
       }
       try {
         const res = await fetch(`${API}/auth/me`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         });
         const raw = await res.text();
         console.log("👉 /auth/me (raw):", raw);
@@ -62,7 +60,6 @@ export default function PanelMedico() {
   const [chatLoading, setChatLoading] = useState(false);
   const [chatError, setChatError] = useState("");
 
-  // Detección de duplicados (analíticas)
   const [lastAnalyticId, setLastAnalyticId] = useState(null);
   const [duplicateAnalytic, setDuplicateAnalytic] = useState(false);
 
@@ -80,13 +77,11 @@ export default function PanelMedico() {
   const [imagenDifferential, setImagenDifferential] = useState("");
   const [imagenPatterns, setImagenPatterns] = useState([]);
 
-  // Chat radiológico
   const [imgChatQuestion, setImgChatQuestion] = useState("");
   const [imgChatAnswer, setImgChatAnswer] = useState("");
   const [imgChatError, setImgChatError] = useState("");
   const [imgChatLoading, setImgChatLoading] = useState(false);
 
-  // Detección de duplicados (imágenes)
   const [lastImagenId, setLastImagenId] = useState(null);
   const [duplicateImagen, setDuplicateImagen] = useState(false);
 
@@ -144,9 +139,7 @@ export default function PanelMedico() {
       setLoadingAnalitica(true);
       const res = await fetch(`${API}/analytics/upload/${pid}`, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
         body: formData,
       });
 
@@ -230,7 +223,8 @@ export default function PanelMedico() {
       console.log("👉 Respuesta chat analítica (raw):", raw);
 
       if (!res.ok) {
-        let msg = "No se ha podido generar una respuesta de IA para la analítica.";
+        let msg =
+          "No se ha podido generar una respuesta de IA para la analítica.";
         try {
           const errData = JSON.parse(raw);
           if (errData.detail) msg = errData.detail;
@@ -302,9 +296,7 @@ export default function PanelMedico() {
       setLoadingImagen(true);
       const res = await fetch(`${API}/imaging/upload`, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
         body: formData,
       });
 
@@ -534,7 +526,6 @@ export default function PanelMedico() {
           >
             Gestionar pacientes
           </button>
-          {/* Aquí solo dejamos cancelar PRO cuando ya es PRO */}
           <button
             type="button"
             onClick={() => setShowCancelPopup(true)}
@@ -589,7 +580,9 @@ export default function PanelMedico() {
               <input
                 type="file"
                 accept=".pdf,image/*"
-                onChange={(e) => setFileAnalitica(e.target.files?.[0] || null)}
+                onChange={(e) =>
+                  setFileAnalitica(e.target.files?.[0] || null)
+                }
                 className="sr-input w-full"
               />
             </div>
@@ -800,7 +793,9 @@ export default function PanelMedico() {
                 type="file"
                 accept=".pdf,image/*"
                 className="sr-input w-full"
-                onChange={(e) => setFileImagen(e.target.files?.[0] || null)}
+                onChange={(e) =>
+                  setFileImagen(e.target.files?.[0] || null)
+                }
               />
             </div>
           </div>
@@ -917,7 +912,7 @@ export default function PanelMedico() {
         )}
       </section>
 
-            {/* POPUP CANCELAR SUSCRIPCIÓN */}
+      {/* POPUP CANCELAR SUSCRIPCIÓN */}
       {showCancelPopup && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md space-y-4 border border-slate-300">
@@ -937,9 +932,13 @@ export default function PanelMedico() {
               >
                 <option value="">Selecciona un motivo…</option>
                 <option value="no_valor">No me ha aportado valor</option>
-                <option value="no_tiempo">No he tenido tiempo para probarlo bien</option>
+                <option value="no_tiempo">
+                  No he tenido tiempo para probarlo bien
+                </option>
                 <option value="dificil_uso">No entendí cómo usarlo</option>
-                <option value="ia_mala">La IA no interpretó bien mis estudios</option>
+                <option value="ia_mala">
+                  La IA no interpretó bien mis estudios
+                </option>
                 <option value="falta_funcionalidad">
                   Falta alguna funcionalidad que necesito
                 </option>
@@ -981,3 +980,6 @@ export default function PanelMedico() {
           </div>
         </div>
       )}
+    </main>
+  );
+}
