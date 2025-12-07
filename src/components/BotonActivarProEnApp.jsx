@@ -1,4 +1,4 @@
-// src/components/BotonActivarProEnApp.jsx
+
 // Botón interno para activar PRO: comprueba el perfil y luego abre Stripe.
 
 import React from "react";
@@ -35,9 +35,14 @@ export default function BotonActivarProEnApp() {
       return alert("No se pudo comprobar el perfil médico.");
     }
 
-    // 2) Crear sesión de Stripe
+    // 2) Crear sesión de Stripe (en backend, asociada al médico autenticado)
     try {
-      const res = await fetch(`${API}/billing/create-checkout-session`);
+      const res = await fetch(`${API}/billing/create-checkout-session`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
       const raw = await res.text();
       console.log("[Stripe raw]:", raw);
 
@@ -50,8 +55,12 @@ export default function BotonActivarProEnApp() {
         return alert("Stripe no devolvió la URL de pago.");
       }
 
-      // Abrir Stripe
-      const win = window.open(data.checkout_url, "_blank", "noopener,noreferrer");
+      // Abrir Stripe en nueva pestaña
+      const win = window.open(
+        data.checkout_url,
+        "_blank",
+        "noopener,noreferrer"
+      );
       if (!win) window.location.href = data.checkout_url;
     } catch (err) {
       console.error("Stripe error:", err);
