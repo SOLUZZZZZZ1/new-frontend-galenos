@@ -18,12 +18,18 @@ export default function NavbarGalenos() {
     if (path === "/panel-medico") {
       return loc.pathname.startsWith("/panel-medico");
     }
+    if (path === "/perfil") {
+      return loc.pathname.startsWith("/perfil");
+    }
     return loc.pathname === path;
   }
 
   function handleLogout() {
     localStorage.removeItem("galenos_token");
     localStorage.removeItem("galenos_email");
+    localStorage.removeItem("galenos_name");
+    localStorage.removeItem("galenos_alias");
+    localStorage.removeItem("galenos_specialty");
     nav("/login");
   }
 
@@ -70,17 +76,35 @@ export default function NavbarGalenos() {
             Inicio
           </Link>
 
-          <Link
-            to="/panel-medico"
-            className={`px-3 py-1.5 rounded-full border text-xs sm:text-sm ${
-              isActive("/panel-medico")
-                ? "border-sky-500 bg-sky-50 text-sky-700"
-                : "border-transparent text-slate-600 hover:border-slate-200 hover:bg-slate-50"
-            }`}
-          >
-            Panel médico
-          </Link>
+          {/* Panel médico */}
+          {loggedIn && (
+            <Link
+              to="/panel-medico"
+              className={`px-3 py-1.5 rounded-full border text-xs sm:text-sm ${
+                isActive("/panel-medico")
+                  ? "border-sky-500 bg-sky-50 text-sky-700"
+                  : "border-transparent text-slate-600 hover:border-slate-200 hover:bg-slate-50"
+              }`}
+            >
+              Panel médico
+            </Link>
+          )}
 
+          {/* Mi perfil (solo si hay sesión) */}
+          {loggedIn && (
+            <Link
+              to="/perfil"
+              className={`px-3 py-1.5 rounded-full border text-xs sm:text-sm ${
+                isActive("/perfil")
+                  ? "border-sky-500 bg-sky-50 text-sky-700"
+                  : "border-transparent text-slate-600 hover:border-slate-200 hover:bg-slate-50"
+              }`}
+            >
+              Mi perfil
+            </Link>
+          )}
+
+          {/* Acceso / usuario */}
           {!loggedIn ? (
             <Link
               to="/login"
@@ -90,10 +114,6 @@ export default function NavbarGalenos() {
                   : "border-slate-200 text-slate-700 hover:bg-slate-50"
               }`}
             >
-            <Link to="/perfil" className="sr-nav-link">
-             Mi perfil
-             </Link>
-              
               Acceder
             </Link>
           ) : (
