@@ -917,7 +917,7 @@ export default function PanelMedico() {
         )}
       </section>
 
-      {/* POPUP CANCELAR SUSCRIPCIÓN */}
+            {/* POPUP CANCELAR SUSCRIPCIÓN */}
       {showCancelPopup && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md space-y-4 border border-slate-300">
@@ -937,16 +937,47 @@ export default function PanelMedico() {
               >
                 <option value="">Selecciona un motivo…</option>
                 <option value="no_valor">No me ha aportado valor</option>
-                <option value="no_tiempo">
-                  No he tenido tiempo para probarlo bien
-                </option>
-                <option value="dificil_uso">
-                  No entendí cómo usarlo
-                </option>
-                <option value="ia_mala">
-                  La IA no interpretó bien mis estudios
-                </option>
+                <option value="no_tiempo">No he tenido tiempo para probarlo bien</option>
+                <option value="dificil_uso">No entendí cómo usarlo</option>
+                <option value="ia_mala">La IA no interpretó bien mis estudios</option>
                 <option value="falta_funcionalidad">
                   Falta alguna funcionalidad que necesito
                 </option>
-                <option value="precio
+                <option value="precio">El precio no encaja</option>
+                <option value="otro">Otro motivo…</option>
+              </select>
+
+              <textarea
+                className="sr-input w-full min-h-[70px]"
+                placeholder="Explica un poco más (opcional)…"
+                value={cancelReasonText}
+                onChange={(e) => setCancelReasonText(e.target.value)}
+              />
+            </div>
+
+            {cancelError && (
+              <p className="text-sm text-red-600">{cancelError}</p>
+            )}
+
+            {cancelMessage && (
+              <p className="text-sm text-emerald-700">{cancelMessage}</p>
+            )}
+
+            <div className="flex justify-between mt-4">
+              <button
+                className="sr-btn-secondary px-4 py-2"
+                onClick={() => setShowCancelPopup(false)}
+              >
+                Cerrar
+              </button>
+              <button
+                className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700 disabled:opacity-60"
+                disabled={cancelLoading}
+                onClick={handleCancelSubscription}
+              >
+                {cancelLoading ? "Cancelando…" : "Cancelar definitivamente"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
