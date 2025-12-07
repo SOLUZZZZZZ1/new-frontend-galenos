@@ -1,3 +1,4 @@
+// src/pages/PanelMedico.jsx — Panel médico con Analíticas + Imágenes · Galenos.pro
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -364,7 +365,7 @@ export default function PanelMedico() {
   }
 
   // ========================
-  // RENDER PANEL COMPLETO (SIN BLOQUEO PRO)
+  // RENDER PANEL COMPLETO
   // ========================
   return (
     <main className="sr-container py-6 space-y-8">
