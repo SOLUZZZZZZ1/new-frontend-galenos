@@ -10,21 +10,23 @@ export default function BotonActivarProEnApp() {
   async function handleActivatePro() {
     const token = localStorage.getItem("galenos_token");
 
+    // 1) Sin sesión → al login
     if (!token) {
       nav("/login");
       return;
     }
 
-    // 1) Comprobar perfil médico real
+    // 2) Comprobar perfil médico real
     try {
       const resProfile = await fetch(`${API}/doctor/profile/me`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      const raw = await resProfile.text();
-      console.log("👉 [/botón PRO] /doctor/profile/me:", raw);
+      const rawProfile = await resProfile.text();
+      console.log("👉 [/botón PRO] /doctor/profile/me:", rawProfile);
 
       if (resProfile.status === 404) {
+        // Sin perfil → ir a /perfil para completarlo
         nav("/perfil");
         return;
       }
@@ -34,37 +36,47 @@ export default function BotonActivarProEnApp() {
         return;
       }
     } catch (err) {
-      console.error(err);
+      console.error("Perfil error:", err);
       alert("No se pudo comprobar el perfil médico.");
       return;
     }
 
-    // 2) Crear sesión Stripe
+    // 3) Crear sesión de Stripe (GET, no POST)
     try {
       const res = await fetch(`${API}/billing/create-checkout-session`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
+        // GET por defecto
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       });
 
       const raw = await res.text();
-      console.log("[Stripe]", raw);
+      console.log("[Stripe] raw:", raw);
 
       if (!res.ok) {
         alert("No se pudo iniciar la prueba PRO.");
         return;
       }
 
-      const data = JSON.parse(raw);
-
-      if (!data.checkout_url) {
-        alert("Stripe no devolvió URL de pago.");
+      let data;
+      try {
+        data = JSON.parse(raw);
+      } catch (e) {
+        console.error("Error parseando respuesta Stripe:", e, raw);
+        alert("Respuesta inesperada del servidor de pagos.");
         return;
       }
 
+      if (!data.checkout_url) {
+        alert("Stripe no devolvió la URL de pago.");
+        return;
+      }
+
+      // 4) Ir directamente a Stripe
       window.location.href = data.checkout_url;
     } catch (err) {
       console.error("Stripe error:", err);
-      alert("Error al conectar con Stripe.");
+      alert("No se pudo conectar con Stripe.");
     }
   }
 
