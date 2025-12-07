@@ -1,5 +1,5 @@
 // src/components/BotonActivarProEnApp.jsx
-// Botón interno para activar PRO: comprueba perfil médico y luego abre Stripe Checkout.
+// Botón interno para activar PRO: comprueba el perfil y luego abre Stripe.
 
 import React from "react";
 import { useNavigate } from "react-router-dom";
@@ -12,67 +12,50 @@ export default function BotonActivarProEnApp() {
 
   async function handleActivatePro() {
     const token = localStorage.getItem("galenos_token");
-    if (!token) {
-      nav("/login");
-      return;
-    }
+    if (!token) return nav("/login");
 
-    // 1) Comprobar que hay perfil médico creado
+    // 1) Comprobar perfil médico
     try {
       const resProfile = await fetch(`${API}/doctor/profile/me`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
+
       if (resProfile.status === 404) {
-        // No hay perfil médico → llevar a la pantalla de perfil
-        nav("/perfil-medico");
-        return;
+        // No tiene perfil → completar antes de Stripe
+        return nav("/perfil-medico");
       }
+
       if (!resProfile.ok) {
-        console.error("Error /doctor/profile/me:", await resProfile.text());
-        alert("No se ha podido comprobar el perfil médico.");
+        console.error("Error perfil:", await resProfile.text());
+        alert("No se pudo comprobar tu perfil médico.");
         return;
       }
     } catch (err) {
-      console.error("Error comprobando perfil médico:", err);
-      alert("No se ha podido comprobar el perfil médico.");
-      return;
+      console.error("Perfil error:", err);
+      return alert("No se pudo comprobar el perfil médico.");
     }
 
-    // 2) Crear sesión de Stripe para la prueba PRO
+    // 2) Crear sesión de Stripe
     try {
-      const resStripe = await fetch(`${API}/billing/create-checkout-session`);
-      const raw = await resStripe.text();
-      console.log("[PRO] Respuesta create-checkout-session (raw):", raw);
+      const res = await fetch(`${API}/billing/create-checkout-session`);
+      const raw = await res.text();
+      console.log("[Stripe raw]:", raw);
 
-      if (!resStripe.ok) {
-        alert("No se ha podido iniciar el pago en Stripe.");
-        return;
+      if (!res.ok) {
+        return alert("No se pudo iniciar la prueba PRO.");
       }
 
-      let data;
-      try {
-        data = JSON.parse(raw);
-      } catch (err) {
-        console.error("No se pudo parsear JSON de Stripe:", err);
-        alert("Respuesta inesperada del servidor de pagos.");
-        return;
+      const data = JSON.parse(raw);
+      if (!data.checkout_url) {
+        return alert("Stripe no devolvió la URL de pago.");
       }
 
-      const url = data?.checkout_url;
-      if (!url) {
-        alert("El servidor no ha devuelto una URL de pago.");
-        return;
-      }
-
-      const win = window.open(url, "_blank", "noopener,noreferrer");
-      if (!win) {
-        window.location.href = url;
-      }
+      // Abrir Stripe
+      const win = window.open(data.checkout_url, "_blank", "noopener,noreferrer");
+      if (!win) window.location.href = data.checkout_url;
     } catch (err) {
-      console.error("Error al iniciar pago en Stripe desde la app:", err);
-      alert("No se ha podido conectar con el servidor de pagos.");
+      console.error("Stripe error:", err);
+      alert("No se pudo conectar con Stripe.");
     }
   }
 
