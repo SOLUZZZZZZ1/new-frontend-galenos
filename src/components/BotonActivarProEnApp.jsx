@@ -43,7 +43,7 @@ export default function BotonActivarProEnApp() {
 
     // 3) Crear sesión de Stripe (GET, no POST)
     try {
-      const res = await fetch(`${API}/billing/create-checkout-session`, {
+      const res = await fetch(`${API}/billing/create-checkout-session-auth`, {
         // GET por defecto
         headers: {
           Authorization: `Bearer ${token}`,
