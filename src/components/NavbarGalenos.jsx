@@ -90,6 +90,11 @@ export default function NavbarGalenos() {
                   : "border-slate-200 text-slate-700 hover:bg-slate-50"
               }`}
             >
+            <Link to="/perfil" className="sr-nav-link">
+             Mi perfil
+             </Link>
+              }`}
+            >
               Acceder
             </Link>
           ) : (
