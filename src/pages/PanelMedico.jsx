@@ -1,6 +1,7 @@
 // src/pages/PanelMedico.jsx — Panel médico con Analíticas + Imágenes · Galenos.pro
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import BotonActivarProEnApp from "../components/BotonActivarProEnApp";
 
 // URL del backend de Galenos (Render)
 const API =
@@ -8,8 +9,42 @@ const API =
 
 export default function PanelMedico() {
   const navigate = useNavigate();
-
   const token = localStorage.getItem("galenos_token");
+
+  // ========================
+  // ESTADO PRO / SUSCRIPCIÓN
+  // ========================
+  const [isPro, setIsPro] = useState(false);
+  const [loadingPro, setLoadingPro] = useState(true);
+
+  useEffect(() => {
+    async function checkPro() {
+      if (!token) {
+        setLoadingPro(false);
+        return;
+      }
+      try {
+        const res = await fetch(`${API}/auth/me`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        const raw = await res.text();
+        console.log("👉 /auth/me (raw):", raw);
+        if (!res.ok) {
+          setLoadingPro(false);
+          return;
+        }
+        const data = JSON.parse(raw);
+        setIsPro(!!data.is_pro);
+      } catch (err) {
+        console.error("Error comprobando PRO:", err);
+      } finally {
+        setLoadingPro(false);
+      }
+    }
+    checkPro();
+  }, [token]);
 
   // ========================
   // ESTADO ANALÍTICAS
@@ -303,7 +338,9 @@ export default function PanelMedico() {
       setImagenSummary(data.summary || "");
       setImagenDifferential(data.differential || "");
       if (Array.isArray(data.patterns)) {
-        setImagenPatterns(data.patterns.map((p) => p.pattern_text || String(p)));
+        setImagenPatterns(
+          data.patterns.map((p) => p.pattern_text || String(p))
+        );
       } else {
         setImagenPatterns([]);
       }
@@ -351,7 +388,8 @@ export default function PanelMedico() {
       console.log("👉 Respuesta chat imagen (raw):", raw);
 
       if (!res.ok) {
-        let msg = "No se ha podido generar una respuesta de IA para la imagen médica.";
+        let msg =
+          "No se ha podido generar una respuesta de IA para la imagen médica.";
         try {
           const errData = JSON.parse(raw);
           if (errData.detail) msg = errData.detail;
@@ -432,7 +470,44 @@ export default function PanelMedico() {
   }
 
   // ========================
-  // RENDER
+  // RENDER: ESTADO PRO
+  // ========================
+  if (loadingPro) {
+    return (
+      <main className="sr-container py-6">
+        <p className="text-sm text-slate-600">
+          Cargando estado de tu suscripción PRO...
+        </p>
+      </main>
+    );
+  }
+
+  if (!isPro) {
+    return (
+      <main className="sr-container py-6 space-y-6">
+        <header className="space-y-1">
+          <h1 className="text-2xl font-bold">Panel médico · Galenos.pro</h1>
+          <p className="text-sm text-slate-600">
+            Para subir analíticas e imágenes médicas y usar la IA clínica, primero activa tu
+            prueba PRO de 3 días. No se realiza ningún cargo hasta que finalice el período
+            de prueba.
+          </p>
+        </header>
+
+        <section className="bg-blue-50 border border-blue-100 rounded-xl p-5 space-y-3 max-w-xl">
+          <p className="text-sm text-slate-800">
+            Con Galenos PRO podrás subir analíticas, interpretar imágenes RX/TAC/RM/ECO y
+            mantener un timeline clínico organizado por paciente. La prueba es gratuita
+            durante 3 días y puedes cancelar en cualquier momento antes del primer cargo.
+          </p>
+          <BotonActivarProEnApp />
+        </section>
+      </main>
+    );
+  }
+
+  // ========================
+  // RENDER PANEL COMPLETO (PRO ACTIVO)
   // ========================
   return (
     <main className="sr-container py-6 space-y-8">
@@ -459,6 +534,7 @@ export default function PanelMedico() {
           >
             Gestionar pacientes
           </button>
+          {/* Aquí solo dejamos cancelar PRO cuando ya es PRO */}
           <button
             type="button"
             onClick={() => setShowCancelPopup(true)}
@@ -582,7 +658,9 @@ export default function PanelMedico() {
             {Array.isArray(analyticsResult.markers) &&
               analyticsResult.markers.length > 0 && (
                 <div>
-                  <h4 className="text-sm font-semibold mb-2">Marcadores extraídos</h4>
+                  <h4 className="text-sm font-semibold mb-2">
+                    Marcadores extraídos
+                  </h4>
                   <div className="overflow-x-auto">
                     <table className="min-w-full text-xs border border-slate-200 rounded-md overflow-hidden">
                       <thead className="bg-slate-100">
@@ -595,21 +673,32 @@ export default function PanelMedico() {
                       </thead>
                       <tbody>
                         {analyticsResult.markers.map((m, idx) => (
-                          <tr key={idx} className="border-t border-slate-200">
+                          <tr
+                            key={idx}
+                            className="border-t border-slate-200"
+                          >
                             <td className="px-2 py-1">{m.name}</td>
                             <td className="px-2 py-1">
-                              {m.value !== null && m.value !== undefined ? m.value : ""}
+                              {m.value !== null && m.value !== undefined
+                                ? m.value
+                                : ""}
                             </td>
                             <td className="px-2 py-1">{m.range || ""}</td>
                             <td className="px-2 py-1">
                               {m.status === "elevado" && (
-                                <span className="text-red-600 font-medium">Alto</span>
+                                <span className="text-red-600 font-medium">
+                                  Alto
+                                </span>
                               )}
                               {m.status === "bajo" && (
-                                <span className="text-amber-600 font-medium">Bajo</span>
+                                <span className="text-amber-600 font-medium">
+                                  Bajo
+                                </span>
                               )}
                               {m.status === "normal" && (
-                                <span className="text-emerald-700 font-medium">Normal</span>
+                                <span className="text-emerald-700 font-medium">
+                                  Normal
+                                </span>
                               )}
                             </td>
                           </tr>
@@ -748,7 +837,9 @@ export default function PanelMedico() {
           )}
         </form>
 
-        {(imagenSummary || imagenDifferential || imagenPatterns.length > 0) && (
+        {(imagenSummary ||
+          imagenDifferential ||
+          imagenPatterns.length > 0) && (
           <div className="mt-4 space-y-4">
             {imagenSummary && (
               <div>
@@ -805,7 +896,9 @@ export default function PanelMedico() {
                   disabled={imgChatLoading}
                   className="sr-btn-secondary disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  {imgChatLoading ? "Pensando..." : "Preguntar a la IA radiológica"}
+                  {imgChatLoading
+                    ? "Pensando..."
+                    : "Preguntar a la IA radiológica"}
                 </button>
               </form>
 
@@ -844,48 +937,16 @@ export default function PanelMedico() {
               >
                 <option value="">Selecciona un motivo…</option>
                 <option value="no_valor">No me ha aportado valor</option>
-                <option value="no_tiempo">No he tenido tiempo para probarlo bien</option>
-                <option value="dificil_uso">No entendí cómo usarlo</option>
-                <option value="ia_mala">La IA no interpretó bien mis estudios</option>
-                <option value="falta_funcionalidad">Falta alguna funcionalidad que necesito</option>
-                <option value="precio">El precio no encaja</option>
-                <option value="otro">Otro motivo…</option>
-              </select>
-
-              <textarea
-                className="sr-input w-full min-h-[70px]"
-                placeholder="Explica un poco más (opcional)…"
-                value={cancelReasonText}
-                onChange={(e) => setCancelReasonText(e.target.value)}
-              ></textarea>
-            </div>
-
-            {cancelError && (
-              <p className="text-sm text-red-600">{cancelError}</p>
-            )}
-
-            {cancelMessage && (
-              <p className="text-sm text-emerald-700">{cancelMessage}</p>
-            )}
-
-            <div className="flex justify-between mt-4">
-              <button
-                className="sr-btn-secondary px-4 py-2"
-                onClick={() => setShowCancelPopup(false)}
-              >
-                Cerrar
-              </button>
-              <button
-                className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700 disabled:opacity-60"
-                disabled={cancelLoading}
-                onClick={handleCancelSubscription}
-              >
-                {cancelLoading ? "Cancelando…" : "Cancelar definitivamente"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </main>
-  );
-}
+                <option value="no_tiempo">
+                  No he tenido tiempo para probarlo bien
+                </option>
+                <option value="dificil_uso">
+                  No entendí cómo usarlo
+                </option>
+                <option value="ia_mala">
+                  La IA no interpretó bien mis estudios
+                </option>
+                <option value="falta_funcionalidad">
+                  Falta alguna funcionalidad que necesito
+                </option>
+                <option value="precio
