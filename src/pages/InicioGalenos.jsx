@@ -1,4 +1,4 @@
-// src/pages/InicioGalenos.jsx — Landing Galenos.pro LIMPIA
+
 import React from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -13,7 +13,6 @@ export default function InicioGalenos() {
   return (
     <main className="min-h-[80vh] flex flex-col">
       <section className="sr-container flex-1 grid md:grid-cols-2 gap-10 items-center px-4 py-10">
-
         {/* COLUMNA IZQUIERDA */}
         <div>
           <p className="text-xs font-semibold tracking-[0.18em] text-sky-700 uppercase mb-2">
@@ -32,10 +31,22 @@ export default function InicioGalenos() {
           </p>
 
           <div className="grid gap-2 mb-5 text-sm text-slate-700">
-            <div className="flex gap-2"><span className="text-sky-700">✓</span><p>Resume historias clínicas largas.</p></div>
-            <div className="flex gap-2"><span className="text-sky-700">✓</span><p>Extrae y analiza marcadores de analíticas.</p></div>
-            <div className="flex gap-2"><span className="text-sky-700">✓</span><p>Interpreta imágenes (RX, TAC, RM, ECO).</p></div>
-            <div className="flex gap-2"><span className="text-sky-700">✓</span><p>Mantiene un timeline clínico organizado.</p></div>
+            <div className="flex gap-2">
+              <span className="text-sky-700">✓</span>
+              <p>Resume historias clínicas largas.</p>
+            </div>
+            <div className="flex gap-2">
+              <span className="text-sky-700">✓</span>
+              <p>Extrae y analiza marcadores de analíticas.</p>
+            </div>
+            <div className="flex gap-2">
+              <span className="text-sky-700">✓</span>
+              <p>Interpreta imágenes (RX, TAC, RM, ECO).</p>
+            </div>
+            <div className="flex gap-2">
+              <span className="text-sky-700">✓</span>
+              <p>Mantiene un timeline clínico organizado.</p>
+            </div>
           </div>
 
           <div className="mb-5 rounded-md border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-slate-800">
@@ -96,6 +107,46 @@ export default function InicioGalenos() {
             <p className="text-sm text-slate-700">
               Analiza estudios RX/TAC/RM/ECO y genera un resumen prudente.
             </p>
+          </div>
+
+          {/* 10 GB de almacenamiento clínico seguro e inteligente */}
+          <div className="border-t border-slate-200 pt-4">
+            <h2 className="text-sm font-semibold mb-1 text-slate-900">
+              10 GB de almacenamiento clínico seguro e inteligente
+            </h2>
+            <p className="text-sm text-slate-700 mb-3">
+              Galenos incluye 10 GB de almacenamiento cifrado, suficientes para conservar
+              años de evolución clínica sin preocuparte por el espacio.
+            </p>
+
+            <h3 className="text-xs font-semibold text-slate-900 uppercase tracking-wide mb-1">
+              Capacidad real
+            </h3>
+            <ul className="list-disc list-inside text-sm text-slate-700 space-y-1 mb-3">
+              <li>Más de 3.000 analíticas completas.</li>
+              <li>Cientos de imágenes médicas RX/TAC/RM/ECO.</li>
+              <li>Timeline clínico completo de tus pacientes.</li>
+            </ul>
+
+            <h3 className="text-xs font-semibold text-slate-900 uppercase tracking-wide mb-1">
+              Almacenamiento inteligente
+            </h3>
+            <ul className="list-disc list-inside text-sm text-slate-700 space-y-1 mb-3">
+              <li>Detección de duplicados para no consumir espacio innecesario.</li>
+              <li>Marcadores y patrones enlazados a cada estudio.</li>
+              <li>Todo organizado por paciente, fecha y tipo de evento.</li>
+            </ul>
+
+            <h3 className="text-xs font-semibold text-slate-900 uppercase tracking-wide mb-1">
+              Escalable cuando lo necesites
+            </h3>
+            <ul className="list-disc list-inside text-sm text-slate-700 space-y-1">
+              <li>+10 GB, +50 GB o +100 GB opcionales.</li>
+              <li>Planes específicos para centros y clínicas.</li>
+              <li>
+                Sin migraciones ni complicaciones: solo más espacio.
+              </li>
+            </ul>
           </div>
         </div>
       </section>
