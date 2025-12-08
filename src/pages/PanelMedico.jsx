@@ -2,73 +2,14 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+// URL del backend de Galenos (Render)
 const API =
   import.meta.env.VITE_API_URL || "https://galenos-backend.onrender.com";
 
 export default function PanelMedico() {
   const navigate = useNavigate();
+
   const token = localStorage.getItem("galenos_token");
-
-  // ========================
-  // CANCELACIÓN SUSCRIPCIÓN (PRO)
-  // ========================
-  const [showCancelPopup, setShowCancelPopup] = useState(false);
-  const [cancelReasonCategory, setCancelReasonCategory] = useState("");
-  const [cancelReasonText, setCancelReasonText] = useState("");
-  const [cancelLoading, setCancelLoading] = useState(false);
-  const [cancelMessage, setCancelMessage] = useState("");
-  const [cancelError, setCancelError] = useState("");
-
-  async function handleCancelSubscription(e) {
-    e.preventDefault();
-    setCancelError("");
-    setCancelMessage("");
-
-    if (!cancelReasonCategory.trim()) {
-      setCancelError("Selecciona un motivo antes de continuar.");
-      return;
-    }
-
-    try {
-      setCancelLoading(true);
-
-      const res = await fetch(`${API}/billing/cancel`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          reason_category: cancelReasonCategory,
-          reason_text: cancelReasonText.trim(),
-        }),
-      });
-
-      const raw = await res.text();
-      console.log("👉 Respuesta cancelación (raw):", raw);
-
-      if (!res.ok) {
-        setCancelError("No se pudo cancelar la suscripción.");
-        return;
-      }
-
-      let data;
-      try {
-        data = JSON.parse(raw);
-      } catch {
-        setCancelError("Respuesta inesperada del servidor de pagos.");
-        return;
-      }
-
-      setCancelMessage("Suscripción cancelada correctamente.");
-      localStorage.removeItem("galenos_pro");
-    } catch (err) {
-      console.error("❌ Error cancelando suscripción:", err);
-      setCancelError("Error al conectar con el servidor de pagos.");
-    } finally {
-      setCancelLoading(false);
-    }
-  }
 
   // ========================
   // ESTADO ANALÍTICAS
@@ -76,7 +17,6 @@ export default function PanelMedico() {
   const [alias, setAlias] = useState("Paciente A");
   const [patientIdAnalitica, setPatientIdAnalitica] = useState("");
   const [fileAnalitica, setFileAnalitica] = useState(null);
-  const [examDateAnalitica, setExamDateAnalitica] = useState("");
   const [loadingAnalitica, setLoadingAnalitica] = useState(false);
   const [analyticsError, setAnalyticsError] = useState("");
   const [analyticsResult, setAnalyticsResult] = useState(null);
@@ -86,6 +26,7 @@ export default function PanelMedico() {
   const [chatLoading, setChatLoading] = useState(false);
   const [chatError, setChatError] = useState("");
 
+  // Detección de duplicados (analíticas)
   const [lastAnalyticId, setLastAnalyticId] = useState(null);
   const [duplicateAnalytic, setDuplicateAnalytic] = useState(false);
 
@@ -96,18 +37,19 @@ export default function PanelMedico() {
   const [imgType, setImgType] = useState("RX");
   const [imgContext, setImgContext] = useState("");
   const [fileImagen, setFileImagen] = useState(null);
-  const [examDateImagen, setExamDateImagen] = useState("");
   const [loadingImagen, setLoadingImagen] = useState(false);
   const [imagenError, setImagenError] = useState("");
   const [imagenSummary, setImagenSummary] = useState("");
   const [imagenDifferential, setImagenDifferential] = useState("");
   const [imagenPatterns, setImagenPatterns] = useState([]);
 
+  // Chat radiológico
   const [imgChatQuestion, setImgChatQuestion] = useState("");
   const [imgChatAnswer, setImgChatAnswer] = useState("");
   const [imgChatError, setImgChatError] = useState("");
   const [imgChatLoading, setImgChatLoading] = useState(false);
 
+  // Detección de duplicados (imágenes)
   const [lastImagenId, setLastImagenId] = useState(null);
   const [duplicateImagen, setDuplicateImagen] = useState(false);
 
@@ -136,9 +78,7 @@ export default function PanelMedico() {
     }
 
     if (!alias.trim()) {
-      setAnalyticsError(
-        "Introduce un alias para la analítica (ej. 0001 - Nombre)."
-      );
+      setAnalyticsError("Introduce un alias para la analítica (ej. 0001 - Nombre).");
       return;
     }
     if (!fileAnalitica) {
@@ -149,9 +89,6 @@ export default function PanelMedico() {
     const formData = new FormData();
     formData.append("alias", alias.trim());
     formData.append("file", fileAnalitica);
-    if (examDateAnalitica) {
-      formData.append("exam_date", examDateAnalitica);
-    }
 
     try {
       setLoadingAnalitica(true);
@@ -184,12 +121,14 @@ export default function PanelMedico() {
         return;
       }
 
+      // Detectar duplicado: si el backend devuelve el mismo id que la última analítica subida
       if (lastAnalyticId && data.id && data.id === lastAnalyticId) {
         setDuplicateAnalytic(true);
         setTimeout(() => setDuplicateAnalytic(false), 5000);
       }
       setLastAnalyticId(data.id || null);
 
+      // data incluye: id, patient_id, summary, differential, markers, created_at…
       setAnalyticsResult({
         id: data.id,
         patient_alias: alias.trim(),
@@ -197,8 +136,6 @@ export default function PanelMedico() {
         summary: data.summary,
         differential: data.differential,
         markers: data.markers || [],
-        exam_date: data.exam_date || null,
-        created_at: data.created_at || null,
       });
     } catch (err) {
       console.error("❌ Error enviando analítica:", err);
@@ -243,8 +180,7 @@ export default function PanelMedico() {
       console.log("👉 Respuesta chat analítica (raw):", raw);
 
       if (!res.ok) {
-        let msg =
-          "No se ha podido generar una respuesta de IA para la analítica.";
+        let msg = "No se ha podido generar una respuesta de IA para la analítica.";
         try {
           const errData = JSON.parse(raw);
           if (errData.detail) msg = errData.detail;
@@ -307,9 +243,6 @@ export default function PanelMedico() {
     if (imgContext && imgContext.trim()) {
       formData.append("context", imgContext.trim());
     }
-    if (examDateImagen) {
-      formData.append("exam_date", examDateImagen);
-    }
     formData.append("file", fileImagen);
 
     try {
@@ -343,6 +276,7 @@ export default function PanelMedico() {
         return;
       }
 
+      // Detectar duplicado de imagen por id devuelto
       if (lastImagenId && data.id && data.id === lastImagenId) {
         setDuplicateImagen(true);
         setTimeout(() => setDuplicateImagen(false), 5000);
@@ -402,8 +336,7 @@ export default function PanelMedico() {
       console.log("👉 Respuesta chat imagen (raw):", raw);
 
       if (!res.ok) {
-        let msg =
-          "No se ha podido generar una respuesta de IA para la imagen médica.";
+        let msg = "No se ha podido generar una respuesta de IA para la imagen médica.";
         try {
           const errData = JSON.parse(raw);
           if (errData.detail) msg = errData.detail;
@@ -443,22 +376,13 @@ export default function PanelMedico() {
             interpretar de forma prudente los resultados, sin sustituir tu criterio clínico.
           </p>
         </div>
-        <div className="flex flex-col sm:flex-row gap-2">
-          <button
-            type="button"
-            onClick={() => navigate("/pacientes")}
-            className="sr-btn-secondary text-sm whitespace-nowrap"
-          >
-            Gestionar pacientes
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowCancelPopup(true)}
-            className="sr-btn-secondary text-sm whitespace-nowrap border-red-300 text-red-600 hover:bg-red-50"
-          >
-            Cancelar suscripción PRO
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => navigate("/pacientes")}
+          className="sr-btn-secondary text-sm whitespace-nowrap"
+        >
+          Gestionar pacientes
+        </button>
       </header>
 
       {/* BLOQUE ANALÍTICAS */}
@@ -470,7 +394,7 @@ export default function PanelMedico() {
         </p>
 
         <form onSubmit={handleUploadAnalitica} className="space-y-3">
-          <div className="grid md:grid-cols-4 gap-3">
+          <div className="grid md:grid-cols-3 gap-3">
             <div>
               <label className="sr-label">ID de paciente</label>
               <input
@@ -489,15 +413,6 @@ export default function PanelMedico() {
                 onChange={(e) => setAlias(e.target.value)}
                 className="sr-input w-full"
                 placeholder="0001 - Nombre Apellidos"
-              />
-            </div>
-            <div>
-              <label className="sr-label">Fecha de la analítica</label>
-              <input
-                type="date"
-                className="sr-input w-full"
-                value={examDateAnalitica}
-                onChange={(e) => setExamDateAnalitica(e.target.value)}
               />
             </div>
             <div>
@@ -543,12 +458,6 @@ export default function PanelMedico() {
                 Fichero:{" "}
                 <span className="font-mono">{analyticsResult.file_name}</span>
               </p>
-              {analyticsResult.exam_date && (
-                <p className="text-xs text-slate-500">
-                  Fecha de la analítica:{" "}
-                  {new Date(analyticsResult.exam_date).toLocaleDateString()}
-                </p>
-              )}
             </div>
 
             {analyticsResult.summary && (
@@ -574,9 +483,7 @@ export default function PanelMedico() {
             {Array.isArray(analyticsResult.markers) &&
               analyticsResult.markers.length > 0 && (
                 <div>
-                  <h4 className="text-sm font-semibold mb-2">
-                    Marcadores extraídos
-                  </h4>
+                  <h4 className="text-sm font-semibold mb-2">Marcadores extraídos</h4>
                   <div className="overflow-x-auto">
                     <table className="min-w-full text-xs border border-slate-200 rounded-md overflow-hidden">
                       <thead className="bg-slate-100">
@@ -592,26 +499,18 @@ export default function PanelMedico() {
                           <tr key={idx} className="border-t border-slate-200">
                             <td className="px-2 py-1">{m.name}</td>
                             <td className="px-2 py-1">
-                              {m.value !== null && m.value !== undefined
-                                ? m.value
-                                : ""}
+                              {m.value !== null && m.value !== undefined ? m.value : ""}
                             </td>
                             <td className="px-2 py-1">{m.range || ""}</td>
                             <td className="px-2 py-1">
                               {m.status === "elevado" && (
-                                <span className="text-red-600 font-medium">
-                                  Alto
-                                </span>
+                                <span className="text-red-600 font-medium">Alto</span>
                               )}
                               {m.status === "bajo" && (
-                                <span className="text-amber-600 font-medium">
-                                  Bajo
-                                </span>
+                                <span className="text-amber-600 font-medium">Bajo</span>
                               )}
                               {m.status === "normal" && (
-                                <span className="text-emerald-700 font-medium">
-                                  Normal
-                                </span>
+                                <span className="text-emerald-700 font-medium">Normal</span>
                               )}
                             </td>
                           </tr>
@@ -667,13 +566,12 @@ export default function PanelMedico() {
           Imágenes médicas (RX / TAC / RM / ECO)
         </h2>
         <p className="text-sm text-slate-600">
-          Indica el ID de paciente (lo puedes ver en la página Pacientes), el tipo de estudio,
-          la fecha del estudio y sube la imagen o PDF correspondiente. Se guardará en la ficha
-          de ese paciente.
+          Indica el ID del paciente (lo puedes ver en la página Pacientes), el tipo de estudio
+          y sube la imagen o PDF correspondiente. Se guardará en la ficha de ese paciente.
         </p>
 
         <form onSubmit={handleUploadImagen} className="space-y-3">
-          <div className="grid md:grid-cols-4 gap-3">
+          <div className="grid md:grid-cols-3 gap-3">
             <div>
               <label className="sr-label">ID de paciente</label>
               <input
@@ -697,15 +595,6 @@ export default function PanelMedico() {
                 <option value="ECO">ECO</option>
                 <option value="OTRO">Otro</option>
               </select>
-            </div>
-            <div>
-              <label className="sr-label">Fecha del estudio</label>
-              <input
-                type="date"
-                className="sr-input w-full"
-                value={examDateImagen}
-                onChange={(e) => setExamDateImagen(e.target.value)}
-              />
             </div>
             <div>
               <label className="sr-label">Fichero de imagen o PDF</label>
@@ -750,9 +639,7 @@ export default function PanelMedico() {
           )}
         </form>
 
-        {(imagenSummary ||
-          imagenDifferential ||
-          imagenPatterns.length > 0) && (
+        {(imagenSummary || imagenDifferential || imagenPatterns.length > 0) && (
           <div className="mt-4 space-y-4">
             {imagenSummary && (
               <div>
@@ -809,9 +696,7 @@ export default function PanelMedico() {
                   disabled={imgChatLoading}
                   className="sr-btn-secondary disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  {imgChatLoading
-                    ? "Pensando..."
-                    : "Preguntar a la IA radiológica"}
+                  {imgChatLoading ? "Pensando..." : "Preguntar a la IA radiológica"}
                 </button>
               </form>
 
@@ -829,69 +714,6 @@ export default function PanelMedico() {
           </div>
         )}
       </section>
-
-      {/* POPUP CANCELAR SUSCRIPCIÓN */}
-      {showCancelPopup && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md space-y-4 border border-slate-300">
-            <h2 className="text-lg font-semibold text-slate-900">
-              Cancelar suscripción PRO
-            </h2>
-
-            <p className="text-sm text-slate-700">
-              Antes de cancelar, ¿puedes indicarnos el motivo? Nos ayuda a mejorar Galenos.
-            </p>
-
-            <div className="space-y-2">
-              <select
-                className="sr-input w-full"
-                value={cancelReasonCategory}
-                onChange={(e) => setCancelReasonCategory(e.target.value)}
-              >
-                <option value="">Selecciona un motivo…</option>
-                <option value="no_valor">No me ha aportado valor</option>
-                <option value="no_tiempo">No he tenido tiempo para probarlo bien</option>
-                <option value="dificil_uso">No entendí cómo usarlo</option>
-                <option value="ia_mala">La IA no interpretó bien mis estudios</option>
-                <option value="falta_funcionalidad">Falta alguna funcionalidad que necesito</option>
-                <option value="precio">El precio no encaja</option>
-                <option value="otro">Otro motivo…</option>
-              </select>
-
-              <textarea
-                className="sr-input w-full min-h-[70px]"
-                placeholder="Explica un poco más (opcional)…"
-                value={cancelReasonText}
-                onChange={(e) => setCancelReasonText(e.target.value)}
-              />
-            </div>
-
-            {cancelError && (
-              <p className="text-sm text-red-600">{cancelError}</p>
-            )}
-
-            {cancelMessage && (
-              <p className="text-sm text-emerald-700">{cancelMessage}</p>
-            )}
-
-            <div className="flex justify-between mt-4">
-              <button
-                className="sr-btn-secondary px-4 py-2"
-                onClick={() => setShowCancelPopup(false)}
-              >
-                Cerrar
-              </button>
-              <button
-                className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700 disabled:opacity-60"
-                disabled={cancelLoading}
-                onClick={handleCancelSubscription}
-              >
-                {cancelLoading ? "Cancelando…" : "Cancelar definitivamente"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </main>
   );
 }
