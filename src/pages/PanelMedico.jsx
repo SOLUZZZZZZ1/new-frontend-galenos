@@ -42,7 +42,7 @@ export default function PanelMedico() {
   const [imagenSummary, setImagenSummary] = useState("");
   const [imagenDifferential, setImagenDifferential] = useState("");
   const [imagenPatterns, setImagenPatterns] = useState([]);
-  const [imagenFilePath, setImagenFilePath] = useState(""); // NUEVO: ruta/preview de la imagen
+  const [imagenFilePath, setImagenFilePath] = useState(""); // ruta/preview de la imagen
 
   // Chat radiológico
   const [imgChatQuestion, setImgChatQuestion] = useState("");
@@ -295,7 +295,6 @@ export default function PanelMedico() {
         setImagenPatterns([]);
       }
 
-      // NUEVO: guardar la ruta/preview si viene del backend
       if (data.file_path) {
         setImagenFilePath(data.file_path);
       }
@@ -678,7 +677,7 @@ export default function PanelMedico() {
                 <img
                   src={imagenFilePath}
                   alt="Estudio de imagen médica"
-                  className="mt-2 max-w-full md:max-w-xl rounded-lg border border-slate-200"
+                  className="mt-2 max-w-xs md:max-w-sm w-full rounded-lg border border-slate-200"
                 />
               </div>
             )}
