@@ -42,6 +42,7 @@ export default function PanelMedico() {
   const [imagenSummary, setImagenSummary] = useState("");
   const [imagenDifferential, setImagenDifferential] = useState("");
   const [imagenPatterns, setImagenPatterns] = useState([]);
+  const [imagenFilePath, setImagenFilePath] = useState(""); // NUEVO: ruta/preview de la imagen
 
   // Chat radiológico
   const [imgChatQuestion, setImgChatQuestion] = useState("");
@@ -216,6 +217,7 @@ export default function PanelMedico() {
     setImagenSummary("");
     setImagenDifferential("");
     setImagenPatterns([]);
+    setImagenFilePath("");
     setImgChatAnswer("");
     setImgChatError("");
     setDuplicateImagen(false);
@@ -291,6 +293,11 @@ export default function PanelMedico() {
         );
       } else {
         setImagenPatterns([]);
+      }
+
+      // NUEVO: guardar la ruta/preview si viene del backend
+      if (data.file_path) {
+        setImagenFilePath(data.file_path);
       }
     } catch (err) {
       console.error("❌ Error imagen médica:", err);
@@ -566,7 +573,7 @@ export default function PanelMedico() {
           Imágenes médicas (RX / TAC / RM / ECO)
         </h2>
         <p className="text-sm text-slate-600">
-          Indica el ID del paciente (lo puedes ver en la página Pacientes), el tipo de estudio
+          Indica el ID de paciente (lo puedes ver en la página Pacientes), el tipo de estudio
           y sube la imagen o PDF correspondiente. Se guardará en la ficha de ese paciente.
         </p>
 
@@ -639,7 +646,7 @@ export default function PanelMedico() {
           )}
         </form>
 
-        {(imagenSummary || imagenDifferential || imagenPatterns.length > 0) && (
+        {(imagenSummary || imagenDifferential || imagenPatterns.length > 0 || imagenFilePath) && (
           <div className="mt-4 space-y-4">
             {imagenSummary && (
               <div>
@@ -660,6 +667,19 @@ export default function PanelMedico() {
                 <p className="text-sm text-slate-800 whitespace-pre-line">
                   {imagenDifferential}
                 </p>
+              </div>
+            )}
+
+            {imagenFilePath && (
+              <div>
+                <h3 className="text-sm font-semibold mb-1">
+                  Imagen analizada
+                </h3>
+                <img
+                  src={imagenFilePath}
+                  alt="Estudio de imagen médica"
+                  className="mt-2 max-w-full md:max-w-xl rounded-lg border border-slate-200"
+                />
               </div>
             )}
 
