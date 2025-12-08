@@ -14,7 +14,7 @@ export default function NuevaConsultaModal({
   onCreated,
 }) {
   const [form, setForm] = useState({
-    patient_id: "",          // ID interno del paciente (opcional)
+    patient_id: "", // ID interno del paciente (opcional)
     title: "",
     age_group: "",
     sex: "",
@@ -55,6 +55,7 @@ export default function NuevaConsultaModal({
   }
 
   function buildPayload() {
+    // Convertimos patient_id a número si es válido
     let pid = null;
     if (form.patient_id && String(form.patient_id).trim() !== "") {
       const n = parseInt(String(form.patient_id).trim(), 10);
@@ -112,8 +113,8 @@ export default function NuevaConsultaModal({
       if (!res.ok) {
         let msg = "No se pudo preparar la versión anonimizada de la consulta.";
         try {
-          const errData = JSON.parse(raw);
-          if (errData.detail) msg = errData.detail;
+          const data = JSON.parse(raw);
+          if (data.detail) msg = data.detail;
         } catch {}
         setError(msg);
         return;
@@ -158,8 +159,8 @@ export default function NuevaConsultaModal({
       if (!res.ok) {
         let msg = "No se pudo publicar la consulta en De guardia.";
         try {
-          const errData = JSON.parse(raw);
-          if (errData.detail) msg = errData.detail;
+          const data = JSON.parse(raw);
+          if (data.detail) msg = data.detail;
         } catch {}
         setError(msg);
         return;
@@ -217,8 +218,12 @@ export default function NuevaConsultaModal({
                 placeholder="Ej. 4 (ID interno que ves en la ficha del paciente)"
               />
               <p className="text-[10px] text-slate-500 mt-1">
-                Si lo rellenas, la consulta podrá apoyarse en la última analítica / imagen de ese
-                paciente guardadas en Galenos.
+                Si lo rellenas, Galenos tomará automáticamente del historial del
+                paciente la <b>analítica más reciente</b> y la{" "}
+                <b>imagen médica más reciente</b> (si existen), y añadirá sus
+                resúmenes a esta consulta como datos de apoyo. No se suben
+                archivos desde aquí, solo se usan pruebas ya guardadas en el
+                Panel médico.
               </p>
             </div>
 
@@ -307,7 +312,9 @@ export default function NuevaConsultaModal({
               <textarea
                 className="sr-input w-full min-h-[60px] text-sm"
                 value={form.clinical_question}
-                onChange={(e) => updateField("clinical_question", e.target.value)}
+                onChange={(e) =>
+                  updateField("clinical_question", e.target.value)
+                }
                 placeholder="Ej. ¿Plantearíais ingreso para monitorización o alta con prueba de esfuerzo diferida?"
               />
             </div>
@@ -328,8 +335,9 @@ export default function NuevaConsultaModal({
 
             <div className="flex items-center justify-between gap-2 pt-2">
               <p className="text-[11px] text-slate-500 max-w-xs">
-                Antes de publicar, la IA anonimizará y revisará la consulta para proteger al
-                paciente.
+                Antes de publicar, la IA anonimizará y revisará la consulta para
+                proteger al paciente y, si has indicado un ID de paciente, se
+                apoyará en las últimas pruebas guardadas en su historial.
               </p>
               <button
                 type="submit"
@@ -345,10 +353,13 @@ export default function NuevaConsultaModal({
         {step === "preview" && (
           <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
             <p className="text-sm text-slate-700">
-              Esta es la versión anonimizada que verán otros médicos en De guardia:
+              Esta es la versión anonimizada que verán otros médicos en De
+              guardia:
             </p>
             <div className="bg-slate-50 border border-slate-200 rounded-md p-3">
-              <p className="text-sm text-slate-900 whitespace-pre-line">{preview}</p>
+              <p className="text-sm text-slate-900 whitespace-pre-line">
+                {preview}
+              </p>
             </div>
             {error && <p className="text-xs text-red-600">{error}</p>}
             <div className="flex items-center justify-between gap-2 pt-2">
