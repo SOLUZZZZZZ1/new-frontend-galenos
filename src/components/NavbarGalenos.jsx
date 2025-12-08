@@ -1,3 +1,4 @@
+
 // src/components/NavbarGalenos.jsx — Barra superior Galenos.pro con logo 3D
 import React from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -21,6 +22,9 @@ export default function NavbarGalenos() {
     if (path === "/perfil") {
       return loc.pathname.startsWith("/perfil");
     }
+    if (path === "/de-guardia") {
+      return loc.pathname.startsWith("/de-guardia");
+    }
     return loc.pathname === path;
   }
 
@@ -30,6 +34,7 @@ export default function NavbarGalenos() {
     localStorage.removeItem("galenos_name");
     localStorage.removeItem("galenos_alias");
     localStorage.removeItem("galenos_specialty");
+    localStorage.removeItem("galenos_guard_alias");
     nav("/login");
   }
 
@@ -87,6 +92,20 @@ export default function NavbarGalenos() {
               }`}
             >
               Panel médico
+            </Link>
+          )}
+
+          {/* De guardia */}
+          {loggedIn && (
+            <Link
+              to="/de-guardia"
+              className={`px-3 py-1.5 rounded-full border text-xs sm:text-sm ${
+                isActive("/de-guardia")
+                  ? "border-sky-500 bg-sky-50 text-sky-700"
+                  : "border-transparent text-slate-600 hover:border-slate-200 hover:bg-slate-50"
+              }`}
+            >
+              De guardia
             </Link>
           )}
 
