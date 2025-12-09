@@ -28,7 +28,7 @@ export default function PerfilMedico() {
   const [center, setCenter] = useState("");
   const [city, setCity] = useState("");
   const [bio, setBio] = useState("");
-  const [guardAlias, setGuardAlias] = useState(""); // Alias clínico (De guardia)
+  const [guardAlias, setGuardAlias] = useState("");
 
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
@@ -60,7 +60,6 @@ export default function PerfilMedico() {
           setProfile(null);
           setLoading(false);
 
-          // Sugerir nombre a partir de /auth/me
           if (nameLs) {
             const parts = nameLs.split(" ");
             setFirstName(parts[0]);
@@ -78,7 +77,6 @@ export default function PerfilMedico() {
         const data = JSON.parse(raw);
         setProfile(data);
 
-        // Guardar alias clínico en localStorage si llega
         if (data.guard_alias) {
           localStorage.setItem("galenos_guard_alias", data.guard_alias);
         }
@@ -237,14 +235,14 @@ export default function PerfilMedico() {
             <b>Especialidad:</b> {profile.specialty || "No indicada"}
           </p>
 
-          {/* Alias clínico (De guardia) en solo lectura */}
           <p>
             <b>Alias clínico (De guardia):</b>{" "}
             {profile.guard_alias || "No definido"}
           </p>
           <p className="text-xs text-slate-500">
-            Este alias es tu marca profesional dentro de De guardia. No puede
-            modificarse para proteger la coherencia de tu identidad en Galenos.
+            Este alias es tu marca profesional dentro de De guardia. Piensa bien
+            el alias: una vez fijado no puede modificarse para proteger la
+            coherencia de tu identidad en Galenos.
           </p>
 
           {profile.colegiado_number && (
@@ -307,9 +305,10 @@ export default function PerfilMedico() {
               placeholder="Ej. ramoncito, cardio_md, derma_sur..."
             />
             <p className="text-xs text-slate-500 mt-1">
-              Este alias será tu “marca clínica” en De guardia. Piensa bien el
-              alias: debe ser único y no se podrá cambiar después. No puede ser
-              igual ni confusamente similar al de otro médico.
+              Este alias será tu “marca clínica” en De guardia.{" "}
+              <b>Piensa bien el alias</b>: debe ser único y{" "}
+              <b>no se podrá cambiar después</b>. No puede ser igual ni
+              confusamente similar al de otro médico.
             </p>
           </div>
 
