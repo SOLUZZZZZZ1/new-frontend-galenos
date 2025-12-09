@@ -1,3 +1,4 @@
+// src/pages/PerfilMedico.jsx — Perfil médico con alias clínico (De guardia) · Galenos.pro
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -10,7 +11,6 @@ export default function PerfilMedico() {
   const token = localStorage.getItem("galenos_token") || "";
   const emailLs = localStorage.getItem("galenos_email") || "";
   const nameLs = localStorage.getItem("galenos_name") || "";
-  const aliasLs = localStorage.getItem("galenos_alias") || "";
   const specialtyLs = localStorage.getItem("galenos_specialty") || "";
 
   const [loading, setLoading] = useState(true);
@@ -28,6 +28,7 @@ export default function PerfilMedico() {
   const [center, setCenter] = useState("");
   const [city, setCity] = useState("");
   const [bio, setBio] = useState("");
+  const [guardAlias, setGuardAlias] = useState(""); // Alias clínico (De guardia)
 
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
@@ -76,6 +77,12 @@ export default function PerfilMedico() {
 
         const data = JSON.parse(raw);
         setProfile(data);
+
+        // Guardar alias clínico en localStorage si llega
+        if (data.guard_alias) {
+          localStorage.setItem("galenos_guard_alias", data.guard_alias);
+        }
+
         setLoading(false);
       } catch (err) {
         console.error("❌ Error cargando perfil:", err);
@@ -85,7 +92,7 @@ export default function PerfilMedico() {
     }
 
     loadProfile();
-  }, [token]);
+  }, [token, nameLs]);
 
   // ========================================================
   // CREATE PROFILE
@@ -94,6 +101,17 @@ export default function PerfilMedico() {
     e.preventDefault();
     setSaveError("");
     setSaveInfo("");
+
+    const aliasClean = guardAlias.trim();
+
+    if (!aliasClean) {
+      setSaveError("El alias clínico (De guardia) es obligatorio.");
+      return;
+    }
+    if (aliasClean.length < 3 || aliasClean.length > 40) {
+      setSaveError("El alias clínico debe tener entre 3 y 40 caracteres.");
+      return;
+    }
 
     const payload = {
       first_name: firstName.trim() || null,
@@ -110,6 +128,7 @@ export default function PerfilMedico() {
       setSaving(true);
       console.log("🩺 [Perfil] POST /doctor/profile/me");
 
+      // 1) Crear perfil médico
       const res = await fetch(`${API}/doctor/profile/me`, {
         method: "POST",
         headers: {
@@ -134,7 +153,41 @@ export default function PerfilMedico() {
 
       const data = JSON.parse(raw);
       setProfile(data);
-      setSaveInfo("Perfil médico creado correctamente.");
+
+      // 2) Fijar alias clínico
+      console.log("🩺 [Perfil] POST /doctor/profile/guard-alias");
+      const resAlias = await fetch(`${API}/doctor/profile/guard-alias`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ guard_alias: aliasClean }),
+      });
+
+      const rawAlias = await resAlias.text();
+      console.log("👉 [Perfil] POST /doctor/profile/guard-alias (raw):", rawAlias);
+
+      if (!resAlias.ok) {
+        let msg = "Perfil creado, pero no se pudo fijar el alias clínico.";
+        try {
+          const errData = JSON.parse(rawAlias);
+          if (errData.detail) msg = errData.detail;
+        } catch {}
+        setSaveError(msg);
+        return;
+      }
+
+      let aliasData;
+      try {
+        aliasData = JSON.parse(rawAlias);
+      } catch {
+        aliasData = null;
+      }
+
+      const finalAlias = aliasData?.guard_alias || aliasClean;
+      localStorage.setItem("galenos_guard_alias", finalAlias);
+      setSaveInfo("Perfil médico y alias clínico creados correctamente.");
     } catch (err) {
       console.error("❌ Error creando perfil:", err);
       setSaveError("No se pudo conectar con el servidor.");
@@ -174,17 +227,51 @@ export default function PerfilMedico() {
         <section className="bg-white p-6 rounded-xl border space-y-4">
           <h2 className="text-lg font-semibold">Datos profesionales</h2>
 
-          <p><b>Nombre:</b> {profile.first_name} {profile.last_name}</p>
-          <p><b>Email:</b> {emailLs}</p>
-          <p><b>Especialidad:</b> {profile.specialty || "No indicada"}</p>
+          <p>
+            <b>Nombre:</b> {profile.first_name} {profile.last_name}
+          </p>
+          <p>
+            <b>Email:</b> {emailLs}
+          </p>
+          <p>
+            <b>Especialidad:</b> {profile.specialty || "No indicada"}
+          </p>
 
-          {profile.colegiado_number && <p><b>Colegiado:</b> {profile.colegiado_number}</p>}
-          {profile.phone && <p><b>Teléfono:</b> {profile.phone}</p>}
-          {profile.center && <p><b>Centro:</b> {profile.center}</p>}
-          {profile.city && <p><b>Ciudad:</b> {profile.city}</p>}
+          {/* Alias clínico (De guardia) en solo lectura */}
+          <p>
+            <b>Alias clínico (De guardia):</b>{" "}
+            {profile.guard_alias || "No definido"}
+          </p>
+          <p className="text-xs text-slate-500">
+            Este alias es tu marca profesional dentro de De guardia. No puede
+            modificarse para proteger la coherencia de tu identidad en Galenos.
+          </p>
+
+          {profile.colegiado_number && (
+            <p>
+              <b>Colegiado:</b> {profile.colegiado_number}
+            </p>
+          )}
+          {profile.phone && (
+            <p>
+              <b>Teléfono:</b> {profile.phone}
+            </p>
+          )}
+          {profile.center && (
+            <p>
+              <b>Centro:</b> {profile.center}
+            </p>
+          )}
+          {profile.city && (
+            <p>
+              <b>Ciudad:</b> {profile.city}
+            </p>
+          )}
           {profile.bio && (
             <p>
-              <b>Descripción:</b><br />{profile.bio}
+              <b>Descripción:</b>
+              <br />
+              {profile.bio}
             </p>
           )}
         </section>
@@ -208,6 +295,24 @@ export default function PerfilMedico() {
 
       <section className="bg-white p-6 rounded-xl border space-y-4">
         <form onSubmit={handleCreateProfile} className="space-y-4">
+          {/* Alias clínico (De guardia) */}
+          <div>
+            <label className="sr-label">
+              Alias clínico (De guardia) <span className="text-red-600">*</span>
+            </label>
+            <input
+              className="sr-input"
+              value={guardAlias}
+              onChange={(e) => setGuardAlias(e.target.value)}
+              placeholder="Ej. ramoncito, cardio_md, derma_sur..."
+            />
+            <p className="text-xs text-slate-500 mt-1">
+              Este alias será tu “marca clínica” en De guardia. Piensa bien el
+              alias: debe ser único y no se podrá cambiar después. No puede ser
+              igual ni confusamente similar al de otro médico.
+            </p>
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="sr-label">Nombre</label>
