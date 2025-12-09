@@ -296,7 +296,7 @@ export default function DashboardMedico() {
 
       {/* LISTA DE PACIENTES (CON ALERTAS) */}
       <section className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 sm:p-6">
-        <h2 className="text-sm font-semibold text-slate-900 mb=3">
+        <h2 className="text-sm font-semibold text-slate-900 mb-3">
           Pacientes recientes y estado clínico
         </h2>
         <p className="text-xs text-slate-600 mb-4">
@@ -356,4 +356,31 @@ export default function DashboardMedico() {
                       {formatDate(lastI.exam_date || lastI.created_at)}
                     </p>
                   ) : (
-                    <p className="text-xs text-s
+                    <p className="text-xs text-slate-500">
+                      No hay estudios de imagen registrados aún.
+                    </p>
+                  )}
+                </div>
+
+                <div className="flex flex-col items-start sm:items-end gap-2">
+                  {hasAlerts && (
+                    <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2 py-1 text-[11px] font-medium text-amber-800">
+                      ⚠ Marcadores alterados en la última analítica
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/PacienteDetalle/${p.id}`)}
+                    className="sr-btn-secondary text-xs"
+                  >
+                    Ver ficha del paciente
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+    </div>
+  );
+}
