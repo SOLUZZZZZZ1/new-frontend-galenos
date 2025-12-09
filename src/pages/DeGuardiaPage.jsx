@@ -1,18 +1,10 @@
-// src/pages/DeGuardiaPage.jsx
+// src/pages/DeGuardiaPage.jsx — De guardia sin modal de alias, alias solo desde perfil
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 const API =
   import.meta.env.VITE_API_URL || "https://galenos-backend.onrender.com";
 
-/**
- * Página principal del módulo "De guardia / Cartelera clínica".
- * - Lista de consultas en la columna izquierda
- * - Hilo de mensajes en la derecha
- * - Alias clínico obligatorio (se toma del Perfil Médico)
- */
-
-// ⬇️ IMPORTS: componentes en src/components/
 import ConsultasListPanel from "../components/ConsultasListPanel.jsx";
 import HiloPanel from "../components/HiloPanel.jsx";
 import NuevaConsultaModal from "../components/NuevaConsultaModal.jsx";
@@ -23,9 +15,8 @@ export default function DeGuardiaPage() {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [guardAlias, setGuardAlias] = useState(
-    localStorage.getItem("galenos_guard_alias") || ""
-  );
+  // 👇 IMPORTANTE: ya NO leemos alias de localStorage al iniciar
+  const [guardAlias, setGuardAlias] = useState("");
 
   const [cases, setCases] = useState([]);
   const [filters, setFilters] = useState({
@@ -111,7 +102,6 @@ export default function DeGuardiaPage() {
         console.log("👉 [DeGuardia] /doctor/profile/me (raw):", rawProfile);
 
         if (resProfile.status === 404) {
-          // No hay perfil aún → mandamos al perfil
           setError(
             "Antes de usar De guardia, completa tu perfil médico. Te llevamos al perfil."
           );
@@ -142,7 +132,7 @@ export default function DeGuardiaPage() {
           return;
         }
 
-        // Tenemos alias clínico → guardarlo y cargar casos
+        // 👇 AQUÍ fijamos el alias SIEMPRE desde backend
         setGuardAlias(aliasBackend);
         localStorage.setItem("galenos_guard_alias", aliasBackend);
 
@@ -169,7 +159,6 @@ export default function DeGuardiaPage() {
   }
 
   function handleCaseCreated(newCase) {
-    // Insertar al principio de la lista
     setCases((prev) => [newCase, ...prev]);
     setSelectedCaseId(newCase.id);
     setShowNewCaseModal(false);
@@ -245,7 +234,6 @@ export default function DeGuardiaPage() {
 
       {/* CONTENIDO PRINCIPAL: 2 COLUMNAS */}
       <section className="grid grid-cols-1 lg:grid-cols-[minmax(0,0.38fr)_minmax(0,0.62fr)] gap-4 min-h-[480px]">
-        {/* LISTA DE CONSULTAS */}
         <ConsultasListPanel
           cases={cases}
           filters={filters}
@@ -255,7 +243,6 @@ export default function DeGuardiaPage() {
           onToggleFavorite={handleToggleFavorite}
         />
 
-        {/* HILO DE MENSAJES */}
         <HiloPanel
           selectedCaseId={selectedCaseId}
           apiBase={API}
@@ -264,7 +251,7 @@ export default function DeGuardiaPage() {
         />
       </section>
 
-      {/* SOLO modal de nueva consulta */}
+      {/* Modal nueva consulta */}
       <NuevaConsultaModal
         isOpen={showNewCaseModal}
         onClose={() => setShowNewCaseModal(false)}
