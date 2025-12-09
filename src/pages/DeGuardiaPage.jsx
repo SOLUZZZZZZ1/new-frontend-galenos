@@ -9,16 +9,12 @@ const API =
  * Página principal del módulo "De guardia / Cartelera clínica".
  * - Lista de consultas en la columna izquierda
  * - Hilo de mensajes en la derecha
- * - Alias de guardia obligatorio (se pide si falta)
- *
- * Esta versión solo se apoya en endpoints REST, sin websockets,
- * para no romper nada del backend actual.
+ * - Alias clínico obligatorio (se toma del Perfil Médico)
  */
 
 // ⬇️ IMPORTS: componentes en src/components/
 import ConsultasListPanel from "../components/ConsultasListPanel.jsx";
 import HiloPanel from "../components/HiloPanel.jsx";
-import AliasGuardiaModal from "../components/AliasGuardiaModal.jsx";
 import NuevaConsultaModal from "../components/NuevaConsultaModal.jsx";
 
 export default function DeGuardiaPage() {
@@ -39,7 +35,6 @@ export default function DeGuardiaPage() {
   });
   const [selectedCaseId, setSelectedCaseId] = useState(null);
 
-  const [showAliasModal, setShowAliasModal] = useState(false);
   const [showNewCaseModal, setShowNewCaseModal] = useState(false);
 
   // =============================
@@ -96,18 +91,18 @@ export default function DeGuardiaPage() {
   // CARGA INICIAL
   // =============================
   useEffect(() => {
-    if (!token) {
-      setError("No hay sesión activa. Inicia sesión para acceder a De guardia.");
-      setLoading(false);
-      return;
-    }
-
     async function loadInitial() {
+      if (!token) {
+        setError("No hay sesión activa. Inicia sesión para acceder a De guardia.");
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       setError("");
 
       try {
-        // 1) Cargar perfil médico para ver alias
+        // 1) Cargar perfil médico para ver alias clínico
         const resProfile = await fetch(`${API}/doctor/profile/me`, {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -138,20 +133,24 @@ export default function DeGuardiaPage() {
         }
 
         const aliasBackend = profile?.guard_alias || "";
-        if (aliasBackend) {
-          setGuardAlias(aliasBackend);
-          localStorage.setItem("galenos_guard_alias", aliasBackend);
-        } else {
-          // No hay alias → mostramos modal
-          setShowAliasModal(true);
+
+        if (!aliasBackend) {
+          setError(
+            "Antes de usar De guardia, debes definir tu alias clínico en tu Perfil Médico."
+          );
+          navigate("/perfil");
+          return;
         }
 
-        // 2) Cargar consultas de cartelera con filtros iniciales
+        // Tenemos alias clínico → guardarlo y cargar casos
+        setGuardAlias(aliasBackend);
+        localStorage.setItem("galenos_guard_alias", aliasBackend);
+
         await loadCases(filters);
+        setLoading(false);
       } catch (err) {
         console.error("❌ [DeGuardia] Error inicial:", err);
         setError("No se pudo conectar con el servidor de De guardia.");
-      } finally {
         setLoading(false);
       }
     }
@@ -189,12 +188,6 @@ export default function DeGuardiaPage() {
     );
   }
 
-  function handleAliasSaved(newAlias) {
-    setGuardAlias(newAlias);
-    localStorage.setItem("galenos_guard_alias", newAlias);
-    setShowAliasModal(false);
-  }
-
   // =============================
   // RENDER
   // =============================
@@ -204,7 +197,7 @@ export default function DeGuardiaPage() {
         <p className="text-slate-600">Cargando módulo De guardia…</p>
       </main>
     );
-    }
+  }
 
   if (error) {
     return (
@@ -271,14 +264,7 @@ export default function DeGuardiaPage() {
         />
       </section>
 
-      {/* MODALES */}
-      <AliasGuardiaModal
-        isOpen={showAliasModal}
-        apiBase={API}
-        token={token}
-        onAliasSaved={handleAliasSaved}
-      />
-
+      {/* SOLO modal de nueva consulta */}
       <NuevaConsultaModal
         isOpen={showNewCaseModal}
         onClose={() => setShowNewCaseModal(false)}
