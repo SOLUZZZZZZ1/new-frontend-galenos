@@ -71,7 +71,10 @@ export default function DashboardMedico() {
               });
               if (ra.ok) {
                 const rawA = await ra.text();
-                console.log(`👉 [Dashboard] /analytics/by-patient/${pid} (raw):`, rawA);
+                console.log(
+                  `👉 [Dashboard] /analytics/by-patient/${pid} (raw):`,
+                  rawA
+                );
                 try {
                   details[pid].analytics = JSON.parse(rawA);
                 } catch (err) {
@@ -95,7 +98,10 @@ export default function DashboardMedico() {
               });
               if (ri.ok) {
                 const rawI = await ri.text();
-                console.log(`👉 [Dashboard] /imaging/by-patient/${pid} (raw):`, rawI);
+                console.log(
+                  `👉 [Dashboard] /imaging/by-patient/${pid} (raw):`,
+                  rawI
+                );
                 try {
                   details[pid].imaging = JSON.parse(rawI);
                 } catch (err) {
@@ -148,8 +154,10 @@ export default function DashboardMedico() {
 
     const lastImaging = imaging.length > 0 ? imaging[0] : null;
 
-    const lastAnalyticDate = lastAnalytic?.exam_date || lastAnalytic?.created_at;
-    const lastImagingDate = lastImaging?.exam_date || lastImaging?.created_at;
+    const lastAnalyticDate =
+      lastAnalytic?.exam_date || lastAnalytic?.created_at;
+    const lastImagingDate =
+      lastImaging?.exam_date || lastImaging?.created_at;
 
     let lastActivity = null;
     if (lastAnalyticDate && lastImagingDate) {
@@ -196,7 +204,8 @@ export default function DashboardMedico() {
           Panel del médico · Galenos.pro
         </h1>
         <p className="text-sm text-slate-600">
-          Todavía no has creado ningún paciente. Empieza creando tu primer paciente para trabajar con Galenos.
+          Todavía no has creado ningún paciente. Empieza creando tu primer
+          paciente para trabajar con Galenos.
         </p>
         <button
           type="button"
@@ -218,7 +227,8 @@ export default function DashboardMedico() {
             Panel del médico
           </h1>
           <p className="text-sm text-slate-600 mt-1">
-            Resumen de tus pacientes, analíticas e imágenes recientes. Punto de partida para tu consulta.
+            Resumen de tus pacientes, analíticas e imágenes recientes. Punto de
+            partida para tu consulta.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -290,7 +300,8 @@ export default function DashboardMedico() {
           Pacientes recientes y estado clínico
         </h2>
         <p className="text-xs text-slate-600 mb-4">
-          Vista rápida de tus pacientes: última actividad, analíticas recientes y estudios de imagen.
+          Vista rápida de tus pacientes: última actividad, analíticas recientes
+          y estudios de imagen.
         </p>
 
         <div className="space-y-3">
@@ -299,6 +310,8 @@ export default function DashboardMedico() {
             const lastA = summary.lastAnalytic;
             const lastI = summary.lastImaging;
             const hasAlerts = summary.alteredMarkers > 0;
+
+            const displayId = p.patient_number || p.id;
 
             return (
               <div
@@ -309,7 +322,7 @@ export default function DashboardMedico() {
                   <p className="text-sm font-semibold text-slate-900">
                     {p.alias}{" "}
                     <span className="text-xs font-normal text-slate-500">
-                      · ID {p.id}
+                      · ID {displayId}
                     </span>
                   </p>
                   <p className="text-xs text-slate-500">
