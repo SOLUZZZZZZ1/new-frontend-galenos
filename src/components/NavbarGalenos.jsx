@@ -1,4 +1,3 @@
-
 // src/components/NavbarGalenos.jsx — Barra superior Galenos.pro con logo 3D
 import React from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -24,6 +23,9 @@ export default function NavbarGalenos() {
     }
     if (path === "/de-guardia") {
       return loc.pathname.startsWith("/de-guardia");
+    }
+    if (path === "/actualidad-medica") {
+      return loc.pathname.startsWith("/actualidad-medica");
     }
     return loc.pathname === path;
   }
@@ -106,6 +108,20 @@ export default function NavbarGalenos() {
               }`}
             >
               De guardia
+            </Link>
+          )}
+
+          {/* Actualidad médica */}
+          {loggedIn && (
+            <Link
+              to="/actualidad-medica"
+              className={`px-3 py-1.5 rounded-full border text-xs sm:text-sm ${
+                isActive("/actualidad-medica")
+                  ? "border-sky-500 bg-sky-50 text-sky-700"
+                  : "border-transparent text-slate-600 hover:border-slate-200 hover:bg-slate-50"
+              }`}
+            >
+              Actualidad médica
             </Link>
           )}
 
