@@ -113,8 +113,8 @@ export default function Patients() {
         <h1 className="text-2xl font-bold">Pacientes</h1>
         <p className="text-sm text-slate-600">
           Aquí puedes dar de alta rápidamente pacientes (código + nombre) y ver
-          sus IDs. Usa esos IDs en el panel para vincular analíticas e
-          imágenes.
+          su número clínico e ID interno. Usa el número clínico en tu trabajo
+          diario y el ID interno solo cuando lo necesites para soporte técnico.
         </p>
       </header>
 
@@ -159,15 +159,16 @@ export default function Patients() {
           </button>
         </div>
         <p className="text-sm text-slate-600">
-          Usa la columna <strong>ID</strong> para trabajar en el Panel
-          (imágenes, notas, etc.).
+          Usa la columna <strong>Nº Paciente</strong> como número clínico
+          local para ti. El ID interno se usa solo para vincular analíticas,
+          imágenes u operaciones técnicas.
         </p>
 
         <div className="overflow-x-auto mt-2">
           <table className="min-w-full text-sm border border-slate-200 rounded-md overflow-hidden">
             <thead className="bg-slate-100">
               <tr>
-                <th className="px-2 py-1 text-left w-16">ID</th>
+                <th className="px-2 py-1 text-left w-20">Nº Paciente</th>
                 <th className="px-2 py-1 text-left">Alias</th>
                 <th className="px-2 py-1 text-left w-48">Creado</th>
                 <th className="px-2 py-1 text-left w-24">Acciones</th>
@@ -188,7 +189,9 @@ export default function Patients() {
 
               {patients.map((p) => (
                 <tr key={p.id} className="border-t border-slate-200">
-                  <td className="px-2 py-1 font-mono">{p.id}</td>
+                  <td className="px-2 py-1 font-mono">
+                    {p.patient_number ?? p.id}
+                  </td>
                   <td className="px-2 py-1">{p.alias}</td>
                   <td className="px-2 py-1 text-xs text-slate-500">
                     {p.created_at
@@ -196,10 +199,7 @@ export default function Patients() {
                       : ""}
                   </td>
 
-                  <td className="px-2 py-1 font-mono">
-                    {p.patient_number ?? p.id}
-                    </td>
-
+                  <td className="px-2 py-1">
                     <Link
                       to={`/PacienteDetalle/${p.id}`}
                       className="text-blue-600 hover:text-blue-800 text-xs font-medium underline"
