@@ -1,9 +1,13 @@
+// src/pages/ActualidadMedica.jsx — Galenos.pro
 import React, { useEffect, useState } from "react";
+
+const API =
+  import.meta.env.VITE_API_URL || "https://galenos-backend.onrender.com";
 
 /**
  * Página: Actualidad médica (conectada al backend)
  *
- * Llama a GET /medical-news y muestra tarjetas con:
+ * Llama a GET {API}/medical-news y muestra tarjetas con:
  * - título
  * - resumen
  * - fuente
@@ -22,15 +26,33 @@ const ActualidadMedica = () => {
         setLoading(true);
         setError(null);
 
-        const resp = await fetch("/medical-news?limit=20");
+        const resp = await fetch(`${API}/medical-news?limit=20`);
+        const raw = await resp.text();
+
         if (!resp.ok) {
-          throw new Error("No se ha podido cargar la actualidad médica");
+          let msg = "No se ha podido cargar la actualidad médica.";
+          try {
+            const errData = JSON.parse(raw);
+            if (errData.detail) msg = errData.detail;
+          } catch {
+            // Si el backend devuelve HTML (<!doctype html>), evitamos romper el JSON.parse
+          }
+          setError(msg);
+          return;
         }
-        const data = await resp.json();
-        setNews(data || []);
+
+        let data;
+        try {
+          data = JSON.parse(raw);
+        } catch {
+          setError("Respuesta inesperada al cargar la actualidad médica.");
+          return;
+        }
+
+        setNews(Array.isArray(data) ? data : []);
       } catch (err) {
-        console.error(err);
-        setError(err.message || "Error cargando la actualidad médica");
+        console.error("❌ Error cargando actualidad médica:", err);
+        setError("Error de conexión al cargar la actualidad médica.");
       } finally {
         setLoading(false);
       }
@@ -44,8 +66,9 @@ const ActualidadMedica = () => {
       <header className="mb-6">
         <h1 className="text-2xl font-semibold mb-1">Actualidad médica</h1>
         <p className="text-sm text-gray-600">
-          Resúmenes rápidos de noticias y actualizaciones clínicas procedentes de fuentes acreditadas.
-          Haz clic en “Ver noticia completa” para abrir el medio original en una pestaña nueva.
+          Resúmenes rápidos de noticias y actualizaciones clínicas procedentes
+          de fuentes acreditadas. Haz clic en “Ver noticia completa” para abrir
+          el medio original en una pestaña nueva.
         </p>
       </header>
 
@@ -54,15 +77,14 @@ const ActualidadMedica = () => {
       )}
 
       {error && !loading && (
-        <p className="text-sm text-red-500">
-          {error}
-        </p>
+        <p className="text-sm text-red-500">{error}</p>
       )}
 
       {!loading && !error && news.length === 0 && (
         <p className="text-sm text-gray-500">
-          De momento no hay noticias registradas. Cuando el servicio RSS empiece a alimentar la base de datos,
-          verás aquí las últimas novedades clínicas en tiempo casi real.
+          De momento no hay noticias registradas. Cuando el servicio RSS empiece
+          a alimentar la base de datos, verás aquí las últimas novedades
+          clínicas en tiempo casi real.
         </p>
       )}
 
@@ -80,9 +102,7 @@ const ActualidadMedica = () => {
                 {n.published_at &&
                   new Date(n.published_at).toLocaleDateString("es-ES")}
               </p>
-              {n.summary && (
-                <p className="text-sm mb-3">{n.summary}</p>
-              )}
+              {n.summary && <p className="text-sm mb-3">{n.summary}</p>}
               <a
                 href={n.source_url}
                 target="_blank"
