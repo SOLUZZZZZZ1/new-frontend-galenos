@@ -1,5 +1,5 @@
 // src/pages/PanelMedico.jsx — Panel médico con Analíticas + Imágenes · Galenos.pro
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
 // URL del backend de Galenos (Render)
@@ -16,6 +16,43 @@ export default function PanelMedico() {
   // ========================
   const [billingLoading, setBillingLoading] = useState(false);
   const [billingError, setBillingError] = useState("");
+  const [proStatus, setProStatus] = useState({
+    is_pro: false,
+    in_trial: true,
+    trial_days_left: 10,
+  });
+
+  useEffect(() => {
+    async function loadStatus() {
+      const t = localStorage.getItem("galenos_token");
+      if (!t) return;
+
+      try {
+        const res = await fetch(`${API}/me/pro-status`, {
+          headers: { Authorization: `Bearer ${t}` },
+        });
+        const raw = await res.text();
+        console.log("👉 [PRO] /me/pro-status (raw):", raw);
+        if (!res.ok) {
+          // Si falla, dejamos el estado por defecto
+          return;
+        }
+        const data = JSON.parse(raw);
+        setProStatus({
+          is_pro: !!data.is_pro,
+          in_trial: !!data.in_trial,
+          trial_days_left:
+            typeof data.trial_days_left === "number"
+              ? data.trial_days_left
+              : 0,
+        });
+      } catch (err) {
+        console.error("❌ Error cargando estado PRO:", err);
+      }
+    }
+
+    loadStatus();
+  }, []);
 
   async function handleStripeCheckout() {
     setBillingError("");
@@ -471,33 +508,52 @@ export default function PanelMedico() {
         <h2 className="text-sm font-semibold text-sky-800">
           Tu plan · Galenos PRO
         </h2>
-        <p className="text-xs text-sky-700">
-          Prueba gratuita de <strong>10 días</strong> desde el alta. Después
-          podrás seguir usando Galenos con todas las funciones avanzadas
-          activando la suscripción PRO.
-        </p>
+
+        {proStatus.is_pro && (
+          <p className="text-xs text-emerald-700">
+            Suscripción PRO activa. Gracias por confiar en Galenos.pro.
+          </p>
+        )}
+
+        {!proStatus.is_pro && proStatus.in_trial && (
+          <p className="text-xs text-sky-700">
+            Prueba gratuita activa · te quedan{" "}
+            <strong>{proStatus.trial_days_left}</strong> días.
+          </p>
+        )}
+
+        {!proStatus.is_pro && !proStatus.in_trial && (
+          <p className="text-xs text-sky-700">
+            Prueba finalizada · continúa usando Galenos con todas las funciones
+            avanzadas activando la suscripción PRO.
+          </p>
+        )}
+
         {billingError && (
           <p className="text-xs text-red-600">{billingError}</p>
         )}
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={handleStripeCheckout}
-            disabled={billingLoading}
-            className="sr-btn-primary text-xs disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            {billingLoading
-              ? "Conectando con Stripe..."
-              : "Activar Galenos PRO"}
-          </button>
-          <button
-            type="button"
-            onClick={() => navigate("/perfil")}
-            className="sr-btn-secondary text-xs"
-          >
-            Ver / editar mi perfil médico
-          </button>
-        </div>
+
+        {!proStatus.is_pro && (
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={handleStripeCheckout}
+              disabled={billingLoading}
+              className="sr-btn-primary text-xs disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {billingLoading
+                ? "Conectando con Stripe..."
+                : "Activar Galenos PRO"}
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate("/perfil")}
+              className="sr-btn-secondary text-xs"
+            >
+              Ver / editar mi perfil médico
+            </button>
+          </div>
+        )}
       </section>
 
       {/* BLOQUE ANALÍTICAS */}
