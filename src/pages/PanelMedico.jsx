@@ -12,6 +12,74 @@ export default function PanelMedico() {
   const token = localStorage.getItem("galenos_token");
 
   // ========================
+  // ESTADO PLAN PRO / STRIPE
+  // ========================
+  const [billingLoading, setBillingLoading] = useState(false);
+  const [billingError, setBillingError] = useState("");
+
+  async function handleStripeCheckout() {
+    setBillingError("");
+
+    if (!token) {
+      setBillingError("No hay sesión activa. Vuelve a iniciar sesión.");
+      navigate("/login");
+      return;
+    }
+
+    try {
+      setBillingLoading(true);
+      const res = await fetch(`${API}/billing/create-checkout-session-auth`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const raw = await res.text();
+      console.log(
+        "👉 [Billing] Respuesta create-checkout-session-auth (raw):",
+        raw
+      );
+
+      if (!res.ok) {
+        let msg = "No se ha podido iniciar el pago con Stripe.";
+        try {
+          const errData = JSON.parse(raw);
+          if (errData.detail === "PROFILE_REQUIRED") {
+            msg =
+              "Antes de activar Galenos PRO, completa tu Perfil médico (nombre, especialidad, colegiado...).";
+          } else if (errData.detail) {
+            msg = errData.detail;
+          }
+        } catch {
+          // si no es JSON, dejamos el mensaje genérico
+        }
+        setBillingError(msg);
+        return;
+      }
+
+      let data;
+      try {
+        data = JSON.parse(raw);
+      } catch {
+        setBillingError("Respuesta inesperada del servidor de pagos.");
+        return;
+      }
+
+      if (data.checkout_url) {
+        window.location.href = data.checkout_url;
+      } else {
+        setBillingError("No se ha recibido la URL de pago de Stripe.");
+      }
+    } catch (err) {
+      console.error("❌ Error iniciando checkout Stripe:", err);
+      setBillingError("Error de conexión al iniciar el pago con Stripe.");
+    } finally {
+      setBillingLoading(false);
+    }
+  }
+
+  // ========================
   // ESTADO ANALÍTICAS
   // ========================
   const [alias, setAlias] = useState("Paciente A");
@@ -79,11 +147,15 @@ export default function PanelMedico() {
     }
 
     if (!alias.trim()) {
-      setAnalyticsError("Introduce un alias para la analítica (ej. 0001 - Nombre).");
+      setAnalyticsError(
+        "Introduce un alias para la analítica (ej. 0001 - Nombre)."
+      );
       return;
     }
     if (!fileAnalitica) {
-      setAnalyticsError("Selecciona un fichero de analítica (PDF o imagen).");
+      setAnalyticsError(
+        "Selecciona un fichero de analítica (PDF o imagen)."
+      );
       return;
     }
 
@@ -181,7 +253,8 @@ export default function PanelMedico() {
       console.log("👉 Respuesta chat analítica (raw):", raw);
 
       if (!res.ok) {
-        let msg = "No se ha podido generar una respuesta de IA para la analítica.";
+        let msg =
+          "No se ha podido generar una respuesta de IA para la analítica.";
         try {
           const errData = JSON.parse(raw);
           if (errData.detail) msg = errData.detail;
@@ -342,7 +415,8 @@ export default function PanelMedico() {
       console.log("👉 Respuesta chat imagen (raw):", raw);
 
       if (!res.ok) {
-        let msg = "No se ha podido generar una respuesta de IA para la imagen médica.";
+        let msg =
+          "No se ha podido generar una respuesta de IA para la imagen médica.";
         try {
           const errData = JSON.parse(raw);
           if (errData.detail) msg = errData.detail;
@@ -378,8 +452,9 @@ export default function PanelMedico() {
         <div className="space-y-1">
           <h1 className="text-2xl font-bold">Panel médico · Galenos.pro</h1>
           <p className="text-sm text-slate-600">
-            Sube analíticas e imágenes médicas vinculadas a tus pacientes. Galenos te ayuda a
-            interpretar de forma prudente los resultados, sin sustituir tu criterio clínico.
+            Sube analíticas e imágenes médicas vinculadas a tus pacientes.
+            Galenos te ayuda a interpretar de forma prudente los resultados, sin
+            sustituir tu criterio clínico.
           </p>
         </div>
         <button
@@ -391,12 +466,47 @@ export default function PanelMedico() {
         </button>
       </header>
 
+      {/* BLOQUE PLAN PRO / STRIPE */}
+      <section className="bg-sky-50 rounded-xl border border-sky-200 shadow-sm p-4 space-y-2">
+        <h2 className="text-sm font-semibold text-sky-800">
+          Tu plan · Galenos PRO
+        </h2>
+        <p className="text-xs text-sky-700">
+          Prueba gratuita de <strong>10 días</strong> desde el alta. Después
+          podrás seguir usando Galenos con todas las funciones avanzadas
+          activando la suscripción PRO.
+        </p>
+        {billingError && (
+          <p className="text-xs text-red-600">{billingError}</p>
+        )}
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={handleStripeCheckout}
+            disabled={billingLoading}
+            className="sr-btn-primary text-xs disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {billingLoading
+              ? "Conectando con Stripe..."
+              : "Activar Galenos PRO"}
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate("/perfil")}
+            className="sr-btn-secondary text-xs"
+          >
+            Ver / editar mi perfil médico
+          </button>
+        </div>
+      </section>
+
       {/* BLOQUE ANALÍTICAS */}
       <section className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 space-y-4">
         <h2 className="text-lg font-semibold">Analíticas de laboratorio</h2>
         <p className="text-sm text-slate-600">
-          Sube analíticas (PDF, foto, captura). Galenos extraerá marcadores, rangos y un resumen
-          clínico orientativo. Usando el ID del paciente, la analítica se guardará en su ficha.
+          Sube analíticas (PDF, foto, captura). Galenos extraerá marcadores,
+          rangos y un resumen clínico orientativo. Usando el ID del paciente, la
+          analítica se guardará en su ficha.
         </p>
 
         <form onSubmit={handleUploadAnalitica} className="space-y-3">
@@ -412,7 +522,9 @@ export default function PanelMedico() {
               />
             </div>
             <div>
-              <label className="sr-label">Alias / identificador del paciente</label>
+              <label className="sr-label">
+                Alias / identificador del paciente
+              </label>
               <input
                 type="text"
                 value={alias}
@@ -426,7 +538,9 @@ export default function PanelMedico() {
               <input
                 type="file"
                 accept=".pdf,image/*"
-                onChange={(e) => setFileAnalitica(e.target.files?.[0] || null)}
+                onChange={(e) =>
+                  setFileAnalitica(e.target.files?.[0] || null)
+                }
                 className="sr-input w-full"
               />
             </div>
@@ -449,7 +563,9 @@ export default function PanelMedico() {
           {duplicateAnalytic && (
             <p className="mt-2 text-xs text-amber-700 flex items-center gap-1">
               <span>⚠</span>
-              <span>Esta analítica ya estaba registrada (no se ha duplicado).</span>
+              <span>
+                Esta analítica ya estaba registrada (no se ha duplicado).
+              </span>
             </p>
           )}
         </form>
@@ -468,7 +584,9 @@ export default function PanelMedico() {
 
             {analyticsResult.summary && (
               <div>
-                <h4 className="text-sm font-semibold mb-1">Resumen orientativo</h4>
+                <h4 className="text-sm font-semibold mb-1">
+                  Resumen orientativo
+                </h4>
                 <p className="text-sm text-slate-800 whitespace-pre-line">
                   {analyticsResult.summary}
                 </p>
@@ -489,7 +607,9 @@ export default function PanelMedico() {
             {Array.isArray(analyticsResult.markers) &&
               analyticsResult.markers.length > 0 && (
                 <div>
-                  <h4 className="text-sm font-semibold mb-2">Marcadores extraídos</h4>
+                  <h4 className="text-sm font-semibold mb-2">
+                    Marcadores extraídos
+                  </h4>
                   <div className="overflow-x-auto">
                     <table className="min-w-full text-xs border border-slate-200 rounded-md overflow-hidden">
                       <thead className="bg-slate-100">
@@ -502,21 +622,32 @@ export default function PanelMedico() {
                       </thead>
                       <tbody>
                         {analyticsResult.markers.map((m, idx) => (
-                          <tr key={idx} className="border-t border-slate-200">
+                          <tr
+                            key={idx}
+                            className="border-t border-slate-200"
+                          >
                             <td className="px-2 py-1">{m.name}</td>
                             <td className="px-2 py-1">
-                              {m.value !== null && m.value !== undefined ? m.value : ""}
+                              {m.value !== null && m.value !== undefined
+                                ? m.value
+                                : ""}
                             </td>
                             <td className="px-2 py-1">{m.range || ""}</td>
                             <td className="px-2 py-1">
                               {m.status === "elevado" && (
-                                <span className="text-red-600 font-medium">Alto</span>
+                                <span className="text-red-600 font-medium">
+                                  Alto
+                                </span>
                               )}
                               {m.status === "bajo" && (
-                                <span className="text-amber-600 font-medium">Bajo</span>
+                                <span className="text-amber-600 font-medium">
+                                  Bajo
+                                </span>
                               )}
                               {m.status === "normal" && (
-                                <span className="text-emerald-700 font-medium">Normal</span>
+                                <span className="text-emerald-700 font-medium">
+                                  Normal
+                                </span>
                               )}
                             </td>
                           </tr>
@@ -572,8 +703,9 @@ export default function PanelMedico() {
           Imágenes médicas (RX / TAC / RM / ECO)
         </h2>
         <p className="text-sm text-slate-600">
-          Indica el ID de paciente (lo puedes ver en la página Pacientes), el tipo de estudio
-          y sube la imagen o PDF correspondiente. Se guardará en la ficha de ese paciente.
+          Indica el ID de paciente (lo puedes ver en la página Pacientes), el
+          tipo de estudio y sube la imagen o PDF correspondiente. Se guardará en
+          la ficha de ese paciente.
         </p>
 
         <form onSubmit={handleUploadImagen} className="space-y-3">
@@ -608,7 +740,9 @@ export default function PanelMedico() {
                 type="file"
                 accept=".pdf,image/*"
                 className="sr-input w-full"
-                onChange={(e) => setFileImagen(e.target.files?.[0] || null)}
+                onChange={(e) =>
+                  setFileImagen(e.target.files?.[0] || null)
+                }
               />
             </div>
           </div>
@@ -640,12 +774,17 @@ export default function PanelMedico() {
           {duplicateImagen && (
             <p className="mt-2 text-xs text-amber-700 flex items-center gap-1">
               <span>⚠</span>
-              <span>Esta imagen ya estaba registrada (no se ha duplicado).</span>
+              <span>
+                Esta imagen ya estaba registrada (no se ha duplicado).
+              </span>
             </p>
           )}
         </form>
 
-        {(imagenSummary || imagenDifferential || imagenPatterns.length > 0 || imagenFilePath) && (
+        {(imagenSummary ||
+          imagenDifferential ||
+          imagenPatterns.length > 0 ||
+          imagenFilePath) && (
           <div className="mt-4 space-y-4">
             {imagenSummary && (
               <div>
