@@ -196,7 +196,10 @@ export default function Patients() {
                       : ""}
                   </td>
 
-                  <td className="px-2 py-1">
+                  <td className="px-2 py-1 font-mono">
+                    {p.patient_number ?? p.id}
+                    </td>
+
                     <Link
                       to={`/PacienteDetalle/${p.id}`}
                       className="text-blue-600 hover:text-blue-800 text-xs font-medium underline"
