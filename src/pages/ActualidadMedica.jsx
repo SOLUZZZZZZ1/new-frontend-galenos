@@ -1,50 +1,43 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 
 /**
- * Página: Actualidad médica
+ * Página: Actualidad médica (conectada al backend)
  *
- * Versión base para Galenos.
- * Muestra tarjetas de noticias con:
+ * Llama a GET /medical-news y muestra tarjetas con:
  * - título
- * - resumen breve
+ * - resumen
  * - fuente
  * - fecha
  * - enlace externo a la noticia completa
- *
- * Más adelante, se puede sustituir el array `noticiasEjemplo`
- * por datos reales desde el backend (GET /medical-news).
  */
 
 const ActualidadMedica = () => {
-  const noticiasEjemplo = [
-    {
-      id: 1,
-      titulo: "Nuevas guías en insuficiencia cardiaca 2025",
-      resumen:
-        "Resumen breve de las principales recomendaciones en el manejo y seguimiento de la insuficiencia cardiaca según las últimas guías europeas.",
-      fuente: "Sociedad Europea de Cardiología (ESC)",
-      url: "https://example.com/noticia-insuficiencia-cardiaca",
-      fecha: "2025-12-10",
-    },
-    {
-      id: 2,
-      titulo: "Actualización en el uso de antibióticos en urgencias",
-      resumen:
-        "Revisión de pautas empíricas en sepsis, neumonía adquirida en la comunidad e infecciones de partes blandas en contexto de resistencias.",
-      fuente: "Revista de Medicina de Urgencias",
-      url: "https://example.com/noticia-antibioticos-urgencias",
-      fecha: "2025-12-09",
-    },
-    {
-      id: 3,
-      titulo: "Nuevas evidencias en el manejo de la EPOC estable",
-      resumen:
-        "Metaanálisis reciente que revisa el papel de distintos broncodilatadores y corticoides inhalados en la reducción de exacerbaciones.",
-      fuente: "BMJ (British Medical Journal)",
-      url: "https://example.com/noticia-epoc-bmj",
-      fecha: "2025-12-08",
-    },
-  ];
+  const [news, setNews] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchNews = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const resp = await fetch("/medical-news?limit=20");
+        if (!resp.ok) {
+          throw new Error("No se ha podido cargar la actualidad médica");
+        }
+        const data = await resp.json();
+        setNews(data || []);
+      } catch (err) {
+        console.error(err);
+        setError(err.message || "Error cargando la actualidad médica");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchNews();
+  }, []);
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-6">
@@ -56,35 +49,52 @@ const ActualidadMedica = () => {
         </p>
       </header>
 
-      <section className="space-y-4">
-        {noticiasEjemplo.map((n) => (
-          <article
-            key={n.id}
-            className="border rounded-lg p-4 bg-white shadow-sm"
-          >
-            <h2 className="text-lg font-semibold mb-1">{n.titulo}</h2>
-            <p className="text-xs text-gray-500 mb-2">
-              {n.fuente} · {n.fecha}
-            </p>
-            <p className="text-sm mb-3">{n.resumen}</p>
-            <a
-              href={n.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center text-sm font-semibold underline"
-            >
-              Ver noticia completa
-            </a>
-          </article>
-        ))}
+      {loading && (
+        <p className="text-sm text-gray-500">Cargando noticias médicas…</p>
+      )}
 
-        {noticiasEjemplo.length === 0 && (
-          <p className="text-sm text-gray-500">
-            De momento no hay noticias disponibles. Cuando se conecte el módulo de fuentes externas,
-            verás aquí un listado actualizado en tiempo real.
-          </p>
-        )}
-      </section>
+      {error && !loading && (
+        <p className="text-sm text-red-500">
+          {error}
+        </p>
+      )}
+
+      {!loading && !error && news.length === 0 && (
+        <p className="text-sm text-gray-500">
+          De momento no hay noticias registradas. Cuando el servicio RSS empiece a alimentar la base de datos,
+          verás aquí las últimas novedades clínicas en tiempo casi real.
+        </p>
+      )}
+
+      {!loading && !error && news.length > 0 && (
+        <section className="space-y-4">
+          {news.map((n) => (
+            <article
+              key={n.id}
+              className="border rounded-lg p-4 bg-white shadow-sm"
+            >
+              <h2 className="text-lg font-semibold mb-1">{n.title}</h2>
+              <p className="text-xs text-gray-500 mb-2">
+                {n.source_name || "Fuente no especificada"}
+                {n.published_at && " · "}
+                {n.published_at &&
+                  new Date(n.published_at).toLocaleDateString("es-ES")}
+              </p>
+              {n.summary && (
+                <p className="text-sm mb-3">{n.summary}</p>
+              )}
+              <a
+                href={n.source_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center text-sm font-semibold underline"
+              >
+                Ver noticia completa
+              </a>
+            </article>
+          ))}
+        </section>
+      )}
     </div>
   );
 };
