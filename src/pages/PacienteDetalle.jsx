@@ -44,6 +44,12 @@ export default function PacienteDetalle() {
   const [noteSaving, setNoteSaving] = useState(false);
   const [noteError, setNoteError] = useState("");
 
+  // Comparativa de analíticas
+  const [compareMonths, setCompareMonths] = useState(6);
+  const [compareLoading, setCompareLoading] = useState(false);
+  const [compareError, setCompareError] = useState("");
+  const [compareData, setCompareData] = useState(null);
+
   function toggle(block) {
     setOpen((prev) => ({ ...prev, [block]: !prev[block] }));
   }
@@ -302,7 +308,6 @@ export default function PacienteDetalle() {
         return;
       }
 
-      // Añadimos la nota al principio de la lista
       setNotes((prev) => [data, ...prev]);
       setNewNoteTitle("");
       setNewNoteContent("");
@@ -311,6 +316,61 @@ export default function PacienteDetalle() {
       setNoteError("Error de conexión al guardar la nota clínica.");
     } finally {
       setNoteSaving(false);
+    }
+  }
+
+  // =========================
+  // COMPARATIVA DE ANALÍTICAS
+  // =========================
+  async function handleLoadComparativa(e) {
+    e.preventDefault();
+    setCompareError("");
+    setCompareData(null);
+
+    const tokenLocal = localStorage.getItem("galenos_token");
+    if (!tokenLocal) {
+      setCompareError("No hay sesión activa. Vuelve a iniciar sesión.");
+      return;
+    }
+
+    try {
+      setCompareLoading(true);
+      const res = await fetch(
+        `${API}/analytics/compare/${id}?months=${compareMonths}`,
+        {
+          headers: {
+            Authorization: `Bearer ${tokenLocal}`,
+          },
+        }
+      );
+
+      const raw = await res.text();
+      console.log("👉 [Ficha] /analytics/compare (raw):", raw);
+
+      if (!res.ok) {
+        let msg = "No se ha podido cargar la comparativa de analíticas.";
+        try {
+          const errData = JSON.parse(raw);
+          if (errData.detail) msg = errData.detail;
+        } catch {}
+        setCompareError(msg);
+        return;
+      }
+
+      let data;
+      try {
+        data = JSON.parse(raw);
+      } catch {
+        setCompareError("Respuesta inesperada en la comparativa.");
+        return;
+      }
+
+      setCompareData(data);
+    } catch (err) {
+      console.error("❌ Error comparando analíticas:", err);
+      setCompareError("Error de conexión al cargar la comparativa.");
+    } finally {
+      setCompareLoading(false);
     }
   }
 
@@ -503,7 +563,6 @@ export default function PacienteDetalle() {
                   <button
                     type="button"
                     onClick={() => {
-                      // cancelar edición → restaurar valores actuales
                       setEditAlias(patient.alias || "");
                       setEditAge(
                         patient.age != null ? String(patient.age) : ""
@@ -623,6 +682,107 @@ export default function PacienteDetalle() {
                 )}
               </article>
             ))}
+
+            {/* Comparativa temporal de analíticas */}
+            <div className="mt-4 border-t border-slate-200 pt-3 space-y-2">
+              <h4 className="text-sm font-semibold">
+                Comparativa de analíticas (evolución de marcadores)
+              </h4>
+
+              <form
+                onSubmit={handleLoadComparativa}
+                className="flex flex-wrap items-center gap-2 text-xs"
+              >
+                <span>Ver evolución de los últimos</span>
+                <select
+                  className="sr-input w-20"
+                  value={compareMonths}
+                  onChange={(e) =>
+                    setCompareMonths(Number.parseInt(e.target.value, 10))
+                  }
+                >
+                  <option value={3}>3 meses</option>
+                  <option value={6}>6 meses</option>
+                  <option value={12}>12 meses</option>
+                </select>
+                <span>para este paciente.</span>
+                <button
+                  type="submit"
+                  disabled={compareLoading}
+                  className="sr-btn-secondary disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {compareLoading ? "Cargando..." : "Ver comparativa"}
+                </button>
+              </form>
+
+              {compareError && (
+                <p className="text-xs text-red-600 mt-1">{compareError}</p>
+              )}
+
+              {compareData && compareData.markers && (
+                <div className="mt-2 space-y-3">
+                  {Object.keys(compareData.markers).length === 0 && (
+                    <p className="text-xs text-slate-500">
+                      No hay marcadores con datos suficientes en el periodo
+                      seleccionado.
+                    </p>
+                  )}
+
+                  {Object.entries(compareData.markers).map(
+                    ([name, points]) => {
+                      const pts = Array.isArray(points) ? points : [];
+                      if (pts.length === 0) return null;
+
+                      const ordered = [...pts].sort((a, b) =>
+                        a.date.localeCompare(b.date)
+                      );
+                      const first = ordered[0];
+                      const last = ordered[ordered.length - 1];
+                      const delta =
+                        last.value != null && first.value != null
+                          ? last.value - first.value
+                          : null;
+
+                      return (
+                        <div
+                          key={name}
+                          className="border border-slate-200 rounded-lg p-2 text-xs"
+                        >
+                          <div className="flex justify-between items-center mb-1">
+                            <span className="font-semibold">{name}</span>
+                            {delta != null && (
+                              <span
+                                className={
+                                  delta > 0
+                                    ? "text-red-600"
+                                    : delta < 0
+                                    ? "text-emerald-700"
+                                    : "text-slate-600"
+                                }
+                              >
+                                Δ {delta > 0 ? "+" : ""}
+                                {delta.toFixed(2)}
+                              </span>
+                            )}
+                          </div>
+                          <div className="space-y-0.5">
+                            {ordered.map((p, idx) => (
+                              <div
+                                key={idx}
+                                className="flex justify-between text-[11px] text-slate-700"
+                              >
+                                <span>{p.date}</span>
+                                <span>{p.value}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    }
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </section>
@@ -684,7 +844,9 @@ export default function PacienteDetalle() {
                     </h3>
                     <ul className="list-disc list-inside text-sm text-slate-800 space-y-1">
                       {img.patterns.map((p, idx) => (
-                        <li key={idx}>{p.pattern_text || String(p)}</li>
+                        <li key={idx}>
+                          {p.pattern_text ? p.pattern_text : String(p)}
+                        </li>
                       ))}
                     </ul>
                   </div>
@@ -760,7 +922,8 @@ export default function PacienteDetalle() {
               </form>
             </div>
 
-            {/* Lista de notas existentes */}
+            {/* Lista de
+ notas existentes */}
             {notes.length === 0 && (
               <p className="text-sm text-slate-500">
                 No hay notas clínicas registradas para este paciente.
