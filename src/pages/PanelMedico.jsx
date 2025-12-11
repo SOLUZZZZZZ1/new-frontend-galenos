@@ -12,47 +12,10 @@ export default function PanelMedico() {
   const token = localStorage.getItem("galenos_token");
 
   // ========================
-  // ESTADO PLAN PRO / STRIPE
+  // ESTADO PLAN PRO / STRIPE (simple, botón siempre visible)
   // ========================
   const [billingLoading, setBillingLoading] = useState(false);
   const [billingError, setBillingError] = useState("");
-  const [proStatus, setProStatus] = useState({
-    is_pro: false,
-    in_trial: true,
-    trial_days_left: 10,
-  });
-
-  useEffect(() => {
-    async function loadStatus() {
-      const t = localStorage.getItem("galenos_token");
-      if (!t) return;
-
-      try {
-        const res = await fetch(`${API}/me/pro-status`, {
-          headers: { Authorization: `Bearer ${t}` },
-        });
-        const raw = await res.text();
-        console.log("👉 [PRO] /me/pro-status (raw):", raw);
-        if (!res.ok) {
-          // Si falla, dejamos el estado por defecto
-          return;
-        }
-        const data = JSON.parse(raw);
-        setProStatus({
-          is_pro: !!data.is_pro,
-          in_trial: !!data.in_trial,
-          trial_days_left:
-            typeof data.trial_days_left === "number"
-              ? data.trial_days_left
-              : 0,
-        });
-      } catch (err) {
-        console.error("❌ Error cargando estado PRO:", err);
-      }
-    }
-
-    loadStatus();
-  }, []);
 
   async function handleStripeCheckout() {
     setBillingError("");
@@ -117,10 +80,120 @@ export default function PanelMedico() {
   }
 
   // ========================
+  // ESTADO PACIENTES (para el select)
+  // ========================
+  const [patients, setPatients] = useState([]);
+  const [patientsLoading, setPatientsLoading] = useState(false);
+  const [patientsError, setPatientsError] = useState("");
+  const [selectedPatientId, setSelectedPatientId] = useState("");
+  const [newPatientAlias, setNewPatientAlias] = useState("");
+  const [creatingPatient, setCreatingPatient] = useState(false);
+
+  async function loadPatients() {
+    setPatientsError("");
+    const t = localStorage.getItem("galenos_token");
+    if (!t) {
+      setPatientsError("No hay sesión activa. Vuelve a iniciar sesión.");
+      return;
+    }
+    try {
+      setPatientsLoading(true);
+      const res = await fetch(`${API}/patients`, {
+        headers: {
+          Authorization: `Bearer ${t}`,
+        },
+      });
+      const raw = await res.text();
+      console.log("👉 [PanelMedico] /patients (raw):", raw);
+      if (!res.ok) {
+        let msg = "No se han podido cargar los pacientes.";
+        try {
+          const errData = JSON.parse(raw);
+          if (errData.detail) msg = errData.detail;
+        } catch {}
+        setPatientsError(msg);
+        return;
+      }
+      let data;
+      try {
+        data = JSON.parse(raw);
+      } catch {
+        setPatientsError("Respuesta inesperada al listar pacientes.");
+        return;
+      }
+      setPatients(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error("❌ Error cargando pacientes en PanelMedico:", err);
+      setPatientsError("Error de conexión al cargar pacientes.");
+    } finally {
+      setPatientsLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadPatients();
+  }, []);
+
+  async function handleCreatePatientInPanel(e) {
+    e.preventDefault();
+    setPatientsError("");
+
+    if (!newPatientAlias.trim()) {
+      setPatientsError(
+        "Introduce un alias para el paciente (ej. 0001 - Nombre Apellidos)."
+      );
+      return;
+    }
+    const t = localStorage.getItem("galenos_token");
+    if (!t) {
+      setPatientsError("No hay sesión activa. Vuelve a iniciar sesión.");
+      return;
+    }
+
+    try {
+      setCreatingPatient(true);
+      const body = { alias: newPatientAlias.trim() };
+      const res = await fetch(`${API}/patients`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${t}`,
+        },
+        body: JSON.stringify(body),
+      });
+      const raw = await res.text();
+      console.log("👉 [PanelMedico] POST /patients (raw):", raw);
+      if (!res.ok) {
+        let msg = "No se ha podido crear el paciente.";
+        try {
+          const errData = JSON.parse(raw);
+          if (errData.detail) msg = errData.detail;
+        } catch {}
+        setPatientsError(msg);
+        return;
+      }
+      let data;
+      try {
+        data = JSON.parse(raw);
+      } catch {
+        setPatientsError("Respuesta inesperada al crear paciente.");
+        return;
+      }
+      setNewPatientAlias("");
+      setPatients((prev) => [data, ...prev]);
+      setSelectedPatientId(String(data.id));
+    } catch (err) {
+      console.error("❌ Error creando paciente desde PanelMedico:", err);
+      setPatientsError("Error de conexión al crear paciente.");
+    } finally {
+      setCreatingPatient(false);
+    }
+  }
+
+  // ========================
   // ESTADO ANALÍTICAS
   // ========================
   const [alias, setAlias] = useState("Paciente A");
-  const [patientIdAnalitica, setPatientIdAnalitica] = useState("");
   const [fileAnalitica, setFileAnalitica] = useState(null);
   const [loadingAnalitica, setLoadingAnalitica] = useState(false);
   const [analyticsError, setAnalyticsError] = useState("");
@@ -138,7 +211,6 @@ export default function PanelMedico() {
   // ========================
   // ESTADO IMÁGENES
   // ========================
-  const [patientIdImagen, setPatientIdImagen] = useState("");
   const [imgType, setImgType] = useState("RX");
   const [imgContext, setImgContext] = useState("");
   const [fileImagen, setFileImagen] = useState(null);
@@ -147,7 +219,7 @@ export default function PanelMedico() {
   const [imagenSummary, setImagenSummary] = useState("");
   const [imagenDifferential, setImagenDifferential] = useState("");
   const [imagenPatterns, setImagenPatterns] = useState([]);
-  const [imagenFilePath, setImagenFilePath] = useState(""); // ruta/preview de la imagen
+  const [imagenFilePath, setImagenFilePath] = useState("");
 
   // Chat radiológico
   const [imgChatQuestion, setImgChatQuestion] = useState("");
@@ -175,10 +247,10 @@ export default function PanelMedico() {
       return;
     }
 
-    const pid = parseInt(patientIdAnalitica, 10);
+    const pid = parseInt(selectedPatientId, 10);
     if (!pid || Number.isNaN(pid)) {
       setAnalyticsError(
-        "Introduce un ID de paciente válido (número). Puedes verlo en la página Pacientes."
+        "Selecciona un paciente válido en el desplegable antes de subir la analítica."
       );
       return;
     }
@@ -190,9 +262,7 @@ export default function PanelMedico() {
       return;
     }
     if (!fileAnalitica) {
-      setAnalyticsError(
-        "Selecciona un fichero de analítica (PDF o imagen)."
-      );
+      setAnalyticsError("Selecciona un fichero de analítica (PDF o imagen).");
       return;
     }
 
@@ -231,14 +301,12 @@ export default function PanelMedico() {
         return;
       }
 
-      // Detectar duplicado: si el backend devuelve el mismo id que la última analítica subida
       if (lastAnalyticId && data.id && data.id === lastAnalyticId) {
         setDuplicateAnalytic(true);
         setTimeout(() => setDuplicateAnalytic(false), 5000);
       }
       setLastAnalyticId(data.id || null);
 
-      // data incluye: id, patient_id, summary, differential, markers, created_at…
       setAnalyticsResult({
         id: data.id,
         patient_alias: alias.trim(),
@@ -337,10 +405,10 @@ export default function PanelMedico() {
       return;
     }
 
-    const pid = parseInt(patientIdImagen, 10);
+    const pid = parseInt(selectedPatientId, 10);
     if (!pid || Number.isNaN(pid)) {
       setImagenError(
-        "Introduce un ID de paciente válido (número). Puedes verlo en la página Pacientes."
+        "Selecciona un paciente válido en el desplegable antes de subir la imagen."
       );
       return;
     }
@@ -388,7 +456,6 @@ export default function PanelMedico() {
         return;
       }
 
-      // Detectar duplicado de imagen por id devuelto
       if (lastImagenId && data.id && data.id === lastImagenId) {
         setDuplicateImagen(true);
         setTimeout(() => setDuplicateImagen(false), 5000);
@@ -508,52 +575,97 @@ export default function PanelMedico() {
         <h2 className="text-sm font-semibold text-sky-800">
           Tu plan · Galenos PRO
         </h2>
-
-        {proStatus.is_pro && (
-          <p className="text-xs text-emerald-700">
-            Suscripción PRO activa. Gracias por confiar en Galenos.pro.
-          </p>
-        )}
-
-        {!proStatus.is_pro && proStatus.in_trial && (
-          <p className="text-xs text-sky-700">
-            Prueba gratuita activa · te quedan{" "}
-            <strong>{proStatus.trial_days_left}</strong> días.
-          </p>
-        )}
-
-        {!proStatus.is_pro && !proStatus.in_trial && (
-          <p className="text-xs text-sky-700">
-            Prueba finalizada · continúa usando Galenos con todas las funciones
-            avanzadas activando la suscripción PRO.
-          </p>
-        )}
-
+        <p className="text-xs text-sky-700">
+          Prueba gratuita interna de <strong>10 días</strong> desde el alta en
+          Galenos. El pago con Stripe activa y mantiene tu suscripción PRO.
+        </p>
         {billingError && (
           <p className="text-xs text-red-600">{billingError}</p>
         )}
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={handleStripeCheckout}
+            disabled={billingLoading}
+            className="sr-btn-primary text-xs disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {billingLoading
+              ? "Conectando con Stripe..."
+              : "Activar / gestionar Galenos PRO"}
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate("/perfil")}
+            className="sr-btn-secondary text-xs"
+          >
+            Ver / editar mi perfil médico
+          </button>
+        </div>
+      </section>
 
-        {!proStatus.is_pro && (
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={handleStripeCheckout}
-              disabled={billingLoading}
-              className="sr-btn-primary text-xs disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              {billingLoading
-                ? "Conectando con Stripe..."
-                : "Activar Galenos PRO"}
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate("/perfil")}
-              className="sr-btn-secondary text-xs"
-            >
-              Ver / editar mi perfil médico
-            </button>
-          </div>
+      {/* BLOQUE PACIENTE SELECCIONADO / CREAR DESDE PANEL */}
+      <section className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 space-y-4">
+        <h2 className="text-lg font-semibold">Paciente activo en el panel</h2>
+        <p className="text-sm text-slate-600">
+          Selecciona el paciente al que se vincularán las analíticas e imágenes.
+          Puedes crear uno nuevo desde aquí o elegir uno existente.
+        </p>
+
+        {patientsError && (
+          <p className="text-sm text-red-600">{patientsError}</p>
         )}
+
+        <div className="grid md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <label className="sr-label">Seleccionar paciente existente</label>
+            <select
+              className="sr-input w-full"
+              value={selectedPatientId}
+              onChange={(e) => setSelectedPatientId(e.target.value)}
+              disabled={patientsLoading}
+            >
+              <option value="">
+                {patientsLoading
+                  ? "Cargando pacientes..."
+                  : "Selecciona un paciente..."}
+              </option>
+              {patients.map((p) => (
+                <option key={p.id} value={p.id}>
+                  Nº {p.patient_number ?? p.id} · {p.alias} (ID {p.id})
+                </option>
+              ))}
+            </select>
+            {selectedPatientId && (
+              <p className="text-xs text-slate-500 mt-1">
+                Paciente seleccionado: ID interno{" "}
+                <span className="font-mono">{selectedPatientId}</span>
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <label className="sr-label">Crear nuevo paciente desde aquí</label>
+            <form
+              onSubmit={handleCreatePatientInPanel}
+              className="flex flex-col sm:flex-row gap-2"
+            >
+              <input
+                type="text"
+                className="sr-input flex-1"
+                value={newPatientAlias}
+                onChange={(e) => setNewPatientAlias(e.target.value)}
+                placeholder="0002 - Nombre Apellidos"
+              />
+              <button
+                type="submit"
+                disabled={creatingPatient}
+                className="sr-btn-secondary disabled:opacity-60 disabled:cursor-not-allowed text-xs"
+              >
+                {creatingPatient ? "Creando..." : "Crear y seleccionar"}
+              </button>
+            </form>
+          </div>
+        </div>
       </section>
 
       {/* BLOQUE ANALÍTICAS */}
@@ -561,32 +673,20 @@ export default function PanelMedico() {
         <h2 className="text-lg font-semibold">Analíticas de laboratorio</h2>
         <p className="text-sm text-slate-600">
           Sube analíticas (PDF, foto, captura). Galenos extraerá marcadores,
-          rangos y un resumen clínico orientativo. Usando el ID del paciente, la
-          analítica se guardará en su ficha.
+          rangos y un resumen clínico orientativo. Usando el paciente
+          seleccionado, la analítica se guardará en su ficha.
         </p>
 
         <form onSubmit={handleUploadAnalitica} className="space-y-3">
-          <div className="grid md:grid-cols-3 gap-3">
+          <div className="grid md:grid-cols-2 gap-3">
             <div>
-              <label className="sr-label">ID de paciente</label>
-              <input
-                type="number"
-                value={patientIdAnalitica}
-                onChange={(e) => setPatientIdAnalitica(e.target.value)}
-                className="sr-input w-full"
-                placeholder="Ej. 1"
-              />
-            </div>
-            <div>
-              <label className="sr-label">
-                Alias / identificador del paciente
-              </label>
+              <label className="sr-label">Alias / identificador de la analítica</label>
               <input
                 type="text"
                 value={alias}
                 onChange={(e) => setAlias(e.target.value)}
                 className="sr-input w-full"
-                placeholder="0001 - Nombre Apellidos"
+                placeholder="Ej. 2024-09 - Analítica control"
               />
             </div>
             <div>
@@ -759,23 +859,12 @@ export default function PanelMedico() {
           Imágenes médicas (RX / TAC / RM / ECO)
         </h2>
         <p className="text-sm text-slate-600">
-          Indica el ID de paciente (lo puedes ver en la página Pacientes), el
-          tipo de estudio y sube la imagen o PDF correspondiente. Se guardará en
-          la ficha de ese paciente.
+          Indica el paciente seleccionado, el tipo de estudio y sube la imagen
+          o PDF correspondiente. Se guardará en la ficha de ese paciente.
         </p>
 
         <form onSubmit={handleUploadImagen} className="space-y-3">
           <div className="grid md:grid-cols-3 gap-3">
-            <div>
-              <label className="sr-label">ID de paciente</label>
-              <input
-                type="number"
-                className="sr-input w-full"
-                value={patientIdImagen}
-                onChange={(e) => setPatientIdImagen(e.target.value)}
-                placeholder="Ej. 1"
-              />
-            </div>
             <div>
               <label className="sr-label">Tipo de estudio</label>
               <select
@@ -801,18 +890,17 @@ export default function PanelMedico() {
                 }
               />
             </div>
-          </div>
-
-          <div>
-            <label className="sr-label">
-              Contexto clínico (opcional, se envía a la IA)
-            </label>
-            <textarea
-              className="sr-input w-full min-h-[60px]"
-              value={imgContext}
-              onChange={(e) => setImgContext(e.target.value)}
-              placeholder="Ej. Tos 3 días, fiebre, Rx de control..."
-            />
+            <div>
+              <label className="sr-label">
+                Contexto clínico (opcional, se envía a la IA)
+              </label>
+              <textarea
+                className="sr-input w-full min-h-[60px]"
+                value={imgContext}
+                onChange={(e) => setImgContext(e.target.value)}
+                placeholder="Ej. Tos 3 días, fiebre, Rx de control..."
+              />
+            </div>
           </div>
 
           {imagenError && (
