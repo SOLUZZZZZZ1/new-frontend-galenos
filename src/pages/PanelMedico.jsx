@@ -301,10 +301,13 @@ export default function PanelMedico() {
         return;
       }
 
-      if (lastAnalyticId && data.id && data.id === lastAnalyticId) {
-        setDuplicateAnalytic(true);
-        setTimeout(() => setDuplicateAnalytic(false), 5000);
-      }
+      // DEDUPLICADO desde backend → aviso inmediato
+if (data.duplicate === true) {
+    setDuplicateAnalytic(true);
+    setLastAnalyticId(data.id);  // para que las siguientes coincidan
+    setTimeout(() => setDuplicateAnalytic(false), 5000);
+}
+
       setLastAnalyticId(data.id || null);
 
       setAnalyticsResult({
