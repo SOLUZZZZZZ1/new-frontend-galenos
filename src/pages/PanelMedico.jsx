@@ -459,10 +459,13 @@ if (data.duplicate === true) {
         return;
       }
 
-      if (lastImagenId && data.id && data.id === lastImagenId) {
-        setDuplicateImagen(true);
-        setTimeout(() => setDuplicateImagen(false), 5000);
-      }
+      // DEDUPLICACIÓN desde backend
+if (data.duplicate === true) {
+    setDuplicateImagen(true);
+    setLastImagenId(data.id);
+    setTimeout(() => setDuplicateImagen(false), 5000);
+}
+
       setLastImagenId(data.id || null);
 
       setImagenSummary(data.summary || "");
