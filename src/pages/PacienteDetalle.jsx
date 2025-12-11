@@ -29,6 +29,21 @@ export default function PacienteDetalle() {
 
   const token = localStorage.getItem("galenos_token");
 
+  // Estado para editar datos del paciente
+  const [editing, setEditing] = useState(false);
+  const [editAlias, setEditAlias] = useState("");
+  const [editAge, setEditAge] = useState("");
+  const [editGender, setEditGender] = useState("");
+  const [editNotes, setEditNotes] = useState("");
+  const [savingPatient, setSavingPatient] = useState(false);
+  const [patientSaveError, setPatientSaveError] = useState("");
+
+  // Estado para crear nota clínica
+  const [newNoteTitle, setNewNoteTitle] = useState("");
+  const [newNoteContent, setNewNoteContent] = useState("");
+  const [noteSaving, setNoteSaving] = useState(false);
+  const [noteError, setNoteError] = useState("");
+
   function toggle(block) {
     setOpen((prev) => ({ ...prev, [block]: !prev[block] }));
   }
@@ -71,6 +86,11 @@ export default function PacienteDetalle() {
 
         const data = JSON.parse(raw);
         setPatient(data);
+        // Inicializamos campos de edición
+        setEditAlias(data.alias || "");
+        setEditAge(data.age != null ? String(data.age) : "");
+        setEditGender(data.gender || "");
+        setEditNotes(data.notes || "");
       } catch (err) {
         console.error("❌ Error cargando /patients:", err);
         setError("No se pudieron cargar los datos básicos del paciente.");
@@ -152,6 +172,148 @@ export default function PacienteDetalle() {
     loadAll();
   }, [id, token]);
 
+  // =========================
+  // EDITAR / GUARDAR DATOS DEL PACIENTE
+  // =========================
+  async function handleSavePatient(e) {
+    e.preventDefault();
+    setPatientSaveError("");
+
+    if (!token) {
+      setPatientSaveError("No hay sesión activa. Vuelve a iniciar sesión.");
+      return;
+    }
+
+    const ageNumber =
+      editAge.trim() === "" ? null : Number.parseInt(editAge.trim(), 10);
+    if (editAge.trim() !== "" && Number.isNaN(ageNumber)) {
+      setPatientSaveError("La edad debe ser un número.");
+      return;
+    }
+
+    const payload = {
+      alias: editAlias.trim() || null,
+      age: ageNumber,
+      gender: editGender.trim() || null,
+      notes: editNotes.trim() || null,
+    };
+
+    try {
+      setSavingPatient(true);
+      const res = await fetch(`${API}/patients/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const raw = await res.text();
+      console.log("👉 [Ficha] PUT /patients/", id, "(raw):", raw);
+
+      if (!res.ok) {
+        let msg = "No se han podido guardar los datos del paciente.";
+        try {
+          const errData = JSON.parse(raw);
+          if (errData.detail) msg = errData.detail;
+        } catch {}
+        setPatientSaveError(msg);
+        return;
+      }
+
+      let data;
+      try {
+        data = JSON.parse(raw);
+      } catch {
+        setPatientSaveError("Respuesta inesperada al guardar el paciente.");
+        return;
+      }
+
+      setPatient(data);
+      setEditAlias(data.alias || "");
+      setEditAge(data.age != null ? String(data.age) : "");
+      setEditGender(data.gender || "");
+      setEditNotes(data.notes || "");
+      setEditing(false);
+    } catch (err) {
+      console.error("❌ Error guardando paciente:", err);
+      setPatientSaveError("Error de conexión al guardar el paciente.");
+    } finally {
+      setSavingPatient(false);
+    }
+  }
+
+  // =========================
+  // CREAR NOTA CLÍNICA
+  // =========================
+  async function handleCreateNote(e) {
+    e.preventDefault();
+    setNoteError("");
+
+    if (!token) {
+      setNoteError("No hay sesión activa. Vuelve a iniciar sesión.");
+      return;
+    }
+
+    if (!newNoteTitle.trim()) {
+      setNoteError("Escribe un título para la nota clínica.");
+      return;
+    }
+    if (!newNoteContent.trim()) {
+      setNoteError("Escribe el contenido de la nota clínica.");
+      return;
+    }
+
+    const payload = {
+      title: newNoteTitle.trim(),
+      content: newNoteContent.trim(),
+    };
+
+    try {
+      setNoteSaving(true);
+      const res = await fetch(`${API}/notes/${id}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const raw = await res.text();
+      console.log("👉 [Ficha] POST /notes/", id, "(raw):", raw);
+
+      if (!res.ok) {
+        let msg = "No se ha podido guardar la nota clínica.";
+        try {
+          const errData = JSON.parse(raw);
+          if (errData.detail) msg = errData.detail;
+        } catch {}
+        setNoteError(msg);
+        return;
+      }
+
+      let data;
+      try {
+        data = JSON.parse(raw);
+      } catch {
+        setNoteError("Respuesta inesperada al guardar la nota clínica.");
+        return;
+      }
+
+      // Añadimos la nota al principio de la lista
+      setNotes((prev) => [data, ...prev]);
+      setNewNoteTitle("");
+      setNewNoteContent("");
+    } catch (err) {
+      console.error("❌ Error guardando nota clínica:", err);
+      setNoteError("Error de conexión al guardar la nota clínica.");
+    } finally {
+      setNoteSaving(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="sr-container py-8">
@@ -178,7 +340,7 @@ export default function PacienteDetalle() {
 
   const displayId = patient.patient_number || patient.id;
 
-  // Ordenar timeline (más reciente primero)
+  // Timeline ordenado
   const sortedTimeline = [...timeline].sort((a, b) => {
     const da = new Date(a.created_at || 0).getTime();
     const db = new Date(b.created_at || 0).getTime();
@@ -233,7 +395,7 @@ export default function PacienteDetalle() {
         </div>
       </section>
 
-      {/* DATOS DEL PACIENTE */}
+      {/* DATOS DEL PACIENTE (con edición) */}
       <section className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 sm:p-6">
         <button
           type="button"
@@ -247,25 +409,117 @@ export default function PacienteDetalle() {
         </button>
 
         {open.datos && (
-          <div className="mt-3 space-y-1 text-sm text-slate-700">
-            <p>
-              <strong>Alias:</strong> {patient.alias}
-            </p>
-            <p>
-              <strong>Edad:</strong>{" "}
-              {patient.age != null ? `${patient.age} años` : "—"}
-            </p>
-            <p>
-              <strong>Sexo:</strong> {patient.gender || "—"}
-            </p>
-            <p>
-              <strong>Notas internas:</strong>{" "}
-              {patient.notes ? (
-                <span className="whitespace-pre-line">{patient.notes}</span>
-              ) : (
-                "—"
-              )}
-            </p>
+          <div className="mt-3 space-y-3 text-sm text-slate-700">
+            {!editing ? (
+              <>
+                <p>
+                  <strong>Alias:</strong> {patient.alias}
+                </p>
+                <p>
+                  <strong>Edad:</strong>{" "}
+                  {patient.age != null ? `${patient.age} años` : "—"}
+                </p>
+                <p>
+                  <strong>Sexo:</strong> {patient.gender || "—"}
+                </p>
+                <p>
+                  <strong>Notas internas:</strong>{" "}
+                  {patient.notes ? (
+                    <span className="whitespace-pre-line">
+                      {patient.notes}
+                    </span>
+                  ) : (
+                    "—"
+                  )}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setEditing(true)}
+                  className="sr-btn-secondary text-xs mt-2"
+                >
+                  Editar datos
+                </button>
+                {patientSaveError && (
+                  <p className="text-xs text-red-600 mt-1">
+                    {patientSaveError}
+                  </p>
+                )}
+              </>
+            ) : (
+              <form onSubmit={handleSavePatient} className="space-y-2">
+                <div>
+                  <label className="sr-label">Alias</label>
+                  <input
+                    type="text"
+                    className="sr-input w-full"
+                    value={editAlias}
+                    onChange={(e) => setEditAlias(e.target.value)}
+                  />
+                </div>
+                <div className="grid sm:grid-cols-2 gap-2">
+                  <div>
+                    <label className="sr-label">Edad</label>
+                    <input
+                      type="number"
+                      className="sr-input w-full"
+                      value={editAge}
+                      onChange={(e) => setEditAge(e.target.value)}
+                      min={0}
+                    />
+                  </div>
+                  <div>
+                    <label className="sr-label">Sexo</label>
+                    <input
+                      type="text"
+                      className="sr-input w-full"
+                      value={editGender}
+                      onChange={(e) => setEditGender(e.target.value)}
+                      placeholder="Ej. Mujer / Varón"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="sr-label">Notas internas</label>
+                  <textarea
+                    className="sr-input w-full min-h-[80px]"
+                    value={editNotes}
+                    onChange={(e) => setEditNotes(e.target.value)}
+                    placeholder="Notas internas para tu propio uso clínico."
+                  />
+                </div>
+                {patientSaveError && (
+                  <p className="text-xs text-red-600 mt-1">
+                    {patientSaveError}
+                  </p>
+                )}
+                <div className="flex gap-2 mt-2">
+                  <button
+                    type="submit"
+                    disabled={savingPatient}
+                    className="sr-btn-primary text-xs disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {savingPatient ? "Guardando..." : "Guardar cambios"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      // cancelar edición → restaurar valores actuales
+                      setEditAlias(patient.alias || "");
+                      setEditAge(
+                        patient.age != null ? String(patient.age) : ""
+                      );
+                      setEditGender(patient.gender || "");
+                      setEditNotes(patient.notes || "");
+                      setEditing(false);
+                      setPatientSaveError("");
+                    }}
+                    className="sr-btn-secondary text-xs"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         )}
       </section>
@@ -453,7 +707,7 @@ export default function PacienteDetalle() {
         )}
       </section>
 
-      {/* NOTAS CLÍNICAS */}
+      {/* NOTAS CLÍNICAS (con creación) */}
       <section className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 sm:p-6">
         <button
           type="button"
@@ -467,7 +721,46 @@ export default function PacienteDetalle() {
         </button>
 
         {open.notas && (
-          <div className="mt-3 space-y-3">
+          <div className="mt-3 space-y-4">
+            {/* Formulario de nueva nota */}
+            <div className="border border-slate-200 rounded-lg p-3 space-y-2 bg-slate-50/60">
+              <h3 className="text-sm font-semibold">
+                Añadir nota clínica a este paciente
+              </h3>
+              <form onSubmit={handleCreateNote} className="space-y-2">
+                <div>
+                  <label className="sr-label">Título de la nota</label>
+                  <input
+                    type="text"
+                    className="sr-input w-full"
+                    value={newNoteTitle}
+                    onChange={(e) => setNewNoteTitle(e.target.value)}
+                    placeholder="Ej. Primera valoración en consulta"
+                  />
+                </div>
+                <div>
+                  <label className="sr-label">Contenido</label>
+                  <textarea
+                    className="sr-input w-full min-h-[80px]"
+                    value={newNoteContent}
+                    onChange={(e) => setNewNoteContent(e.target.value)}
+                    placeholder="Anota aquí la impresión clínica, decisiones tomadas, etc."
+                  />
+                </div>
+                {noteError && (
+                  <p className="text-sm text-red-600">{noteError}</p>
+                )}
+                <button
+                  type="submit"
+                  disabled={noteSaving}
+                  className="sr-btn-secondary text-xs disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {noteSaving ? "Guardando nota..." : "Guardar nota clínica"}
+                </button>
+              </form>
+            </div>
+
+            {/* Lista de notas existentes */}
             {notes.length === 0 && (
               <p className="text-sm text-slate-500">
                 No hay notas clínicas registradas para este paciente.
