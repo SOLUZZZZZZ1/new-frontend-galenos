@@ -1,65 +1,155 @@
-// src/pages/InicioGalenos.jsx — Landing Galenos.pro
+
 import React from "react";
 import { useNavigate } from "react-router-dom";
 
 export default function InicioGalenos() {
   const nav = useNavigate();
 
-  return (
-    <main className="min-h-[70vh] flex items-center justify-center px-4">
-      <div className="sr-container grid md:grid-cols-2 gap-8 items-center">
-        <section>
-          <h1 className="text-3xl md:text-4xl font-bold mb-4">
-            Galenos.pro · Panel PRO de apoyo para médicos
-          </h1>
-          <p className="sr-p mb-3">
-            Galenos.pro es tu copiloto clínico: analiza analíticas, organiza
-            casos y resúmenes, y te ayuda a seguir la evolución de tus
-            pacientes. La decisión final es siempre tuya.
-          </p>
-          <p className="sr-p mb-6 text-slate-600">
-            Subes una analítica, la IA la convierte en tabla, compara con
-            analíticas anteriores y genera un informe orientativo con tendencias
-            y posibles causas a valorar. Nunca prescribe, nunca sustituye tu
-            criterio.
-          </p>
-          <div className="flex flex-wrap gap-3">
-            <button
-              onClick={() => nav("/login")}
-              className="sr-btn-primary"
-            >
-              Acceder como médico
-            </button>
-            <button
-              onClick={() => nav("/panel-medico")}
-              className="sr-btn-secondary"
-            >
-              Ver panel de ejemplo
-            </button>
-          </div>
-          <p className="sr-small mt-3 text-slate-500">
-            Versión inicial · Proyecto en desarrollo. Perfecto para ir
-            probando el flujo y el panel.
-          </p>
-        </section>
+  function handleStart() {
+    // ⚠️ Desde la landing SOLO se va al registro, nunca a Stripe
+    nav("/alta-medico?next=pro");
+  }
 
-        <section className="hidden md:block">
-          <div className="sr-card">
-            <h2 className="sr-h1 mb-3 text-lg">¿Qué hace Galenos.pro?</h2>
-            <ul className="sr-list space-y-1">
-              <li>Convierte analíticas en tablas y gráficas.</li>
-              <li>Compara resultados con analíticas previas.</li>
-              <li>Señala tendencias (mejoría, empeoramiento, cambios sutiles).</li>
-              <li>Genera un informe clínico orientativo y prudente.</li>
-              <li>Guarda el historial por paciente.</li>
-            </ul>
-            <p className="sr-small mt-4 text-slate-500">
-              Galenos.pro no diagnostica ni prescribe. Es una herramienta de
-              apoyo diseñada para médicos.
+  return (
+    <main className="min-h-[80vh] flex flex-col">
+      <section className="sr-container flex-1 grid md:grid-cols-2 gap-10 items-center px-4 py-10">
+        {/* COLUMNA IZQUIERDA */}
+        <div>
+          <p className="text-xs font-semibold tracking-[0.18em] text-sky-700 uppercase mb-2">
+            IA clínica prudente para médicos
+          </p>
+
+          <h1 className="text-3xl md:text-4xl font-bold mb-3 text-slate-900">
+            Menos burocracia.
+            <span className="block text-sky-800">Más medicina.</span>
+          </h1>
+
+          <p className="text-lg text-slate-700 mb-5">
+            Galenos.pro te ayuda a leer historias clínicas extensas,
+            interpretar analíticas, organizar imágenes médicas y mantener
+            un timeline por paciente.
+          </p>
+
+          <div className="grid gap-2 mb-5 text-sm text-slate-700">
+            <div className="flex gap-2">
+              <span className="text-sky-700">✓</span>
+              <p>Resume historias clínicas largas.</p>
+            </div>
+            <div className="flex gap-2">
+              <span className="text-sky-700">✓</span>
+              <p>Extrae y analiza marcadores de analíticas.</p>
+            </div>
+            <div className="flex gap-2">
+              <span className="text-sky-700">✓</span>
+              <p>Interpreta imágenes (RX, TAC, RM, ECO).</p>
+            </div>
+            <div className="flex gap-2">
+              <span className="text-sky-700">✓</span>
+              <p>Mantiene un timeline clínico organizado.</p>
+            </div>
+          </div>
+
+          <div className="mb-5 rounded-md border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-slate-800">
+            <p className="font-semibold mb-1">Cuenta profesional</p>
+            <p className="mb-1">
+              Crea tu cuenta de médico y después, desde tu panel, podrás activar
+              la prueba PRO de 3 días (sin cargo inicial).
             </p>
           </div>
-        </section>
-      </div>
+
+          {/* CTA */}
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <button
+              onClick={handleStart}
+              className="inline-flex items-center justify-center rounded-md bg-blue-600 px-5 py-2.5 text-sm font-medium text-white shadow hover:bg-blue-700"
+            >
+              Crear cuenta profesional
+            </button>
+
+            <button
+              onClick={() => nav("/login")}
+              className="inline-flex items-center justify-center rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            >
+              Ya tengo cuenta
+            </button>
+          </div>
+
+          <p className="mt-4 text-xs text-slate-500">
+            El pago solo aparece dentro de la app, tras iniciar sesión.
+          </p>
+        </div>
+
+        {/* COLUMNA DERECHA */}
+        <div className="space-y-5 bg-white/70 backdrop-blur-sm rounded-xl border border-slate-200 p-5 shadow-sm">
+          {/* Historias */}
+          <div>
+            <h2 className="text-sm font-semibold mb-1 text-slate-900">
+              Historias clínicas
+            </h2>
+            <p className="text-sm text-slate-700">
+              Sube o pega evolutivos largos y Galenos resume la información clave.
+            </p>
+          </div>
+
+          <div className="border-t border-slate-200 pt-4">
+            <h2 className="text-sm font-semibold mb-1 text-slate-900">
+              Analíticas con IA
+            </h2>
+            <p className="text-sm text-slate-700">
+              Extrae marcadores, rangos y valores relevantes automáticamente.
+            </p>
+          </div>
+
+          <div className="border-t border-slate-200 pt-4">
+            <h2 className="text-sm font-semibold mb-1 text-slate-900">
+              Imágenes médicas
+            </h2>
+            <p className="text-sm text-slate-700">
+              Analiza estudios RX/TAC/RM/ECO y genera un resumen prudente.
+            </p>
+          </div>
+
+          {/* 10 GB de almacenamiento clínico seguro e inteligente */}
+          <div className="border-t border-slate-200 pt-4">
+            <h2 className="text-sm font-semibold mb-1 text-slate-900">
+              10 GB de almacenamiento clínico seguro e inteligente
+            </h2>
+            <p className="text-sm text-slate-700 mb-3">
+              Galenos incluye 10 GB de almacenamiento cifrado, suficientes para conservar
+              años de evolución clínica sin preocuparte por el espacio.
+            </p>
+
+            <h3 className="text-xs font-semibold text-slate-900 uppercase tracking-wide mb-1">
+              Capacidad real
+            </h3>
+            <ul className="list-disc list-inside text-sm text-slate-700 space-y-1 mb-3">
+              <li>Más de 3.000 analíticas completas.</li>
+              <li>Cientos de imágenes médicas RX/TAC/RM/ECO.</li>
+              <li>Timeline clínico completo de tus pacientes.</li>
+            </ul>
+
+            <h3 className="text-xs font-semibold text-slate-900 uppercase tracking-wide mb-1">
+              Almacenamiento inteligente
+            </h3>
+            <ul className="list-disc list-inside text-sm text-slate-700 space-y-1 mb-3">
+              <li>Detección de duplicados para no consumir espacio innecesario.</li>
+              <li>Marcadores y patrones enlazados a cada estudio.</li>
+              <li>Todo organizado por paciente, fecha y tipo de evento.</li>
+            </ul>
+
+            <h3 className="text-xs font-semibold text-slate-900 uppercase tracking-wide mb-1">
+              Escalable cuando lo necesites
+            </h3>
+            <ul className="list-disc list-inside text-sm text-slate-700 space-y-1">
+              <li>+10 GB, +50 GB o +100 GB opcionales.</li>
+              <li>Planes específicos para centros y clínicas.</li>
+              <li>
+                Sin migraciones ni complicaciones: solo más espacio.
+              </li>
+            </ul>
+          </div>
+        </div>
+      </section>
     </main>
   );
 }

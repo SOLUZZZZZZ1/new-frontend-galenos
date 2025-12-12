@@ -1,112 +1,231 @@
-// src/pages/Patients.jsx — Subida de analítica demo + resultados
-import React, { useState } from "react";
+// src/pages/Patients.jsx — listado de pacientes Galenos.pro
+import React, { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 
-const API = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+const API =
+  import.meta.env.VITE_API_URL || "https://galenos-backend.onrender.com";
 
 export default function Patients() {
-  const [patient, setPatient] = useState("Paciente A");
-  const [file, setFile] = useState(null);
-  const [result, setResult] = useState(null);
+  const [patients, setPatients] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [aliasNew, setAliasNew] = useState("");
+  const [creating, setCreating] = useState(false);
 
-  async function onUpload() {
-    if (!file) {
-      alert("Selecciona un PDF o imagen de analítica");
+  async function loadPatients() {
+    setError("");
+    const token = localStorage.getItem("galenos_token");
+    if (!token) {
+      setError("No hay sesión activa. Vuelve a iniciar sesión.");
       return;
     }
-
-    const fd = new FormData();
-    fd.append("file", file);
-    fd.append("patient_alias", patient);
-
     try {
       setLoading(true);
-      const res = await fetch(`${API}/uploads`, {
-        method: "POST",
-        body: fd,
+      const res = await fetch(`${API}/patients`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       });
+      const raw = await res.text();
+      console.log("👉 [Patients] /patients (raw):", raw);
       if (!res.ok) {
-        throw new Error("Respuesta no válida del servidor");
+        let msg = "No se han podido cargar los pacientes.";
+        try {
+          const errData = JSON.parse(raw);
+          if (errData.detail) msg = errData.detail;
+        } catch {}
+        setError(msg);
+        return;
       }
-      const data = await res.json();
-      setResult(data.extraction || null);
-    } catch (e) {
-      console.error(e);
-      alert("Error subiendo o procesando la analítica (demo).");
+      let data;
+      try {
+        data = JSON.parse(raw);
+      } catch {
+        setError("Respuesta inesperada al listar pacientes.");
+        return;
+      }
+      setPatients(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error("❌ Error cargando pacientes:", err);
+      setError("Error de conexión al cargar pacientes.");
     } finally {
       setLoading(false);
     }
   }
 
+  useEffect(() => {
+    loadPatients();
+  }, []);
+
+  async function handleCreatePatient(e) {
+    e.preventDefault();
+    setError("");
+    if (!aliasNew.trim()) {
+      setError(
+        "Introduce un alias para el paciente (ej. 0001 - Nombre Apellidos)."
+      );
+      return;
+    }
+    const token = localStorage.getItem("galenos_token");
+    if (!token) {
+      setError("No hay sesión activa. Vuelve a iniciar sesión.");
+      return;
+    }
+    try {
+      setCreating(true);
+      const body = { alias: aliasNew.trim() };
+      const res = await fetch(`${API}/patients`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(body),
+      });
+      const raw = await res.text();
+      console.log("👉 [Patients] POST /patients (raw):", raw);
+      if (!res.ok) {
+        let msg = "No se ha podido crear el paciente.";
+        try {
+          const errData = JSON.parse(raw);
+          if (errData.detail) msg = errData.detail;
+        } catch {}
+        setError(msg);
+        return;
+      }
+      let data;
+      try {
+        data = JSON.parse(raw);
+      } catch {
+        setError("Respuesta inesperada al crear paciente.");
+        return;
+      }
+      setAliasNew("");
+      setPatients((prev) => [data, ...prev]);
+    } catch (err) {
+      console.error("❌ Error creando paciente:", err);
+      setError("Error de conexión al crear paciente.");
+    } finally {
+      setCreating(false);
+    }
+  }
+
   return (
-    <section className="sr-card">
-      <h2 className="sr-h1 mb-3 text-xl">Analíticas · Demo</h2>
-      <p className="sr-p mb-4">
-        Sube una analítica en PDF o imagen. En esta versión demo, el backend
-        devolverá unos valores simulados para probar el flujo de trabajo de
-        Galenos.pro.
-      </p>
+    <main className="sr-container py-6 space-y-6">
+      <header className="space-y-2">
+        <h1 className="text-2xl font-bold">Pacientes</h1>
+        <p className="text-sm text-slate-600">
+          Aquí puedes dar de alta rápidamente pacientes (código + nombre) y ver
+          su número clínico e ID interno. Usa el número clínico en tu trabajo
+          diario y el ID interno solo cuando lo necesites para soporte técnico
+          o para vincular analíticas/imágenes mientras terminamos de pulir el
+          flujo.
+        </p>
+      </header>
 
-      <div className="grid md:grid-cols-2 gap-5 items-start">
-        <div className="space-y-3">
-          <div>
-            <label className="sr-label">Alias del paciente</label>
-            <input
-              className="sr-input mt-1"
-              value={patient}
-              onChange={(e) => setPatient(e.target.value)}
-            />
-          </div>
+      {/* Alta rápida */}
+      <section className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 space-y-3">
+        <h2 className="text-lg font-semibold">Alta rápida de paciente</h2>
+        <p className="text-sm text-slate-600">
+          Ejemplo de alias:{" "}
+          <code className="font-mono">
+            0001 - Pedro López Sierra
+          </code>
+          . Este alias es lo que verás en los listados y timeline.
+        </p>
+        <form
+          onSubmit={handleCreatePatient}
+          className="flex flex-col sm:flex-row gap-2 mt-2"
+        >
+          <input
+            type="text"
+            className="sr-input flex-1"
+            value={aliasNew}
+            onChange={(e) => setAliasNew(e.target.value)}
+            placeholder="0001 - Nombre Apellidos"
+          />
+          <button
+            type="submit"
+            disabled={creating}
+            className="sr-btn-primary disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {creating ? "Creando..." : "Crear paciente"}
+          </button>
+        </form>
+        {error && <p className="text-sm text-red-600 mt-1">{error}</p>}
+      </section>
 
-          <div>
-            <label className="sr-label">Analítica (PDF o imagen)</label>
-            <input
-              type="file"
-              accept=".pdf,image/*"
-              onChange={(e) => setFile(e.target.files?.[0] || null)}
-              className="mt-1 block w-full text-sm"
-            />
-          </div>
-
+      {/* Listado */}
+      <section className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 space-y-3">
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="text-lg font-semibold">Listado de pacientes</h2>
           <button
             type="button"
-            onClick={onUpload}
-            className="sr-btn-primary"
+            onClick={loadPatients}
             disabled={loading}
+            className="sr-btn-secondary disabled:opacity-60 disabled:cursor-not-allowed text-xs"
           >
-            {loading ? "Procesando..." : "Subir y procesar analítica"}
+            {loading ? "Actualizando..." : "Actualizar"}
           </button>
         </div>
+        <p className="text-sm text-slate-600">
+          Usa la columna <strong>Nº Paciente</strong> como número clínico
+          local. El <strong>ID interno</strong> es el identificador técnico que
+          hoy usa el sistema para las analíticas, imágenes, notas y timeline.
+        </p>
 
-        <div className="border border-dashed border-slate-200 rounded-2xl p-4 min-h-[140px]">
-          {!result ? (
-            <p className="sr-p text-slate-500">
-              Cuando subas una analítica, aquí aparecerá una tabla con los
-              marcadores detectados (demo).
-            </p>
-          ) : (
-            <div>
-              <h3 className="font-semibold mb-2 text-slate-900">
-                Resultados extraídos (demo)
-              </h3>
-              <p className="sr-small mb-2 text-slate-500">
-                Paciente: <b>{result.patient_alias}</b>
-              </p>
-              <ul className="sr-list">
-                {result.markers?.map((m, idx) => (
-                  <li key={idx}>
-                    {m.name}:{" "}
-                    <strong>
-                      {m.value} {m.unit}
-                    </strong>{" "}
-                    (ref {m.ref_min}–{m.ref_max})
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+        <div className="overflow-x-auto mt-2">
+          <table className="min-w-full text-sm border border-slate-200 rounded-md overflow-hidden">
+            <thead className="bg-slate-100">
+              <tr>
+                <th className="px-2 py-1 text-left w-24">Nº Paciente</th>
+                <th className="px-2 py-1 text-left">Alias</th>
+                <th className="px-2 py-1 text-left w-40">Creado</th>
+                <th className="px-2 py-1 text-left w-32">ID interno</th>
+                <th className="px-2 py-1 text-left w-24">Acciones</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {patients.length === 0 && !loading && (
+                <tr>
+                  <td
+                    colSpan={5}
+                    className="px-2 py-3 text-center text-slate-500"
+                  >
+                    Aún no hay pacientes dados de alta.
+                  </td>
+                </tr>
+              )}
+
+              {patients.map((p) => (
+                <tr key={p.id} className="border-t border-slate-200">
+                  <td className="px-2 py-1 font-mono">
+                    {p.patient_number ?? p.id}
+                  </td>
+                  <td className="px-2 py-1">{p.alias}</td>
+                  <td className="px-2 py-1 text-xs text-slate-500">
+                    {p.created_at
+                      ? new Date(p.created_at).toLocaleString("es-ES")
+                      : ""}
+                  </td>
+                  <td className="px-2 py-1 text-xs text-slate-700">
+                    <span className="font-mono">{p.id}</span>
+                  </td>
+                  <td className="px-2 py-1">
+                    <Link
+                      to={`/PacienteDetalle/${p.id}`}
+                      className="text-blue-600 hover:text-blue-800 text-xs font-medium underline"
+                    >
+                      Ver ficha
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-      </div>
-    </section>
+      </section>
+    </main>
   );
 }

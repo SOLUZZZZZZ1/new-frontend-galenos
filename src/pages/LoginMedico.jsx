@@ -1,78 +1,155 @@
-// src/pages/LoginMedico.jsx — Login simple del médico (demo)
+// src/pages/LoginMedico.jsx — Acceso · Galenos.pro
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
+
+// URL del backend de Galenos (Render)
+const API = import.meta.env.VITE_API_URL || "https://galenos-backend.onrender.com";
 
 export default function LoginMedico() {
-  const nav = useNavigate();
   const [email, setEmail] = useState("");
-  const [pass, setPass] = useState("");
+  const [password, setPassword] = useState("");
+
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  function handleSubmit(e) {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // ✅ Cambio importante: si no hay "from", enviamos al nuevo Dashboard
+  const from =
+    (location.state &&
+      location.state.from &&
+      location.state.from.pathname) ||
+    "/dashboard";
+
+  async function handleSubmit(e) {
     e.preventDefault();
     setError("");
 
-    if (!email || !pass) {
-      setError("Introduce tu email y contraseña.");
+    if (!email || !password) {
+      setError("Introduce tu correo y tu contraseña.");
       return;
     }
 
-    // Versión demo: cualquier combinación vale
-    localStorage.setItem("galenos_token", "ok");
-    localStorage.setItem("galenos_email", email);
+    try {
+      setLoading(true);
 
-    nav("/panel-medico");
+      const body = {
+        email,
+        password,
+      };
+
+      console.log("🔥 Login contra:", `${API}/auth/login`);
+
+      const res = await fetch(`${API}/auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+
+      const raw = await res.text();
+      console.log("👉 Respuesta login (raw):", raw);
+
+      if (!res.ok) {
+        setError("Credenciales incorrectas o usuario inactivo.");
+        return;
+      }
+
+      let data;
+      try {
+        data = JSON.parse(raw);
+      } catch (err) {
+        console.error("❌ No se pudo parsear JSON de login:", err);
+        setError("Error inesperado en el servidor de autenticación.");
+        return;
+      }
+
+      const token = data.access_token || data.token || null;
+
+      if (!token) {
+        setError("Respuesta de login sin token. Revisa la API.");
+        return;
+      }
+
+      // Guardamos datos básicos en localStorage
+      localStorage.setItem("galenos_token", token);
+      localStorage.setItem("galenos_email", data.email || email || "");
+      if (data.name) {
+        localStorage.setItem("galenos_name", data.name);
+      }
+
+      // ✅ Ahora, tras login, va al Dashboard por defecto
+      navigate(from, { replace: true });
+    } catch (err) {
+      console.error("❌ Error en petición de login:", err);
+      setError("No se ha podido conectar con el servidor de autenticación.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
-    <main className="min-h-[70vh] flex items-center justify-center px-4">
-      <div className="max-w-md w-full sr-card">
-        <h1 className="sr-h1 mb-4">Acceso · Galenos.pro</h1>
-        <p className="sr-p text-slate-600 mb-4">
-          Accede con tus credenciales de médico para entrar al panel.
-        </p>
+    <main className="sr-container py-8 flex items-center justify-center">
+      <section className="sr-card max-w-md w-full space-y-6">
+        <header className="space-y-1">
+          <h1 className="sr-h1 text-2xl">Acceso · Galenos.pro</h1>
+          <p className="sr-p text-sm text-slate-600">
+            Accede con tus credenciales de médico para entrar al panel.
+          </p>
+        </header>
 
-        {error && (
-          <div className="mb-3 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-3">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="sr-label" htmlFor="email">
+            <label htmlFor="email" className="sr-label">
               Correo electrónico
             </label>
             <input
               id="email"
               type="email"
-              className="sr-input mt-1"
+              autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="tu.correo@hospital.com"
-              autoComplete="email"
+              className="sr-input w-full"
             />
           </div>
 
           <div>
-            <label className="sr-label" htmlFor="pass">
+            <label htmlFor="password" className="sr-label">
               Contraseña
             </label>
             <input
-              id="pass"
-type="password"
-              className="sr-input mt-1"
-              value={pass}
-              onChange={(e) => setPass(e.target.value)}
+              id="password"
+              type="password"
               autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="sr-input w-full"
             />
           </div>
 
-          <button type="submit" className="sr-btn-primary w-full mt-2">
-            Entrar al Panel Médico
+          {error && (
+            <p className="sr-small text-red-600">
+              {error}
+            </p>
+          )}
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="sr-btn-primary w-full disabled:opacity-60 disabled:cursor-not-allowed mt-2"
+          >
+            {loading ? "Entrando..." : "Entrar al Panel"}
           </button>
         </form>
-      </div>
+
+        <p className="sr-small text-slate-500 text-xs">
+          Si aún no tienes acceso, esta versión MVP está pensada para demos internas.
+          Más adelante se habilitará el alta verificada de médicos.
+        </p>
+      </section>
     </main>
   );
 }

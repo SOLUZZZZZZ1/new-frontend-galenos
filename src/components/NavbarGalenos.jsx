@@ -9,9 +9,23 @@ export default function NavbarGalenos() {
   const loggedIn = Boolean(localStorage.getItem("galenos_token"));
   const email = localStorage.getItem("galenos_email") || "";
 
+  // Ruta "Inicio":
+  // - si NO hay sesión → "/"
+  // - si hay sesión → "/dashboard"
+  const homePath = loggedIn ? "/dashboard" : "/";
+
   function isActive(path) {
     if (path === "/panel-medico") {
       return loc.pathname.startsWith("/panel-medico");
+    }
+    if (path === "/perfil") {
+      return loc.pathname.startsWith("/perfil");
+    }
+    if (path === "/de-guardia") {
+      return loc.pathname.startsWith("/de-guardia");
+    }
+    if (path === "/actualidad-medica") {
+      return loc.pathname.startsWith("/actualidad-medica");
     }
     return loc.pathname === path;
   }
@@ -19,6 +33,10 @@ export default function NavbarGalenos() {
   function handleLogout() {
     localStorage.removeItem("galenos_token");
     localStorage.removeItem("galenos_email");
+    localStorage.removeItem("galenos_name");
+    localStorage.removeItem("galenos_alias");
+    localStorage.removeItem("galenos_specialty");
+    localStorage.removeItem("galenos_guard_alias");
     nav("/login");
   }
 
@@ -28,19 +46,15 @@ export default function NavbarGalenos() {
         {/* Logo + marca */}
         <button
           type="button"
-          onClick={() => nav("/")}
+          onClick={() => nav(homePath)}
           className="flex items-center gap-3 group"
         >
           {/* Logo imagen 3D */}
-          <div className="h-10 w-10 rounded-2xl overflow-hidden shadow-sm border border-slate-200 bg-slate-50 flex items-center justify-center">
+          <div className="h-14 w-14 rounded-2xl overflow-hidden shadow-sm border border-slate-200 bg-slate-50 flex items-center justify-center">
             <img
               src="/galenos-logo.png"
               alt="Galenos.pro"
-              className="h-10 w-10 object-contain group-hover:scale-105 transition-transform duration-150"
-              onError={(e) => {
-                // Fallback elegante si el logo no carga
-                e.currentTarget.style.display = "none";
-              }}
+              className="h-14 w-14 object-contain group-hover:scale-105 transition-transform duration-150"
             />
           </div>
 
@@ -57,10 +71,11 @@ export default function NavbarGalenos() {
 
         {/* Navegación */}
         <nav className="flex items-center gap-3 text-sm">
+          {/* Inicio dinámico */}
           <Link
-            to="/"
+            to={homePath}
             className={`px-3 py-1.5 rounded-full border text-xs sm:text-sm ${
-              isActive("/")
+              isActive(homePath)
                 ? "border-sky-500 bg-sky-50 text-sky-700"
                 : "border-transparent text-slate-600 hover:border-slate-200 hover:bg-slate-50"
             }`}
@@ -68,17 +83,63 @@ export default function NavbarGalenos() {
             Inicio
           </Link>
 
-          <Link
-            to="/panel-medico"
-            className={`px-3 py-1.5 rounded-full border text-xs sm:text-sm ${
-              isActive("/panel-medico")
-                ? "border-sky-500 bg-sky-50 text-sky-700"
-                : "border-transparent text-slate-600 hover:border-slate-200 hover:bg-slate-50"
-            }`}
-          >
-            Panel médico
-          </Link>
+          {/* Panel médico */}
+          {loggedIn && (
+            <Link
+              to="/panel-medico"
+              className={`px-3 py-1.5 rounded-full border text-xs sm:text-sm ${
+                isActive("/panel-medico")
+                  ? "border-sky-500 bg-sky-50 text-sky-700"
+                  : "border-transparent text-slate-600 hover:border-slate-200 hover:bg-slate-50"
+              }`}
+            >
+              Panel médico
+            </Link>
+          )}
 
+          {/* De guardia */}
+          {loggedIn && (
+            <Link
+              to="/de-guardia"
+              className={`px-3 py-1.5 rounded-full border text-xs sm:text-sm ${
+                isActive("/de-guardia")
+                  ? "border-sky-500 bg-sky-50 text-sky-700"
+                  : "border-transparent text-slate-600 hover:border-slate-200 hover:bg-slate-50"
+              }`}
+            >
+              De guardia
+            </Link>
+          )}
+
+          {/* Actualidad médica */}
+          {loggedIn && (
+            <Link
+              to="/actualidad-medica"
+              className={`px-3 py-1.5 rounded-full border text-xs sm:text-sm ${
+                isActive("/actualidad-medica")
+                  ? "border-sky-500 bg-sky-50 text-sky-700"
+                  : "border-transparent text-slate-600 hover:border-slate-200 hover:bg-slate-50"
+              }`}
+            >
+              Actualidad médica
+            </Link>
+          )}
+
+          {/* Mi perfil (solo si hay sesión) */}
+          {loggedIn && (
+            <Link
+              to="/perfil"
+              className={`px-3 py-1.5 rounded-full border text-xs sm:text-sm ${
+                isActive("/perfil")
+                  ? "border-sky-500 bg-sky-50 text-sky-700"
+                  : "border-transparent text-slate-600 hover:border-slate-200 hover:bg-slate-50"
+              }`}
+            >
+              Mi perfil
+            </Link>
+          )}
+
+          {/* Acceso / usuario */}
           {!loggedIn ? (
             <Link
               to="/login"
