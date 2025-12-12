@@ -1,13 +1,14 @@
 // src/pages/PacienteDetalle.jsx — Ficha de paciente completa · Galenos.pro
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 
 const API =
   import.meta.env.VITE_API_URL || "https://galenos-backend.onrender.com";
 
 export default function PacienteDetalle() {
-  const { id } = useParams(); // ID interno del paciente (PK)
+  const { id } = useParams();
   const navigate = useNavigate();
+  const token = localStorage.getItem("galenos_token");
 
   const [loading, setLoading] = useState(true);
   const [patient, setPatient] = useState(null);
@@ -18,7 +19,6 @@ export default function PacienteDetalle() {
   const [notes, setNotes] = useState([]);
   const [timeline, setTimeline] = useState([]);
 
-  // Bloques plegables
   const [open, setOpen] = useState({
     datos: true,
     analiticas: true,
@@ -27,9 +27,7 @@ export default function PacienteDetalle() {
     timeline: true,
   });
 
-  const token = localStorage.getItem("galenos_token");
-
-  // Estado para editar datos del paciente
+  // Editar paciente
   const [editing, setEditing] = useState(false);
   const [editAlias, setEditAlias] = useState("");
   const [editAge, setEditAge] = useState("");
@@ -38,17 +36,26 @@ export default function PacienteDetalle() {
   const [savingPatient, setSavingPatient] = useState(false);
   const [patientSaveError, setPatientSaveError] = useState("");
 
-  // Estado para crear nota clínica
+  // Notas
   const [newNoteTitle, setNewNoteTitle] = useState("");
   const [newNoteContent, setNewNoteContent] = useState("");
   const [noteSaving, setNoteSaving] = useState(false);
   const [noteError, setNoteError] = useState("");
 
-  // Comparativa de analíticas
+  // Comparativa
   const [compareMonths, setCompareMonths] = useState(6);
   const [compareLoading, setCompareLoading] = useState(false);
   const [compareError, setCompareError] = useState("");
   const [compareData, setCompareData] = useState(null);
+
+  // Resumen IA comparativa
+  const [compareSummary, setCompareSummary] = useState("");
+  const [compareSummaryDisclaimer, setCompareSummaryDisclaimer] = useState("");
+  const [compareSummaryLoading, setCompareSummaryLoading] = useState(false);
+  const [compareSummaryError, setCompareSummaryError] = useState("");
+
+  // UI comparativa mejorada
+  const [onlyWithTrend, setOnlyWithTrend] = useState(true);
 
   function toggle(block) {
     setOpen((prev) => ({ ...prev, [block]: !prev[block] }));
@@ -61,8 +68,88 @@ export default function PacienteDetalle() {
     return d.toLocaleString("es-ES");
   };
 
+  const normalizeMarkerName = (nameRaw) => {
+    const name = (nameRaw || "").trim();
+    const map = {
+      "Leucòcits": "Leucocitos",
+      "Hematies": "Hematíes",
+      "Hematòcrit": "Hematocrito",
+      "Volum corpuscular mig": "Volumen corpuscular medio",
+      "Hemoglobina corpuscular mitja": "Hemoglobina corpuscular media",
+      "Conc. Hemog. Corpuscular Media": "Concentración hb corpuscular media",
+      "Índex dispersió hematies": "Índice dispersión hematíes",
+      "Plaquetes": "Plaquetas",
+      "Volum plaquetar mig": "Volumen plaquetario medio",
+      "Índex dispersió de plaquetes": "Índice dispersión plaquetas",
+      "Plaquetòcrit": "Plaquetocrito",
+      "Neutròfils": "Neutrófilos",
+      "Limfòcits": "Linfocitos",
+      "Eosinòfils": "Eosinófilos",
+      "Basòfils": "Basófilos",
+      "Monòcits": "Monocitos",
+      "Pressió parcial CO2": "Presión parcial CO2",
+      "Bicarbonat actual": "Bicarbonato actual",
+      "CO2 total": "CO2 total",
+      "Excés de base": "Exceso de base",
+      "Sodi": "Sodio",
+      "Potassi": "Potasio",
+      "Fòsfor": "Fósforo",
+      "Àcid úric": "Ácido úrico",
+      "Estimació filtrat glomerular": "Estimación filtrado glomerular",
+      "Albúmina sèric": "Albúmina sérica",
+      "Triglicèrids": "Triglicéridos",
+      "Proteïnùria orina 24 h": "Proteinuria orina 24 horas",
+      "Concentració proteïnùria": "Concentración proteinuria",
+      "Concentració proteïnúria": "Concentración proteinuria",
+      "Quocient proteïnes/creatinina": "Cociente proteínas/creatinina",
+      "Volum orina 24 hores": "Volumen orina 24 horas",
+      "Aclarament d'urea": "Aclaramiento de urea",
+      "Aclarament de creatinina": "Aclaramiento de creatinina",
+      "Densitat": "Densidad orina",
+      "pH (orina)": "pH orina",
+    };
+    return map[name] || name;
+  };
+
+  const groupMarker = (name) => {
+    const n = (name || "").toLowerCase();
+
+    if (
+      n.includes("creatinina") ||
+      n.includes("urea") ||
+      n.includes("filtrado") ||
+      n.includes("aclaramiento")
+    )
+      return "Función renal";
+
+    if (
+      n.includes("colesterol") ||
+      n.includes("triglic") ||
+      n.includes("hba1c") ||
+      n.includes("glicada") ||
+      n.includes("glucosa") ||
+      n.includes("ácido úrico") ||
+      n.includes("urico")
+    )
+      return "Metabolismo / lípidos";
+
+    if (
+      n.includes("leucoc") ||
+      n.includes("hemat") ||
+      n.includes("hemo") ||
+      n.includes("plaquet") ||
+      n.includes("reticul")
+    )
+      return "Hematología";
+
+    if (n.includes("orina") || n.includes("proteinuria") || n.includes("densidad") || n.includes("ph orina"))
+      return "Orina";
+
+    return "Otros";
+  };
+
   // =========================
-  // CARGA DE TODOS LOS DATOS DEL PACIENTE
+  // CARGA FICHA
   // =========================
   useEffect(() => {
     async function loadAll() {
@@ -75,102 +162,61 @@ export default function PacienteDetalle() {
         return;
       }
 
-      // 1) Datos básicos
       try {
         const res = await fetch(`${API}/patients/${id}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         const raw = await res.text();
-        console.log("👉 [Ficha] /patients/", id, "(raw):", raw);
-
         if (!res.ok) {
-          console.error("Error HTTP en /patients:", res.status, raw);
           setError("No se pudieron cargar los datos básicos del paciente.");
           setLoading(false);
           return;
         }
-
         const data = JSON.parse(raw);
         setPatient(data);
-        // Inicializamos campos de edición
+
         setEditAlias(data.alias || "");
         setEditAge(data.age != null ? String(data.age) : "");
         setEditGender(data.gender || "");
         setEditNotes(data.notes || "");
       } catch (err) {
-        console.error("❌ Error cargando /patients:", err);
+        console.error("❌ Error /patients:", err);
         setError("No se pudieron cargar los datos básicos del paciente.");
         setLoading(false);
         return;
       }
 
-      // 2) Analíticas
       try {
         const res = await fetch(`${API}/analytics/by-patient/${id}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         const raw = await res.text();
-        console.log("👉 [Ficha] /analytics/by-patient/", id, "(raw):", raw);
-        if (res.ok) {
-          const data = JSON.parse(raw || "[]");
-          setAnalytics(Array.isArray(data) ? data : []);
-        } else {
-          console.error("Error HTTP en /analytics/by-patient:", res.status, raw);
-        }
-      } catch (err) {
-        console.error("❌ Error cargando analytics:", err);
-      }
+        if (res.ok) setAnalytics(JSON.parse(raw || "[]") || []);
+      } catch {}
 
-      // 3) Imágenes
       try {
         const res = await fetch(`${API}/imaging/by-patient/${id}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         const raw = await res.text();
-        console.log("👉 [Ficha] /imaging/by-patient/", id, "(raw):", raw);
-        if (res.ok) {
-          const data = JSON.parse(raw || "[]");
-          setImaging(Array.isArray(data) ? data : []);
-        } else {
-          console.error("Error HTTP en /imaging/by-patient:", res.status, raw);
-        }
-      } catch (err) {
-        console.error("❌ Error cargando imaging:", err);
-      }
+        if (res.ok) setImaging(JSON.parse(raw || "[]") || []);
+      } catch {}
 
-      // 4) Notas clínicas
       try {
         const res = await fetch(`${API}/notes/${id}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         const raw = await res.text();
-        console.log("👉 [Ficha] /notes/", id, "(raw):", raw);
-        if (res.ok) {
-          const data = JSON.parse(raw || "[]");
-          setNotes(Array.isArray(data) ? data : []);
-        } else {
-          console.error("Error HTTP en /notes:", res.status, raw);
-        }
-      } catch (err) {
-        console.error("❌ Error cargando notes:", err);
-      }
+        if (res.ok) setNotes(JSON.parse(raw || "[]") || []);
+      } catch {}
 
-      // 5) Timeline
       try {
         const res = await fetch(`${API}/timeline/${id}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         const raw = await res.text();
-        console.log("👉 [Ficha] /timeline/", id, "(raw):", raw);
-        if (res.ok) {
-          const data = JSON.parse(raw || "[]");
-          setTimeline(Array.isArray(data) ? data : []);
-        } else {
-          console.error("Error HTTP en /timeline:", res.status, raw);
-        }
-      } catch (err) {
-        console.error("❌ Error cargando timeline:", err);
-      }
+        if (res.ok) setTimeline(JSON.parse(raw || "[]") || []);
+      } catch {}
 
       setLoading(false);
     }
@@ -179,16 +225,11 @@ export default function PacienteDetalle() {
   }, [id, token]);
 
   // =========================
-  // EDITAR / GUARDAR DATOS DEL PACIENTE
+  // GUARDAR PACIENTE
   // =========================
   async function handleSavePatient(e) {
     e.preventDefault();
     setPatientSaveError("");
-
-    if (!token) {
-      setPatientSaveError("No hay sesión activa. Vuelve a iniciar sesión.");
-      return;
-    }
 
     const ageNumber =
       editAge.trim() === "" ? null : Number.parseInt(editAge.trim(), 10);
@@ -216,8 +257,6 @@ export default function PacienteDetalle() {
       });
 
       const raw = await res.text();
-      console.log("👉 [Ficha] PUT /patients/", id, "(raw):", raw);
-
       if (!res.ok) {
         let msg = "No se han podido guardar los datos del paciente.";
         try {
@@ -228,22 +267,10 @@ export default function PacienteDetalle() {
         return;
       }
 
-      let data;
-      try {
-        data = JSON.parse(raw);
-      } catch {
-        setPatientSaveError("Respuesta inesperada al guardar el paciente.");
-        return;
-      }
-
+      const data = JSON.parse(raw);
       setPatient(data);
-      setEditAlias(data.alias || "");
-      setEditAge(data.age != null ? String(data.age) : "");
-      setEditGender(data.gender || "");
-      setEditNotes(data.notes || "");
       setEditing(false);
     } catch (err) {
-      console.error("❌ Error guardando paciente:", err);
       setPatientSaveError("Error de conexión al guardar el paciente.");
     } finally {
       setSavingPatient(false);
@@ -251,16 +278,11 @@ export default function PacienteDetalle() {
   }
 
   // =========================
-  // CREAR NOTA CLÍNICA
+  // CREAR NOTA
   // =========================
   async function handleCreateNote(e) {
     e.preventDefault();
     setNoteError("");
-
-    if (!token) {
-      setNoteError("No hay sesión activa. Vuelve a iniciar sesión.");
-      return;
-    }
 
     if (!newNoteTitle.trim()) {
       setNoteError("Escribe un título para la nota clínica.");
@@ -288,31 +310,16 @@ export default function PacienteDetalle() {
       });
 
       const raw = await res.text();
-      console.log("👉 [Ficha] POST /notes/", id, "(raw):", raw);
-
       if (!res.ok) {
-        let msg = "No se ha podido guardar la nota clínica.";
-        try {
-          const errData = JSON.parse(raw);
-          if (errData.detail) msg = errData.detail;
-        } catch {}
-        setNoteError(msg);
+        setNoteError("No se ha podido guardar la nota clínica.");
         return;
       }
 
-      let data;
-      try {
-        data = JSON.parse(raw);
-      } catch {
-        setNoteError("Respuesta inesperada al guardar la nota clínica.");
-        return;
-      }
-
+      const data = JSON.parse(raw);
       setNotes((prev) => [data, ...prev]);
       setNewNoteTitle("");
       setNewNoteContent("");
-    } catch (err) {
-      console.error("❌ Error guardando nota clínica:", err);
+    } catch {
       setNoteError("Error de conexión al guardar la nota clínica.");
     } finally {
       setNoteSaving(false);
@@ -320,59 +327,131 @@ export default function PacienteDetalle() {
   }
 
   // =========================
-  // COMPARATIVA DE ANALÍTICAS
+  // COMPARATIVA
   // =========================
   async function handleLoadComparativa(e) {
     e.preventDefault();
     setCompareError("");
     setCompareData(null);
-
-    const tokenLocal = localStorage.getItem("galenos_token");
-    if (!tokenLocal) {
-      setCompareError("No hay sesión activa. Vuelve a iniciar sesión.");
-      return;
-    }
+    setCompareSummary("");
+    setCompareSummaryError("");
+    setCompareSummaryDisclaimer("");
 
     try {
       setCompareLoading(true);
       const res = await fetch(
         `${API}/analytics/compare/${id}?months=${compareMonths}`,
         {
-          headers: {
-            Authorization: `Bearer ${tokenLocal}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         }
       );
-
       const raw = await res.text();
-      console.log("👉 [Ficha] /analytics/compare (raw):", raw);
-
       if (!res.ok) {
-        let msg = "No se ha podido cargar la comparativa de analíticas.";
-        try {
-          const errData = JSON.parse(raw);
-          if (errData.detail) msg = errData.detail;
-        } catch {}
-        setCompareError(msg);
+        setCompareError("No se ha podido cargar la comparativa.");
         return;
       }
-
-      let data;
-      try {
-        data = JSON.parse(raw);
-      } catch {
-        setCompareError("Respuesta inesperada en la comparativa.");
-        return;
-      }
-
+      const data = JSON.parse(raw);
       setCompareData(data);
     } catch (err) {
-      console.error("❌ Error comparando analíticas:", err);
       setCompareError("Error de conexión al cargar la comparativa.");
     } finally {
       setCompareLoading(false);
     }
   }
+
+  async function handleLoadCompareSummary() {
+    setCompareSummaryError("");
+    setCompareSummary("");
+    setCompareSummaryDisclaimer("");
+
+    try {
+      setCompareSummaryLoading(true);
+      const res = await fetch(
+        `${API}/analytics/compare-summary/${id}?months=${compareMonths}`,
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      const raw = await res.text();
+      if (!res.ok) {
+        setCompareSummaryError("No se ha podido generar el resumen.");
+        return;
+      }
+      const data = JSON.parse(raw);
+      setCompareSummary(data.summary || "");
+      setCompareSummaryDisclaimer(data.disclaimer || "");
+    } catch {
+      setCompareSummaryError("Error de conexión al generar el resumen.");
+    } finally {
+      setCompareSummaryLoading(false);
+    }
+  }
+
+  // =========================
+  // COMPARATIVA — TRANSFORMACIÓN UI
+  // =========================
+  const compareCards = useMemo(() => {
+    if (!compareData?.markers) return [];
+
+    // 1) Normalizar nombres y fusionar series duplicadas
+    const merged = new Map(); // name -> array of points
+    for (const [rawName, points] of Object.entries(compareData.markers)) {
+      const name = normalizeMarkerName(rawName);
+      const pts = Array.isArray(points) ? points : [];
+      const prev = merged.get(name) || [];
+      merged.set(name, [...prev, ...pts]);
+    }
+
+    // 2) Limpiar, ordenar, deduplicar por fecha (si hay duplicadas nos quedamos con la última)
+    const result = [];
+    for (const [name, pts] of merged.entries()) {
+      const cleaned = pts
+        .filter((p) => p && p.date && p.value != null && !Number.isNaN(Number(p.value)))
+        .map((p) => ({ date: p.date, value: Number(p.value) }))
+        .sort((a, b) => a.date.localeCompare(b.date));
+
+      // dedupe por fecha
+      const byDate = new Map();
+      for (const p of cleaned) byDate.set(p.date, p);
+      const ordered = Array.from(byDate.values()).sort((a, b) => a.date.localeCompare(b.date));
+
+      if (onlyWithTrend && ordered.length < 2) continue;
+
+      const first = ordered[0];
+      const last = ordered[ordered.length - 1];
+      const delta = last.value - first.value;
+
+      result.push({
+        name,
+        group: groupMarker(name),
+        ordered,
+        first,
+        last,
+        delta,
+        absDelta: Math.abs(delta),
+      });
+    }
+
+    // 3) Ordenar: mayores cambios arriba
+    result.sort((a, b) => b.absDelta - a.absDelta);
+    return result;
+  }, [compareData, onlyWithTrend]);
+
+  const groupedCompare = useMemo(() => {
+    const groups = {
+      "Función renal": [],
+      "Metabolismo / lípidos": [],
+      "Hematología": [],
+      "Orina": [],
+      "Otros": [],
+    };
+    for (const c of compareCards) {
+      if (!groups[c.group]) groups["Otros"].push(c);
+      else groups[c.group].push(c);
+    }
+    return groups;
+  }, [compareCards]);
 
   if (loading) {
     return (
@@ -398,9 +477,6 @@ export default function PacienteDetalle() {
     );
   }
 
-  const displayId = patient.patient_number || patient.id;
-
-  // Timeline ordenado
   const sortedTimeline = [...timeline].sort((a, b) => {
     const da = new Date(a.created_at || 0).getTime();
     const db = new Date(b.created_at || 0).getTime();
@@ -417,23 +493,17 @@ export default function PacienteDetalle() {
 
   return (
     <div className="sr-container py-6 space-y-6">
-      {/* CABECERA PACIENTE + Navegación */}
+      {/* Cabecera */}
       <section className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 sm:p-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <h1 className="text-xl sm:text-2xl font-semibold text-slate-900">
-              Paciente: {patient.alias || `ID ${displayId}`}
+              Paciente: {patient.alias}
             </h1>
             <p className="text-sm text-slate-500 mt-1">
-              Nº Paciente:{" "}
-              <span className="font-mono">{patient.patient_number ?? "—"}</span>{" "}
-              · ID interno: <span className="font-mono">{patient.id}</span>
-              {patient.created_at && (
-                <>
-                  {" "}
-                  · Alta: <span>{formatDate(patient.created_at)}</span>
-                </>
-              )}
+              Nº Paciente: <span className="font-mono">{patient.patient_number ?? "—"}</span> ·
+              ID interno: <span className="font-mono">{patient.id}</span> · Alta:{" "}
+              {patient.created_at ? formatDate(patient.created_at) : "-"}
             </p>
           </div>
           <div className="flex flex-wrap gap-2 justify-end">
@@ -455,7 +525,7 @@ export default function PacienteDetalle() {
         </div>
       </section>
 
-      {/* DATOS DEL PACIENTE (con edición) */}
+      {/* Datos paciente */}
       <section className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 sm:p-6">
         <button
           type="button"
@@ -472,26 +542,10 @@ export default function PacienteDetalle() {
           <div className="mt-3 space-y-3 text-sm text-slate-700">
             {!editing ? (
               <>
-                <p>
-                  <strong>Alias:</strong> {patient.alias}
-                </p>
-                <p>
-                  <strong>Edad:</strong>{" "}
-                  {patient.age != null ? `${patient.age} años` : "—"}
-                </p>
-                <p>
-                  <strong>Sexo:</strong> {patient.gender || "—"}
-                </p>
-                <p>
-                  <strong>Notas internas:</strong>{" "}
-                  {patient.notes ? (
-                    <span className="whitespace-pre-line">
-                      {patient.notes}
-                    </span>
-                  ) : (
-                    "—"
-                  )}
-                </p>
+                <p><strong>Alias:</strong> {patient.alias}</p>
+                <p><strong>Edad:</strong> {patient.age != null ? `${patient.age} años` : "—"}</p>
+                <p><strong>Sexo:</strong> {patient.gender || "—"}</p>
+                <p><strong>Notas internas:</strong> {patient.notes || "—"}</p>
                 <button
                   type="button"
                   onClick={() => setEditing(true)}
@@ -500,9 +554,7 @@ export default function PacienteDetalle() {
                   Editar datos
                 </button>
                 {patientSaveError && (
-                  <p className="text-xs text-red-600 mt-1">
-                    {patientSaveError}
-                  </p>
+                  <p className="text-xs text-red-600 mt-1">{patientSaveError}</p>
                 )}
               </>
             ) : (
@@ -544,34 +596,22 @@ export default function PacienteDetalle() {
                     className="sr-input w-full min-h-[80px]"
                     value={editNotes}
                     onChange={(e) => setEditNotes(e.target.value)}
-                    placeholder="Notas internas para tu propio uso clínico."
                   />
                 </div>
                 {patientSaveError && (
-                  <p className="text-xs text-red-600 mt-1">
-                    {patientSaveError}
-                  </p>
+                  <p className="text-xs text-red-600 mt-1">{patientSaveError}</p>
                 )}
                 <div className="flex gap-2 mt-2">
                   <button
                     type="submit"
                     disabled={savingPatient}
-                    className="sr-btn-primary text-xs disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="sr-btn-primary text-xs disabled:opacity-60"
                   >
                     {savingPatient ? "Guardando..." : "Guardar cambios"}
                   </button>
                   <button
                     type="button"
-                    onClick={() => {
-                      setEditAlias(patient.alias || "");
-                      setEditAge(
-                        patient.age != null ? String(patient.age) : ""
-                      );
-                      setEditGender(patient.gender || "");
-                      setEditNotes(patient.notes || "");
-                      setEditing(false);
-                      setPatientSaveError("");
-                    }}
+                    onClick={() => setEditing(false)}
                     className="sr-btn-secondary text-xs"
                   >
                     Cancelar
@@ -583,7 +623,7 @@ export default function PacienteDetalle() {
         )}
       </section>
 
-      {/* ANALÍTICAS */}
+      {/* Analíticas + Comparativa */}
       <section className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 sm:p-6">
         <button
           type="button"
@@ -598,187 +638,154 @@ export default function PacienteDetalle() {
 
         {open.analiticas && (
           <div className="mt-3 space-y-3">
-            {analytics.length === 0 && (
+            {analytics.length === 0 ? (
               <p className="text-sm text-slate-500">
                 No hay analíticas registradas para este paciente.
               </p>
+            ) : (
+              analytics.map((a) => (
+                <article
+                  key={a.id}
+                  className="border border-slate-200 rounded-lg p-3 space-y-2"
+                >
+                  <p className="text-xs text-slate-500">
+                    Fecha: {formatDate(a.exam_date || a.created_at)}
+                  </p>
+                  {a.summary && (
+                    <div>
+                      <h3 className="text-sm font-semibold mb-1">Resumen</h3>
+                      <p className="text-sm whitespace-pre-line">{a.summary}</p>
+                    </div>
+                  )}
+                </article>
+              ))
             )}
 
-            {analytics.map((a) => (
-              <article
-                key={a.id}
-                className="border border-slate-200 rounded-lg p-3 space-y-2"
-              >
-                <p className="text-xs text-slate-500">
-                  Fecha: {formatDate(a.exam_date || a.created_at)}
-                </p>
-                {a.summary && (
-                  <div>
-                    <h3 className="text-sm font-semibold mb-1">
-                      Resumen orientativo
-                    </h3>
-                    <p className="text-sm whitespace-pre-line">{a.summary}</p>
-                  </div>
-                )}
-                {a.differential && (
-                  <div>
-                    <h3 className="text-sm font-semibold mb-1">
-                      Diagnóstico diferencial (orientativo)
-                    </h3>
-                    <p className="text-sm whitespace-pre-line">
-                      {a.differential}
-                    </p>
-                  </div>
-                )}
-                {Array.isArray(a.markers) && a.markers.length > 0 && (
-                  <div>
-                    <h3 className="text-sm font-semibold mb-1">
-                      Marcadores extraídos
-                    </h3>
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full text-xs border border-slate-200 rounded-md overflow-hidden">
-                        <thead className="bg-slate-100">
-                          <tr>
-                            <th className="px-2 py-1 text-left">Marcador</th>
-                            <th className="px-2 py-1 text-left">Valor</th>
-                            <th className="px-2 py-1 text-left">Rango</th>
-                            <th className="px-2 py-1 text-left">Estado</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {a.markers.map((m, idx) => (
-                            <tr
-                              key={idx}
-                              className="border-t border-slate-200"
-                            >
-                              <td className="px-2 py-1">{m.name}</td>
-                              <td className="px-2 py-1">
-                                {m.value != null ? m.value : ""}
-                              </td>
-                              <td className="px-2 py-1">{m.range || ""}</td>
-                              <td className="px-2 py-1">
-                                {m.status === "elevado" && (
-                                  <span className="text-red-600 font-medium">
-                                    Alto
-                                  </span>
-                                )}
-                                {m.status === "bajo" && (
-                                  <span className="text-amber-600 font-medium">
-                                    Bajo
-                                  </span>
-                                )}
-                                {m.status === "normal" && (
-                                  <span className="text-emerald-700 font-medium">
-                                    Normal
-                                  </span>
-                                )}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-              </article>
-            ))}
-
-            {/* Comparativa temporal de analíticas */}
             <div className="mt-4 border-t border-slate-200 pt-3 space-y-2">
               <h4 className="text-sm font-semibold">
-                Comparativa de analíticas (evolución de marcadores)
+                Comparativa de analíticas (más fácil de leer)
               </h4>
 
-              <form
-                onSubmit={handleLoadComparativa}
-                className="flex flex-wrap items-center gap-2 text-xs"
-              >
-                <span>Ver evolución de los últimos</span>
-                <select
-                  className="sr-input w-20"
-                  value={compareMonths}
-                  onChange={(e) =>
-                    setCompareMonths(Number.parseInt(e.target.value, 10))
-                  }
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                <form
+                  onSubmit={handleLoadComparativa}
+                  className="flex flex-wrap items-center gap-2 text-xs"
                 >
-                  <option value={3}>3 meses</option>
-                  <option value={6}>6 meses</option>
-                  <option value={12}>12 meses</option>
-                </select>
-                <span>para este paciente.</span>
+                  <span>Últimos</span>
+                  <select
+                    className="sr-input w-20"
+                    value={compareMonths}
+                    onChange={(e) =>
+                      setCompareMonths(Number.parseInt(e.target.value, 10))
+                    }
+                  >
+                    <option value={3}>3 meses</option>
+                    <option value={6}>6 meses</option>
+                    <option value={12}>12 meses</option>
+                  </select>
+                  <button
+                    type="submit"
+                    disabled={compareLoading}
+                    className="sr-btn-secondary disabled:opacity-60"
+                  >
+                    {compareLoading ? "Cargando..." : "Ver comparativa"}
+                  </button>
+                </form>
+
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={onlyWithTrend}
+                    onChange={(e) => setOnlyWithTrend(e.target.checked)}
+                  />
+                  Solo marcadores con evolución (≥2 fechas)
+                </label>
+
                 <button
-                  type="submit"
-                  disabled={compareLoading}
-                  className="sr-btn-secondary disabled:opacity-60 disabled:cursor-not-allowed"
+                  type="button"
+                  onClick={handleLoadCompareSummary}
+                  disabled={compareSummaryLoading}
+                  className="sr-btn-secondary disabled:opacity-60"
                 >
-                  {compareLoading ? "Cargando..." : "Ver comparativa"}
+                  {compareSummaryLoading ? "Generando..." : "Resumen IA"}
                 </button>
-              </form>
+              </div>
 
               {compareError && (
                 <p className="text-xs text-red-600 mt-1">{compareError}</p>
               )}
 
-              {compareData && compareData.markers && (
-                <div className="mt-2 space-y-3">
-                  {Object.keys(compareData.markers).length === 0 && (
+              {compareData && (
+                <div className="mt-2 space-y-4">
+                  {compareCards.length === 0 ? (
                     <p className="text-xs text-slate-500">
-                      No hay marcadores con datos suficientes en el periodo
-                      seleccionado.
+                      No hay marcadores con suficiente evolución en este periodo.
+                      (Prueba a desmarcar el filtro o aumentar meses.)
                     </p>
+                  ) : (
+                    <>
+                      {Object.entries(groupedCompare).map(([group, items]) => {
+                        if (!items || items.length === 0) return null;
+                        return (
+                          <div key={group} className="space-y-2">
+                            <h5 className="text-sm font-semibold">{group}</h5>
+                            <div className="space-y-2">
+                              {items.map((it) => {
+                                const arrow = `${it.first.value} → ${it.last.value}`;
+                                const deltaTxt =
+                                  it.delta > 0
+                                    ? `+${it.delta.toFixed(2)}`
+                                    : it.delta.toFixed(2);
+
+                                const deltaClass =
+                                  it.delta > 0
+                                    ? "text-red-600"
+                                    : it.delta < 0
+                                    ? "text-emerald-700"
+                                    : "text-slate-600";
+
+                                return (
+                                  <div
+                                    key={it.name}
+                                    className="border border-slate-200 rounded-lg p-2 text-xs"
+                                  >
+                                    <div className="flex justify-between items-center">
+                                      <span className="font-semibold">{it.name}</span>
+                                      <span className={deltaClass}>
+                                        {arrow} · Δ {deltaTxt}
+                                      </span>
+                                    </div>
+                                    <div className="mt-1 text-[11px] text-slate-600">
+                                      {it.first.date} → {it.last.date} ({it.ordered.length} puntos)
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </>
                   )}
 
-                  {Object.entries(compareData.markers).map(
-                    ([name, points]) => {
-                      const pts = Array.isArray(points) ? points : [];
-                      if (pts.length === 0) return null;
+                  {compareSummaryError && (
+                    <p className="text-xs text-red-600">{compareSummaryError}</p>
+                  )}
 
-                      const ordered = [...pts].sort((a, b) =>
-                        a.date.localeCompare(b.date)
-                      );
-                      const first = ordered[0];
-                      const last = ordered[ordered.length - 1];
-                      const delta =
-                        last.value != null && first.value != null
-                          ? last.value - first.value
-                          : null;
-
-                      return (
-                        <div
-                          key={name}
-                          className="border border-slate-200 rounded-lg p-2 text-xs"
-                        >
-                          <div className="flex justify-between items-center mb-1">
-                            <span className="font-semibold">{name}</span>
-                            {delta != null && (
-                              <span
-                                className={
-                                  delta > 0
-                                    ? "text-red-600"
-                                    : delta < 0
-                                    ? "text-emerald-700"
-                                    : "text-slate-600"
-                                }
-                              >
-                                Δ {delta > 0 ? "+" : ""}
-                                {delta.toFixed(2)}
-                              </span>
-                            )}
-                          </div>
-                          <div className="space-y-0.5">
-                            {ordered.map((p, idx) => (
-                              <div
-                                key={idx}
-                                className="flex justify-between text-[11px] text-slate-700"
-                              >
-                                <span>{p.date}</span>
-                                <span>{p.value}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    }
+                  {compareSummary && (
+                    <div className="mt-2 border border-slate-200 rounded-lg p-2 bg-slate-50">
+                      <h5 className="text-xs font-semibold mb-1">
+                        Resumen IA de la evolución (no vinculante)
+                      </h5>
+                      <p className="text-sm text-slate-800 whitespace-pre-line">
+                        {compareSummary}
+                      </p>
+                      {compareSummaryDisclaimer && (
+                        <p className="text-[11px] text-slate-500 mt-2">
+                          {compareSummaryDisclaimer}
+                        </p>
+                      )}
+                    </div>
                   )}
                 </div>
               )}
@@ -787,89 +794,7 @@ export default function PacienteDetalle() {
         )}
       </section>
 
-      {/* IMÁGENES MÉDICAS */}
-      <section className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 sm:p-6">
-        <button
-          type="button"
-          onClick={() => toggle("imagenes")}
-          className="flex items-center justify-between w-full text-left"
-        >
-          <h2 className="text-lg font-semibold">Imágenes médicas</h2>
-          <span className="text-xs text-slate-500">
-            {open.imagenes ? "Ocultar" : "Mostrar"}
-          </span>
-        </button>
-
-        {open.imagenes && (
-          <div className="mt-3 space-y-3">
-            {imaging.length === 0 && (
-              <p className="text-sm text-slate-500">
-                No hay imágenes médicas registradas para este paciente.
-              </p>
-            )}
-
-            {imaging.map((img) => (
-              <article
-                key={img.id}
-                className="border border-slate-200 rounded-lg p-3 space-y-2"
-              >
-                <p className="text-xs text-slate-500">
-                  Tipo: {img.type || "—"} · Fecha:{" "}
-                  {formatDate(img.exam_date || img.created_at)}
-                </p>
-                {img.summary && (
-                  <div>
-                    <h3 className="text-sm font-semibold mb-1">
-                      Resumen radiológico orientativo
-                    </h3>
-                    <p className="text-sm whitespace-pre-line">
-                      {img.summary}
-                    </p>
-                  </div>
-                )}
-                {img.differential && (
-                  <div>
-                    <h3 className="text-sm font-semibold mb-1">
-                      Diagnóstico diferencial general (orientativo)
-                    </h3>
-                    <p className="text-sm whitespace-pre-line">
-                      {img.differential}
-                    </p>
-                  </div>
-                )}
-                {Array.isArray(img.patterns) && img.patterns.length > 0 && (
-                  <div>
-                    <h3 className="text-sm font-semibold mb-1">
-                      Patrones / hallazgos
-                    </h3>
-                    <ul className="list-disc list-inside text-sm text-slate-800 space-y-1">
-                      {img.patterns.map((p, idx) => (
-                        <li key={idx}>
-                          {p.pattern_text ? p.pattern_text : String(p)}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                {img.file_path && (
-                  <div>
-                    <h3 className="text-sm font-semibold mb-1">
-                      Imagen analizada
-                    </h3>
-                    <img
-                      src={img.file_path}
-                      alt="Estudio de imagen médica"
-                      className="mt-2 max-w-xs md:max-w-sm w-full rounded-lg border border-slate-200"
-                    />
-                  </div>
-                )}
-              </article>
-            ))}
-          </div>
-        )}
-      </section>
-
-      {/* NOTAS CLÍNICAS (con creación) */}
+      {/* Notas */}
       <section className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 sm:p-6">
         <button
           type="button"
@@ -884,20 +809,16 @@ export default function PacienteDetalle() {
 
         {open.notas && (
           <div className="mt-3 space-y-4">
-            {/* Formulario de nueva nota */}
             <div className="border border-slate-200 rounded-lg p-3 space-y-2 bg-slate-50/60">
-              <h3 className="text-sm font-semibold">
-                Añadir nota clínica a este paciente
-              </h3>
+              <h3 className="text-sm font-semibold">Añadir nota clínica</h3>
               <form onSubmit={handleCreateNote} className="space-y-2">
                 <div>
-                  <label className="sr-label">Título de la nota</label>
+                  <label className="sr-label">Título</label>
                   <input
                     type="text"
                     className="sr-input w-full"
                     value={newNoteTitle}
                     onChange={(e) => setNewNoteTitle(e.target.value)}
-                    placeholder="Ej. Primera valoración en consulta"
                   />
                 </div>
                 <div>
@@ -906,54 +827,42 @@ export default function PacienteDetalle() {
                     className="sr-input w-full min-h-[80px]"
                     value={newNoteContent}
                     onChange={(e) => setNewNoteContent(e.target.value)}
-                    placeholder="Anota aquí la impresión clínica, decisiones tomadas, etc."
                   />
                 </div>
-                {noteError && (
-                  <p className="text-sm text-red-600">{noteError}</p>
-                )}
+                {noteError && <p className="text-sm text-red-600">{noteError}</p>}
                 <button
                   type="submit"
                   disabled={noteSaving}
-                  className="sr-btn-secondary text-xs disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="sr-btn-secondary text-xs disabled:opacity-60"
                 >
-                  {noteSaving ? "Guardando nota..." : "Guardar nota clínica"}
+                  {noteSaving ? "Guardando..." : "Guardar nota"}
                 </button>
               </form>
             </div>
 
-            {/* Lista de
- notas existentes */}
-            {notes.length === 0 && (
-              <p className="text-sm text-slate-500">
-                No hay notas clínicas registradas para este paciente.
-              </p>
+            {notes.length === 0 ? (
+              <p className="text-sm text-slate-500">No hay notas clínicas registradas.</p>
+            ) : (
+              notes.map((n) => (
+                <article key={n.id} className="border border-slate-200 rounded-lg p-3 space-y-1">
+                  <p className="text-xs text-slate-500">{formatDate(n.created_at)}</p>
+                  <h3 className="text-sm font-semibold">{n.title}</h3>
+                  <p className="text-sm whitespace-pre-line">{n.content}</p>
+                </article>
+              ))
             )}
-
-            {notes.map((n) => (
-              <article
-                key={n.id}
-                className="border border-slate-200 rounded-lg p-3 space-y-1"
-              >
-                <p className="text-xs text-slate-500">
-                  Fecha: {formatDate(n.created_at)}
-                </p>
-                <h3 className="text-sm font-semibold">{n.title}</h3>
-                <p className="text-sm whitespace-pre-line">{n.content}</p>
-              </article>
-            ))}
           </div>
         )}
       </section>
 
-      {/* TIMELINE */}
+      {/* Timeline */}
       <section className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 sm:p-6">
         <button
           type="button"
           onClick={() => toggle("timeline")}
           className="flex items-center justify-between w-full text-left"
         >
-          <h2 className="text-lg font-semibold">Timeline clínico</h2>
+          <h2 className="text-lg font-semibold">Timeline</h2>
           <span className="text-xs text-slate-500">
             {open.timeline ? "Ocultar" : "Mostrar"}
           </span>
@@ -961,30 +870,22 @@ export default function PacienteDetalle() {
 
         {open.timeline && (
           <div className="mt-3 space-y-2">
-            {sortedTimeline.length === 0 && (
-              <p className="text-sm text-slate-500">
-                Aún no hay eventos en el timeline de este paciente.
-              </p>
+            {sortedTimeline.length === 0 ? (
+              <p className="text-sm text-slate-500">Aún no hay eventos en el timeline.</p>
+            ) : (
+              sortedTimeline.map((item) => (
+                <div
+                  key={item.id}
+                  className="border border-slate-200 rounded-lg p-2 text-sm flex items-center justify-between"
+                >
+                  <div>
+                    <p className="font-medium">{timelineLabel(item.item_type)}</p>
+                    <p className="text-xs text-slate-500">{formatDate(item.created_at)}</p>
+                  </div>
+                  <div className="text-xs text-slate-400">ID evento: {item.item_id}</div>
+                </div>
+              ))
             )}
-
-            {sortedTimeline.map((item) => (
-              <div
-                key={item.id}
-                className="border border-slate-200 rounded-lg p-2 text-sm flex items-center justify-between"
-              >
-                <div>
-                  <p className="font-medium">
-                    {timelineLabel(item.item_type)}
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    {formatDate(item.created_at)}
-                  </p>
-                </div>
-                <div className="text-xs text-slate-400">
-                  ID evento: {item.item_id}
-                </div>
-              </div>
-            ))}
           </div>
         )}
       </section>
