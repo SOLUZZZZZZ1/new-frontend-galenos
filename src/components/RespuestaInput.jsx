@@ -1,15 +1,14 @@
-// src/components/RespuestaInput.jsx
 import React, { useState } from "react";
 
-export default function RespuestaInput({ onSend }) {
+export default function RespuestaInput({ onSend, sending = false }) {
   const [text, setText] = useState("");
 
   function handleSubmit(e) {
     e.preventDefault();
+    const value = (text ?? "").toString().trim();
+    if (!value) return;
 
-    if (!text.trim()) return;
-
-    onSend(text);   // 👈 SOLO STRING
+    onSend(value); // ✅ SIEMPRE string
     setText("");
   }
 
@@ -20,16 +19,18 @@ export default function RespuestaInput({ onSend }) {
     >
       <textarea
         value={text}
-        onChange={(e) => setText(e.target.value)}
+        onChange={(e) => setText(e.target.value)} // ✅ e.target.value
         className="flex-1 border rounded p-2 text-sm"
         rows={2}
         placeholder="Escribe tu respuesta…"
+        disabled={sending}
       />
       <button
         type="submit"
-        className="px-4 py-2 bg-blue-600 text-white rounded text-sm"
+        disabled={sending}
+        className="px-4 py-2 bg-blue-600 text-white rounded text-sm disabled:opacity-60"
       >
-        Enviar
+        {sending ? "Enviando…" : "Enviar"}
       </button>
     </form>
   );

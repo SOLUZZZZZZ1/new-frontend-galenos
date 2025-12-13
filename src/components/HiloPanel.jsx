@@ -5,14 +5,16 @@ export default function HiloPanel({
   selectedCaseId,
   apiBase,
   token,
-  currentAlias,
+  currentAlias, // aquí llega "loquito"
 }) {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
 
   async function loadMessages() {
-    if (!selectedCaseId) return;
+    if (!selectedCaseId || !token) return;
+
     try {
       setLoading(true);
       setError("");
@@ -30,15 +32,22 @@ export default function HiloPanel({
       console.log("👉 [DeGuardia] GET /messages raw:", raw);
 
       if (!res.ok) {
-        setError("Error cargando mensajes");
+        setError("No se pudieron cargar los mensajes.");
         return;
       }
 
-      const data = JSON.parse(raw);
-      setMessages(data.items || []);
+      let data;
+      try {
+        data = JSON.parse(raw);
+      } catch {
+        setError("Respuesta inesperada al cargar mensajes.");
+        return;
+      }
+
+      setMessages(Array.isArray(data.items) ? data.items : []);
     } catch (err) {
-      console.error(err);
-      setError("Error cargando mensajes");
+      console.error("❌ Error cargando mensajes:", err);
+      setError("Error de conexión al cargar mensajes.");
     } finally {
       setLoading(false);
     }
@@ -50,19 +59,25 @@ export default function HiloPanel({
   }, [selectedCaseId]);
 
   async function handleSendMessage(text) {
-    setError("");
-
-    const content = (text || "").trim();
+    const content = (text ?? "").toString().trim(); // ✅ fuerza string
     if (!content) return;
 
+    if (!selectedCaseId || !token) {
+      setError("No hay sesión activa o no hay caso seleccionado.");
+      return;
+    }
+
     const payload = {
-      author_alias: currentAlias || "loquito",
-      content,
+      author_alias: (currentAlias ?? "").toString().trim() || "anónimo", // ✅ SIEMPRE alias
+      content, // ✅ SIEMPRE string
     };
 
-    console.log("👉 [DeGuardia] POST payload:", payload);
+    console.log("👉 [DeGuardia] POST /messages payload:", payload);
 
     try {
+      setSending(true);
+      setError("");
+
       const res = await fetch(
         `${apiBase}/guard/cases/${selectedCaseId}/messages`,
         {
@@ -79,22 +94,33 @@ export default function HiloPanel({
       console.log("👉 [DeGuardia] POST /messages raw:", raw);
 
       if (!res.ok) {
-        setError("No se pudo enviar el mensaje");
+        setError("No se pudo enviar el mensaje.");
         return;
       }
 
-      const newMsg = JSON.parse(raw);
+      let newMsg;
+      try {
+        newMsg = JSON.parse(raw);
+      } catch {
+        // si el backend devolviera algo raro, recargamos
+        await loadMessages();
+        return;
+      }
+
+      // Añadimos el mensaje y listo (sin recargar todo)
       setMessages((prev) => [...prev, newMsg]);
     } catch (err) {
-      console.error(err);
-      setError("No se pudo enviar el mensaje");
+      console.error("❌ Error enviando mensaje:", err);
+      setError("Error de conexión al enviar el mensaje.");
+    } finally {
+      setSending(false);
     }
   }
 
   if (!selectedCaseId) {
     return (
       <p className="text-sm text-gray-500">
-        Selecciona una consulta de la cartelera para ver el caso clínico y el hilo.
+        Selecciona una consulta de la cartelera para ver el hilo y responder.
       </p>
     );
   }
@@ -102,21 +128,28 @@ export default function HiloPanel({
   return (
     <div className="flex flex-col h-full">
       <div className="flex-1 overflow-y-auto space-y-3 p-3">
-        {loading && <p className="text-sm">Cargando mensajes…</p>}
-        {error && <p className="text-sm text-red-500">{error}</p>}
+        {loading && <p className="text-sm text-gray-500">Cargando mensajes…</p>}
+        {error && <p className="text-sm text-red-600">{error}</p>}
 
         {messages.map((m) => (
           <div key={m.id} className="border rounded p-2 bg-white shadow-sm">
             <p className="text-xs text-gray-500 mb-1">
-              {m.author_alias || "anónimo"} ·{" "}
-              {m.created_at ? new Date(m.created_at).toLocaleString("es-ES") : ""}
+              {m.author_alias || "anónimo"}
+              {m.created_at ? " · " : ""}
+              {m.created_at
+                ? new Date(m.created_at).toLocaleString("es-ES")
+                : ""}
             </p>
-            <p className="text-sm whitespace-pre-line">{m.clean_content}</p>
+            <p className="text-sm whitespace-pre-line">
+              {typeof m.clean_content === "string"
+                ? m.clean_content
+                : JSON.stringify(m.clean_content)}
+            </p>
           </div>
         ))}
       </div>
 
-      <RespuestaInput onSend={handleSendMessage} />
+      <RespuestaInput onSend={handleSendMessage} sending={sending} />
     </div>
   );
 }
