@@ -1,16 +1,29 @@
 import React, { useEffect, useState } from "react";
 import RespuestaInput from "./RespuestaInput";
 
-export default function HiloPanel({
-  selectedCaseId,
-  apiBase,
-  token,
-  currentAlias, // aquí llega "loquito"
-}) {
+export default function HiloPanel({ selectedCaseId, apiBase, token }) {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
+
+  function formatMadridDate(createdAt) {
+    if (!createdAt) return "";
+
+    // Si viene sin "Z", lo tratamos como UTC añadiéndosela.
+    const iso =
+      typeof createdAt === "string" && createdAt.endsWith("Z")
+        ? createdAt
+        : `${createdAt}Z`;
+
+    try {
+      return new Date(iso).toLocaleString("es-ES", {
+        timeZone: "Europe/Madrid",
+      });
+    } catch {
+      return String(createdAt);
+    }
+  }
 
   async function loadMessages() {
     if (!selectedCaseId || !token) return;
@@ -59,19 +72,14 @@ export default function HiloPanel({
   }, [selectedCaseId]);
 
   async function handleSendMessage(text) {
-    const content = (text ?? "").toString().trim(); // ✅ fuerza string
+    const content = (text ?? "").toString().trim();
     if (!content) return;
-
     if (!selectedCaseId || !token) {
       setError("No hay sesión activa o no hay caso seleccionado.");
       return;
     }
 
-    const payload = {
-      author_alias: (currentAlias ?? "").toString().trim() || "anónimo", // ✅ SIEMPRE alias
-      content, // ✅ SIEMPRE string
-    };
-
+    const payload = { content }; // ✅ modo A: alias lo saca backend
     console.log("👉 [DeGuardia] POST /messages payload:", payload);
 
     try {
@@ -102,12 +110,10 @@ export default function HiloPanel({
       try {
         newMsg = JSON.parse(raw);
       } catch {
-        // si el backend devolviera algo raro, recargamos
         await loadMessages();
         return;
       }
 
-      // Añadimos el mensaje y listo (sin recargar todo)
       setMessages((prev) => [...prev, newMsg]);
     } catch (err) {
       console.error("❌ Error enviando mensaje:", err);
@@ -136,9 +142,7 @@ export default function HiloPanel({
             <p className="text-xs text-gray-500 mb-1">
               {m.author_alias || "anónimo"}
               {m.created_at ? " · " : ""}
-              {m.created_at
-                ? new Date(m.created_at).toLocaleString("es-ES")
-                : ""}
+              {m.created_at ? formatMadridDate(m.created_at) : ""}
             </p>
             <p className="text-sm whitespace-pre-line">
               {typeof m.clean_content === "string"
