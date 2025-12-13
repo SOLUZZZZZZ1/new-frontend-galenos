@@ -1,4 +1,3 @@
-// src/components/HiloPanel.jsx
 import React, { useEffect, useState } from "react";
 import RespuestaInput from "./RespuestaInput";
 
@@ -12,45 +11,58 @@ export default function HiloPanel({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  useEffect(() => {
+  async function loadMessages() {
     if (!selectedCaseId) return;
+    try {
+      setLoading(true);
+      setError("");
 
-    const loadMessages = async () => {
-      try {
-        setLoading(true);
-        setError("");
+      const res = await fetch(
+        `${apiBase}/guard/cases/${selectedCaseId}/messages`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
-        const res = await fetch(
-          `${apiBase}/guard/cases/${selectedCaseId}/messages`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
+      const raw = await res.text();
+      console.log("👉 [DeGuardia] GET /messages raw:", raw);
 
-        const data = await res.json();
-        setMessages(data.items || []);
-      } catch (err) {
-        console.error(err);
+      if (!res.ok) {
         setError("Error cargando mensajes");
-      } finally {
-        setLoading(false);
+        return;
       }
-    };
 
+      const data = JSON.parse(raw);
+      setMessages(data.items || []);
+    } catch (err) {
+      console.error(err);
+      setError("Error cargando mensajes");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
     loadMessages();
-  }, [selectedCaseId, apiBase, token]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCaseId]);
 
   async function handleSendMessage(text) {
-    if (!text || !text.trim()) return;
+    setError("");
+
+    const content = (text || "").trim();
+    if (!content) return;
+
+    const payload = {
+      author_alias: currentAlias || "loquito",
+      content,
+    };
+
+    console.log("👉 [DeGuardia] POST payload:", payload);
 
     try {
-      const payload = {
-        content: text,                          // 👈 STRING
-        author_alias: currentAlias || "loquito" // 👈 ALIAS CORRECTO
-      };
-
       const res = await fetch(
         `${apiBase}/guard/cases/${selectedCaseId}/messages`,
         {
@@ -63,11 +75,15 @@ export default function HiloPanel({
         }
       );
 
+      const raw = await res.text();
+      console.log("👉 [DeGuardia] POST /messages raw:", raw);
+
       if (!res.ok) {
-        throw new Error("Error enviando mensaje");
+        setError("No se pudo enviar el mensaje");
+        return;
       }
 
-      const newMsg = await res.json();
+      const newMsg = JSON.parse(raw);
       setMessages((prev) => [...prev, newMsg]);
     } catch (err) {
       console.error(err);
@@ -78,7 +94,7 @@ export default function HiloPanel({
   if (!selectedCaseId) {
     return (
       <p className="text-sm text-gray-500">
-        Selecciona una consulta para ver el hilo.
+        Selecciona una consulta de la cartelera para ver el caso clínico y el hilo.
       </p>
     );
   }
@@ -90,16 +106,12 @@ export default function HiloPanel({
         {error && <p className="text-sm text-red-500">{error}</p>}
 
         {messages.map((m) => (
-          <div
-            key={m.id}
-            className="border rounded p-2 bg-white shadow-sm"
-          >
+          <div key={m.id} className="border rounded p-2 bg-white shadow-sm">
             <p className="text-xs text-gray-500 mb-1">
-              {m.author_alias || "anónimo"}
+              {m.author_alias || "anónimo"} ·{" "}
+              {m.created_at ? new Date(m.created_at).toLocaleString("es-ES") : ""}
             </p>
-            <p className="text-sm whitespace-pre-line">
-              {m.clean_content}
-            </p>
+            <p className="text-sm whitespace-pre-line">{m.clean_content}</p>
           </div>
         ))}
       </div>
