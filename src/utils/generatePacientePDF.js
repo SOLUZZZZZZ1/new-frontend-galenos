@@ -48,7 +48,7 @@ async function fetchAsDataUrl(url) {
 }
 
 async function addGalenosLogo(doc) {
-  // Logo corporativo en cabecera (cargado desde /public). No bloquea el PDF si falla.
+  // Logo corporativo en cabecera (cargado desde /public).
   try {
     const dataUrl = await fetchAsDataUrl(GALENOS_LOGO_URL);
 
@@ -60,9 +60,58 @@ async function addGalenosLogo(doc) {
 
     doc.addImage(dataUrl, "PNG", x, y, size, size);
   } catch {
-    // no-op
+    // Si falla el logo, no bloqueamos el PDF.
   }
 }
+function addCoverPage(doc, patient) {
+  // Portada clínica (FASE 2) — no rompe el resto del PDF
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const marginX = 60;
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(22);
+  doc.text("INFORME DE EVOLUCIÓN CLÍNICA", pageW / 2, 170, { align: "center" });
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(12);
+  doc.text("Galenos.pro — Resumen longitudinal y comparativas", pageW / 2, 195, { align: "center" });
+
+  // Línea separadora
+  doc.setDrawColor(200);
+  doc.setLineWidth(1);
+  doc.line(marginX, 225, pageW - marginX, 225);
+
+  // Datos del paciente
+  const alias = patient?.alias ? String(patient.alias) : "—";
+  const pn = patient?.patient_number != null ? String(patient.patient_number) : "—";
+  const pid = patient?.id != null ? String(patient.id) : "—";
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(14);
+  doc.text("Datos del paciente", marginX, 270);
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(12);
+  doc.text(`Paciente: ${alias}`, marginX, 300);
+  doc.text(`Nº paciente: ${pn}`, marginX, 322);
+  doc.text(`ID interno: ${pid}`, marginX, 344);
+  doc.text(`Fecha de generación: ${nowMadridString()}`, marginX, 366);
+
+  // Aviso legal breve
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  const disclaimer =
+    "Documento de apoyo a la deliberación clínica. No diagnostica ni prescribe. La decisión final corresponde al médico responsable.";
+  const wrap = doc.splitTextToSize(disclaimer, pageW - marginX * 2);
+  doc.text(wrap, marginX, pageH - 110);
+
+  // Pie
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.text("© Galenos.pro", marginX, pageH - 60);
+}
+
 
 function pickLatestAnalytic(analyticsArr) {
   if (!Array.isArray(analyticsArr) || analyticsArr.length === 0) return null;
@@ -267,7 +316,7 @@ function renderObjectiveSummarySection(doc, summaryObj, { marginX, y }) {
 }
 
 // ========================
-// PDF V1.6 — Resumen global objetivo + leyenda
+// PDF V1.6 — Resumen global objetivo + leyenda (A)
 // ========================
 
 function computeGlobalObjectiveSummary(compareObj, stablePct = 2) {
@@ -330,19 +379,17 @@ function renderLegend(doc, marginX, y) {
 }
 
 // ========================
-// PDF V1.6 — Generador (descargar + compartir)
+// PDF V1 — (IA + comparativa + notas)
 // ========================
 
-export async function generatePacientePDFV1({
-  patient,
-  compare,
-  analytics,
-  notes,
-  mode = "download",
-}) {
+export async function generatePacientePDFV1({ patient, compare, analytics, notes }) {
   const doc = new jsPDF({ orientation: "p", unit: "pt", format: "a4" });
 
-  // Logo corporativo (no bloqueante)
+  // Portada clínica (FASE 2)
+  addCoverPage(doc, patient);
+  doc.addPage();
+
+  // Logo corporativo (no bloqueante) en la primera página de contenido
   await addGalenosLogo(doc);
 
   const marginX = 40;
@@ -534,11 +581,5 @@ export async function generatePacientePDFV1({
   const fileName = `Galenos_${safeText(patient?.alias || "paciente")}_comparativa.pdf`
     .replace(/[^a-zA-Z0-9._-]+/g, "_");
 
-  const blob = doc.output("blob");
-
-  if (mode !== "share") {
-    doc.save(fileName);
-  }
-
-  return { blob, fileName };
+  doc.save(fileName);
 }
