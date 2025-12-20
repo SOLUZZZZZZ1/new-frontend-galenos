@@ -89,6 +89,141 @@ function buildCompareTable(compareObj) {
 }
 
 // ========================
+// PDF V1.5 (Resumen determinista)
+// ========================
+
+function pickMostRecentPastKey(row) {
+  // Preferimos el periodo más reciente disponible (6m > 12m > 18m > 24m)
+  const order = ["6m", "12m", "18m", "24m"];
+  for (const k of order) {
+    if (row && row[k] != null && row[k] !== "") return k;
+  }
+  return null;
+}
+
+function formatPct(p) {
+  if (p == null || Number.isNaN(p)) return "";
+  const s = p >= 0 ? "+" : "";
+  return `${s}${p.toFixed(1)}%`;
+}
+
+function buildObjectiveDeltaSummary(compareObj, opts = {}) {
+  const markersObj = compareObj?.markers || {};
+  const stablePct = Number.isFinite(opts.stablePct) ? opts.stablePct : 2; // umbral por defecto ±2%
+
+  const items = [];
+
+  for (const [name, row] of Object.entries(markersObj)) {
+    const baseline = row?.baseline;
+    const pastKey = pickMostRecentPastKey(row);
+    if (baseline == null || pastKey == null) continue;
+
+    const past = row?.[pastKey];
+    const pct = past == null || Number(past) === 0 ? null : ((baseline - past) / past) * 100;
+    const absPct = pct == null ? null : Math.abs(pct);
+
+    // Clasificación: preferimos el símbolo de trend si existe (más “semántico” que el signo)
+    const tr = row?.trend || {};
+    const sym = safeText(tr[pastKey] || "");
+    let cls = "stable";
+    if (absPct != null && absPct >= stablePct) {
+      if (sym.includes("↑")) cls = "improve";
+      else if (sym.includes("↓")) cls = "worsen";
+      else cls = (baseline - past) >= 0 ? "improve" : "worsen";
+    }
+
+    items.push({
+      name: safeText(name),
+      pastKey,
+      baseline: Number(baseline),
+      past: Number(past),
+      delta: Number(baseline) - Number(past),
+      pct,
+      absPct: absPct ?? 0,
+      cls,
+    });
+  }
+
+  const improve = items.filter((x) => x.cls === "improve").sort((a, b) => b.absPct - a.absPct);
+  const worsen = items.filter((x) => x.cls === "worsen").sort((a, b) => b.absPct - a.absPct);
+  const stable = items.filter((x) => x.cls === "stable");
+
+  const avgPct =
+    items.length === 0
+      ? null
+      : items
+          .map((x) => x.pct)
+          .filter((v) => v != null && !Number.isNaN(v))
+          .reduce((acc, v) => acc + v, 0) /
+        Math.max(1, items.filter((x) => x.pct != null && !Number.isNaN(x.pct)).length);
+
+  return {
+    counts: { improve: improve.length, worsen: worsen.length, stable: stable.length, total: items.length },
+    topImprove: improve.slice(0, 3),
+    topWorsen: worsen.slice(0, 3),
+    avgPct: Number.isFinite(avgPct) ? avgPct : null,
+    stablePct,
+    hasData: items.length > 0,
+  };
+}
+
+function renderObjectiveSummarySection(doc, summaryObj, { marginX, y, wrapW }) {
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  doc.text("Resumen objetivo de evolución (determinista)", marginX, y);
+  y += 14;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+
+  if (!summaryObj?.hasData) {
+    doc.text("—", marginX, y);
+    return y + 16;
+  }
+
+  const c = summaryObj.counts || {};
+  const lines = [
+    `Marcadores evaluados: ${c.total ?? 0}`,
+    `• Mejoran: ${c.improve ?? 0}`,
+    `• Empeoran: ${c.worsen ?? 0}`,
+    `• Estables (±${summaryObj.stablePct}%): ${c.stable ?? 0}`,
+  ];
+
+  if (summaryObj.avgPct != null) {
+    lines.push(`Variación media (orientativa): ${formatPct(summaryObj.avgPct)}`);
+  }
+
+  doc.text(lines, marginX, y);
+  y += lines.length * 12 + 10;
+
+  const fmtItem = (it) =>
+    `- ${safeText(it.name)} (${safeText(it.pastKey)} → actual): ${formatPct(it.pct)}`;
+
+  if (summaryObj.topImprove?.length) {
+    doc.setFont("helvetica", "bold");
+    doc.text("Mejoras destacadas", marginX, y);
+    y += 12;
+    doc.setFont("helvetica", "normal");
+    const l = summaryObj.topImprove.map(fmtItem);
+    doc.text(l, marginX, y);
+    y += l.length * 12 + 10;
+  }
+
+  if (summaryObj.topWorsen?.length) {
+    doc.setFont("helvetica", "bold");
+    doc.text("Empeoramientos destacados", marginX, y);
+    y += 12;
+    doc.setFont("helvetica", "normal");
+    const l = summaryObj.topWorsen.map(fmtItem);
+    doc.text(l, marginX, y);
+    y += l.length * 12 + 10;
+  }
+
+  return y;
+}
+
+
+// ========================
 // PDF V1 (AJUSTE A incluido)
 // ========================
 
@@ -157,6 +292,18 @@ export function generatePacientePDFV1({ patient, compare, analytics, notes }) {
     doc.text(lines, marginX, y);
     y += lines.length * 12 + 10;
   }
+
+
+  // Resumen objetivo (V1.5) — determinista, sin IA
+  const objSummary = buildObjectiveDeltaSummary(compare, { stablePct: 2 });
+  y = renderObjectiveSummarySection(doc, objSummary, { marginX, y, wrapW });
+
+  // Salto de página si nos quedamos sin espacio
+  if (y > 720) {
+    doc.addPage();
+    y = 60;
+  }
+
 
   // Comparativa (AJUSTE A)
   doc.setFont("helvetica", "bold");
