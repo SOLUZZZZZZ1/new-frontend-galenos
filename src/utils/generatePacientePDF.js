@@ -88,6 +88,59 @@ function buildCompareTable(compareObj) {
   return { head, body };
 }
 
+
+// ========================
+// PDF V1.6 — Resumen global objetivo (conteo)
+// ========================
+function computeGlobalObjectiveSummary(compareObj, stablePct = 2) {
+  const markersObj = compareObj?.markers || {};
+  let improve = 0, worsen = 0, stable = 0;
+
+  for (const row of Object.values(markersObj)) {
+    const baseline = row?.baseline;
+    if (baseline == null) continue;
+
+    const keys = ["6m","12m","18m","24m"];
+    let past = null;
+    for (const k of keys) {
+      if (row[k] != null) { past = row[k]; break; }
+    }
+    if (past == null || Number(past) === 0) continue;
+
+    const pct = ((baseline - past) / past) * 100;
+    if (Math.abs(pct) < stablePct) stable++;
+    else if (pct > 0) improve++;
+    else worsen++;
+  }
+
+  return { improve, worsen, stable, total: improve + worsen + stable };
+}
+
+function renderGlobalObjectiveSummary(doc, summary, marginX, y) {
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  doc.text("Resumen de evolución (objetivo)", marginX, y);
+  y += 14;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.text([
+    `• Marcadores que mejoran: ${summary.improve}`,
+    `• Marcadores que empeoran: ${summary.worsen}`,
+    `• Sin cambios relevantes: ${summary.stable}`,
+  ], marginX, y);
+
+  y += 46;
+  return y;
+}
+
+function renderLegend(doc, marginX, y) {
+  doc.setFontSize(9);
+  doc.text("🟢 Mejora     🔴 Empeora     ⬜ Sin cambios", marginX, y);
+  return y + 14;
+}
+
+
 // ========================
 // PDF V1 (AJUSTE A incluido)
 // ========================
@@ -116,7 +169,11 @@ export function generatePacientePDFV1({ patient, compare, analytics, notes }) {
   );
   y += 14;
 
-  doc.text(`Generado: ${nowMadridString()}`, marginX, y);
+  const globalSummary = computeGlobalObjectiveSummary(compare, 2);
+y = renderGlobalObjectiveSummary(doc, globalSummary, marginX, y);
+y = renderLegend(doc, marginX, y);
+
+doc.text(`Generado: ${nowMadridString()}`, marginX, y);
   y += 18;
 
   // Resumen IA (última analítica)
