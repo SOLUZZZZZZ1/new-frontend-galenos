@@ -90,30 +90,41 @@ function buildCompareTable(compareObj) {
 
 
 // ========================
-// PDF V1.6 — Resumen global objetivo (conteo)
+// PDF V1.6 — Resumen global objetivo + leyenda
 // ========================
 function computeGlobalObjectiveSummary(compareObj, stablePct = 2) {
   const markersObj = compareObj?.markers || {};
-  let improve = 0, worsen = 0, stable = 0;
+  let improve = 0,
+    worsen = 0,
+    stable = 0;
 
   for (const row of Object.values(markersObj)) {
     const baseline = row?.baseline;
     if (baseline == null) continue;
 
-    const keys = ["6m","12m","18m","24m"];
+    // Usamos el pasado más reciente disponible (6m > 12m > 18m > 24m)
+    const order = ["6m", "12m", "18m", "24m"];
     let past = null;
-    for (const k of keys) {
-      if (row[k] != null) { past = row[k]; break; }
+    for (const k of order) {
+      if (row?.[k] != null && row?.[k] !== "") {
+        past = row[k];
+        break;
+      }
     }
-    if (past == null || Number(past) === 0) continue;
+    if (past == null) continue;
 
-    const pct = ((baseline - past) / past) * 100;
+    const p = Number(past);
+    const b = Number(baseline);
+    if (!Number.isFinite(p) || !Number.isFinite(b) || p === 0) continue;
+
+    const pct = ((b - p) / p) * 100;
+
     if (Math.abs(pct) < stablePct) stable++;
     else if (pct > 0) improve++;
     else worsen++;
   }
 
-  return { improve, worsen, stable, total: improve + worsen + stable };
+  return { improve, worsen, stable, total: improve + worsen + stable, stablePct };
 }
 
 function renderGlobalObjectiveSummary(doc, summary, marginX, y) {
@@ -124,20 +135,22 @@ function renderGlobalObjectiveSummary(doc, summary, marginX, y) {
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
-  doc.text([
+  const lines = [
+    `• Marcadores evaluados: ${summary.total}`,
     `• Marcadores que mejoran: ${summary.improve}`,
     `• Marcadores que empeoran: ${summary.worsen}`,
-    `• Sin cambios relevantes: ${summary.stable}`,
-  ], marginX, y);
-
-  y += 46;
+    `• Sin cambios relevantes (±${summary.stablePct}%): ${summary.stable}`,
+  ];
+  doc.text(lines, marginX, y);
+  y += lines.length * 12 + 10;
   return y;
 }
 
 function renderLegend(doc, marginX, y) {
+  doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   doc.text("🟢 Mejora     🔴 Empeora     ⬜ Sin cambios", marginX, y);
-  return y + 14;
+  return y + 12;
 }
 
 
@@ -169,12 +182,14 @@ export function generatePacientePDFV1({ patient, compare, analytics, notes }) {
   );
   y += 14;
 
-  const globalSummary = computeGlobalObjectiveSummary(compare, 2);
-y = renderGlobalObjectiveSummary(doc, globalSummary, marginX, y);
-y = renderLegend(doc, marginX, y);
-
-doc.text(`Generado: ${nowMadridString()}`, marginX, y);
+  doc.text(`Generado: ${nowMadridString()}`, marginX, y);
   y += 18;
+
+
+  // Resumen global objetivo + leyenda (V1.6)
+  const globalSummary = computeGlobalObjectiveSummary(compare, 2);
+  y = renderGlobalObjectiveSummary(doc, globalSummary, marginX, y);
+  y = renderLegend(doc, marginX, y);
 
   // Resumen IA (última analítica)
   const lastA = pickLatestAnalytic(analytics);
