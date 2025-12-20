@@ -1,9 +1,42 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
+
+const GALENOS_LOGO_URL = "/galenos-logo.png";
 // ========================
 // Utilidades
 // ========================
+
+async function fetchAsDataUrl(url) {
+  // Carga una imagen del /public (Vite) y la convierte a dataURL para jsPDF.
+  // Mantiene este archivo ligero (sin base64 embebido).
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) throw new Error(`No se pudo cargar logo: ${res.status}`);
+  const blob = await res.blob();
+  return await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function addGalenosLogo(doc) {
+  // Logo corporativo en cabecera (cargado desde /public).
+  try {
+    const dataUrl = await fetchAsDataUrl(GALENOS_LOGO_URL);
+    const pageW = doc.internal.pageSize.getWidth();
+    const margin = 40;
+    const size = 44; // pt
+    const x = pageW - margin - size;
+    const y = 28;
+    doc.addImage(dataUrl, "PNG", x, y, size, size);
+  } catch (e) {
+    // Si falla el logo, no bloqueamos el PDF.
+  }
+}
+}
+
 
 function nowMadridString() {
   try {
@@ -88,13 +121,74 @@ function buildCompareTable(compareObj) {
   return { head, body };
 }
 
+
+// ========================
+// PDF V1.6 — Resumen global objetivo + leyenda
+// ========================
+function computeGlobalObjectiveSummary(compareObj, stablePct = 2) {
+  const markersObj = compareObj?.markers || {};
+  let improve = 0, worsen = 0, stable = 0;
+
+  for (const row of Object.values(markersObj)) {
+    const baseline = row?.baseline;
+    if (baseline == null) continue;
+
+    const order = ["6m", "12m", "18m", "24m"];
+    let past = null;
+    for (const k of order) {
+      if (row?.[k] != null && row?.[k] !== "") { past = row[k]; break; }
+    }
+    if (past == null) continue;
+
+    const p = Number(past);
+    const b = Number(baseline);
+    if (!Number.isFinite(p) || !Number.isFinite(b) || p === 0) continue;
+
+    const pct = ((b - p) / p) * 100;
+    if (Math.abs(pct) < stablePct) stable++;
+    else if (pct > 0) improve++;
+    else worsen++;
+  }
+
+  return { improve, worsen, stable, total: improve + worsen + stable, stablePct };
+}
+
+function renderGlobalObjectiveSummary(doc, summary, marginX, y) {
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  doc.text("Resumen de evolución (objetivo)", marginX, y);
+  y += 14;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  const lines = [
+    `• Marcadores evaluados: ${summary.total}`,
+    `• Marcadores que mejoran: ${summary.improve}`,
+    `• Marcadores que empeoran: ${summary.worsen}`,
+    `• Sin cambios relevantes (±${summary.stablePct}%): ${summary.stable}`,
+  ];
+  doc.text(lines, marginX, y);
+  y += lines.length * 12 + 8;
+  return y;
+}
+
+function renderLegend(doc, marginX, y) {
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.text("Mejora     Empeora     Sin cambios", marginX, y);
+return y + 14;
+}
+
+
 // ========================
 // PDF V1 (AJUSTE A incluido)
 // ========================
 
-export function generatePacientePDFV1({ patient, compare, analytics, notes }) {
+export async function generatePacientePDFV1({ patient, compare, analytics, notes }) {
   const doc = new jsPDF({ orientation: "p", unit: "pt", format: "a4" });
 
+
+  await addGalenosLogo(doc);
   const marginX = 40;
   let y = 48;
   const wrapW = 515;
@@ -118,6 +212,12 @@ export function generatePacientePDFV1({ patient, compare, analytics, notes }) {
 
   doc.text(`Generado: ${nowMadridString()}`, marginX, y);
   y += 18;
+
+
+  // Resumen global objetivo + leyenda (V1.6)
+  const globalSummary = computeGlobalObjectiveSummary(compare, 2);
+  y = renderGlobalObjectiveSummary(doc, globalSummary, marginX, y);
+  y = renderLegend(doc, marginX, y);
 
   // Resumen IA (última analítica)
   const lastA = pickLatestAnalytic(analytics);
@@ -182,6 +282,33 @@ export function generatePacientePDFV1({ patient, compare, analytics, notes }) {
         overflow: "linebreak",
       },
       headStyles: { fontStyle: "bold" },
+      didParseCell: function (data) {
+        // Colores por DELTA numérico (robusto): tolera basura tipográfica dentro del paréntesis.
+        // Ejemplos en el PDF: (” +3.30), (” -1.70), ( +0.10 )
+        try {
+          if (data.section === "body" && data.column && data.column.index >= 2) {
+            const raw = data.cell && data.cell.text != null ? data.cell.text : "";
+            const txt = Array.isArray(raw) ? raw.join(" ") : String(raw);
+
+            // Captura el número permitiendo caracteres no numéricos tras el "("
+            const m = txt.match(/\(\s*[^0-9+\-]*([+\-]?\d+(?:\.\d+)?)\s*\)/);
+            if (!m) return;
+
+            const delta = parseFloat(m[1]);
+            if (Number.isNaN(delta)) return;
+
+            if (delta > 0) {
+              data.cell.styles.textColor = [0, 128, 0];       // verde
+              data.cell.styles.fillColor = [232, 245, 233];   // fondo verde suave
+            } else if (delta < 0) {
+              data.cell.styles.textColor = [200, 0, 0];       // rojo
+              data.cell.styles.fillColor = [255, 235, 238];   // fondo rojo suave
+            }
+          }
+        } catch (e) {
+          // no-op
+        }
+      },
       margin: { left: marginX, right: marginX },
     });
 
@@ -245,12 +372,5 @@ export function generatePacientePDFV1({ patient, compare, analytics, notes }) {
   const fileName = `Galenos_${safeText(patient?.alias || "paciente")}_comparativa.pdf`
     .replace(/[^a-zA-Z0-9._-]+/g, "_");
 
-  const blob = doc.output("blob");
-
-if (mode === "share") {
-  return { blob, fileName };
-}
-
-doc.save(fileName);
-return { blob, fileName };
+  doc.save(fileName);
 }
