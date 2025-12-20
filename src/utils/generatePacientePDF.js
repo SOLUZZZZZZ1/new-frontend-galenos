@@ -86,6 +86,15 @@ function topNotes(notesArr, n = 3) {
   return sorted.slice(0, n);
 }
 
+function pickMostRecentPastKey(row) {
+  // Preferimos el periodo más reciente disponible (6m > 12m > 18m > 24m)
+  const order = ["6m", "12m", "18m", "24m"];
+  for (const k of order) {
+    if (row && row[k] != null && row[k] !== "") return k;
+  }
+  return null;
+}
+
 function buildCompareTable(compareObj) {
   const markersObj = compareObj?.markers || {};
 
@@ -128,15 +137,6 @@ function buildCompareTable(compareObj) {
 // PDF V1.5 — Resumen determinista (top deltas)
 // ========================
 
-function pickMostRecentPastKey(row) {
-  // Preferimos el periodo más reciente disponible (6m > 12m > 18m > 24m)
-  const order = ["6m", "12m", "18m", "24m"];
-  for (const k of order) {
-    if (row && row[k] != null && row[k] !== "") return k;
-  }
-  return null;
-}
-
 function formatPct(p) {
   if (p == null || Number.isNaN(p)) return "";
   const s = p >= 0 ? "+" : "";
@@ -162,7 +162,6 @@ function buildObjectiveDeltaSummary(compareObj, opts = {}) {
     const pct = ((bNum - pNum) / pNum) * 100;
     const absPct = Math.abs(pct);
 
-    // Clasificación (si hay símbolos, los respetamos; si no, por signo)
     const tr = row?.trend || {};
     const sym = safeText(tr[pastKey] || "");
     let cls = "stable";
@@ -210,7 +209,7 @@ function buildObjectiveDeltaSummary(compareObj, opts = {}) {
   };
 }
 
-function renderObjectiveSummarySection(doc, summaryObj, { marginX, y }) {
+function renderObjectiveSummarySection(doc, summaryObj, { marginX, y, wrapW }) {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(12);
   doc.text("Resumen objetivo de evolución (determinista)", marginX, y);
@@ -239,9 +238,7 @@ function renderObjectiveSummarySection(doc, summaryObj, { marginX, y }) {
   y += lines.length * 12 + 10;
 
   const fmtItem = (it) =>
-    `- ${safeText(it.name)} (${safeText(it.pastKey)} → actual): ${formatPct(
-      it.pct
-    )}`;
+    `- ${safeText(it.name)} (${safeText(it.pastKey)} → actual): ${formatPct(it.pct)}`;
 
   if (summaryObj.topImprove?.length) {
     doc.setFont("helvetica", "bold");
@@ -267,7 +264,7 @@ function renderObjectiveSummarySection(doc, summaryObj, { marginX, y }) {
 }
 
 // ========================
-// PDF V1.6 — Resumen global objetivo + leyenda
+// PDF V1.6 — Resumen global objetivo + leyenda (A)
 // ========================
 
 function computeGlobalObjectiveSummary(compareObj, stablePct = 2) {
@@ -330,16 +327,240 @@ function renderLegend(doc, marginX, y) {
 }
 
 // ========================
-// PDF V1.6 — Generador (descargar + compartir)
+// PDF V2 — Resumen longitudinal (automático, determinista)
 // ========================
 
-export async function generatePacientePDFV1({
-  patient,
-  compare,
-  analytics,
-  notes,
-  mode = "download",
-}) {
+function domainForMarkerName(nameRaw) {
+  const n = safeText(nameRaw).toLowerCase();
+  const hasAny = (arr) => arr.some((k) => n.includes(k));
+
+  if (
+    hasAny([
+      "creatinina",
+      "urea",
+      "filtrat",
+      "filtrado",
+      "aclarament",
+      "aclaramiento",
+      "protein",
+      "albumin",
+      "quocient",
+      "cocient",
+      "cociente",
+    ])
+  ) {
+    return "renal";
+  }
+  if (hasAny(["colesterol", "ldl", "hdl", "triglic"])) return "lipidos";
+  if (hasAny(["glucosa", "glicada", "hba1c", "hemoglobina glicada"]))
+    return "glucosa";
+  if (hasAny(["c reactiva", "pcr", "proteïna c", "proteina c"]))
+    return "inflamacion";
+  if (
+    hasAny([
+      "ph",
+      "bicarbon",
+      "co2",
+      "exces de base",
+      "excés de base",
+      "pressió parcial",
+      "presion parcial",
+    ])
+  ) {
+    return "acido_base";
+  }
+  if (
+    hasAny([
+      "hemoglob",
+      "hemat",
+      "leuc",
+      "plaquet",
+      "neutr",
+      "limf",
+      "reticul",
+      "monoc",
+      "eosin",
+      "baso",
+    ])
+  ) {
+    return "hematologia";
+  }
+  if (
+    hasAny([
+      "vitamina d",
+      "pth",
+      "parathormona",
+      "calci",
+      "calcio",
+      "fòsfor",
+      "fosfor",
+    ])
+  ) {
+    return "mineral_oseo";
+  }
+  if (
+    hasAny([
+      "ferritina",
+      "ferro",
+      "hierro",
+      "transferrina",
+      "saturació",
+      "saturacion",
+    ])
+  ) {
+    return "hierro";
+  }
+  return "otros";
+}
+
+function prettyDomain(domainKey) {
+  switch (domainKey) {
+    case "renal":
+      return "función renal";
+    case "lipidos":
+      return "perfil lipídico";
+    case "glucosa":
+      return "glucosa / HbA1c";
+    case "inflamacion":
+      return "inflamación";
+    case "acido_base":
+      return "equilibrio ácido–base / respiratorio";
+    case "hematologia":
+      return "hemograma";
+    case "mineral_oseo":
+      return "metabolismo mineral–óseo";
+    case "hierro":
+      return "metabolismo del hierro";
+    default:
+      return "otros marcadores";
+  }
+}
+
+function buildLongitudinalSummaryV2(compareObj, { stablePct = 2 } = {}) {
+  const markersObj = compareObj?.markers || {};
+
+  const domainStats = new Map(); // domain -> {improve,worsen,stable,total}
+  const add = (domain, cls) => {
+    const cur =
+      domainStats.get(domain) || { improve: 0, worsen: 0, stable: 0, total: 0 };
+    cur.total += 1;
+    cur[cls] += 1;
+    domainStats.set(domain, cur);
+  };
+
+  for (const [name, row] of Object.entries(markersObj)) {
+    const baseline = row?.baseline;
+    if (baseline == null) continue;
+
+    const pastKey = pickMostRecentPastKey(row);
+    if (!pastKey) continue;
+
+    const past = row?.[pastKey];
+    const p = Number(past);
+    const b = Number(baseline);
+    if (!Number.isFinite(p) || !Number.isFinite(b) || p === 0) continue;
+
+    const pct = ((b - p) / p) * 100;
+    let cls = "stable";
+    if (Math.abs(pct) >= stablePct) cls = pct > 0 ? "improve" : "worsen";
+
+    add(domainForMarkerName(name), cls);
+  }
+
+  const scored = Array.from(domainStats.entries())
+    .map(([domain, s]) => {
+      const change = s.improve + s.worsen;
+      const balance = s.worsen - s.improve; // + => peor
+      const score = change * 10 + s.total;
+      return { domain, s, balance, score };
+    })
+    .sort((a, b) => b.score - a.score);
+
+  const top = scored.slice(0, 3);
+
+  const global = scored.reduce(
+    (acc, d) => {
+      acc.improve += d.s.improve;
+      acc.worsen += d.s.worsen;
+      acc.stable += d.s.stable;
+      acc.total += d.s.total;
+      return acc;
+    },
+    { improve: 0, worsen: 0, stable: 0, total: 0 }
+  );
+
+  let globalTrend = "mixta";
+  if (global.total > 0) {
+    if (global.improve > global.worsen + 2) globalTrend = "favorable";
+    else if (global.worsen > global.improve + 2) globalTrend = "desfavorable";
+  }
+
+  // IMPORTANTE: texto 100% ASCII (sin flechas) para evitar símbolos raros
+  const lines = [];
+  lines.push(
+    `Tendencia global: ${globalTrend} (mejoran ${global.improve}, empeoran ${global.worsen}, estables ${global.stable}).`
+  );
+
+  if (top.length > 0) {
+    const parts = top.map(({ domain, s, balance }) => {
+      let tag = "estable";
+      if (balance >= 2) tag = "desfavorable";
+      else if (balance <= -2) tag = "favorable";
+      return `${prettyDomain(domain)}: ${tag} (+${s.improve} -${s.worsen} =${s.stable})`;
+    });
+    lines.push(`Dominios principales: ${parts.join(" | ")}.`);
+  }
+
+  if (globalTrend === "desfavorable") {
+    lines.push(
+      "Seguimiento clínico continuado y revisión de los dominios con tendencia desfavorable."
+    );
+  } else if (globalTrend === "favorable") {
+    lines.push(
+      "La evolución global sugiere mejoría en varios dominios; mantener seguimiento según criterio clínico."
+    );
+  } else {
+    lines.push(
+      "La evolución global es mixta; mantener seguimiento y contextualizar con clínica y antecedentes."
+    );
+  }
+
+  lines.push(
+    "Nota: Resumen automático basado en variaciones de marcadores. No diagnostica ni prescribe."
+  );
+
+  return lines;
+}
+
+function renderLongitudinalSummaryV2(doc, lines, { marginX, y, wrapW }) {
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  doc.text("Resumen longitudinal (automático) — V2", marginX, y);
+  y += 14;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+
+  // Render por líneas, con wrap y salto de página si hace falta
+  for (const part of lines) {
+    const wrapped = doc.splitTextToSize(String(part), wrapW);
+    doc.text(wrapped, marginX, y);
+    y += wrapped.length * 12 + 6;
+
+    if (y > 740) {
+      doc.addPage();
+      y = 60;
+    }
+  }
+
+  return y + 4;
+}
+
+// ========================
+// PDF V1 — (IA + comparativa + notas)
+// ========================
+
+export async function generatePacientePDFV1({ patient, compare, analytics, notes }) {
   const doc = new jsPDF({ orientation: "p", unit: "pt", format: "a4" });
 
   // Logo corporativo (no bloqueante)
@@ -373,6 +594,15 @@ export async function generatePacientePDFV1({
   const globalSummary = computeGlobalObjectiveSummary(compare, 2);
   y = renderGlobalObjectiveSummary(doc, globalSummary, marginX, y);
   y = renderLegend(doc, marginX, y);
+
+  // V2 longitudinal (determinista)
+  const v2Lines = buildLongitudinalSummaryV2(compare, { stablePct: 2 });
+  y = renderLongitudinalSummaryV2(doc, v2Lines, { marginX, y, wrapW });
+
+  if (y > 720) {
+    doc.addPage();
+    y = 60;
+  }
 
   // Resumen IA (última analítica)
   const lastA = pickLatestAnalytic(analytics);
@@ -534,11 +764,5 @@ export async function generatePacientePDFV1({
   const fileName = `Galenos_${safeText(patient?.alias || "paciente")}_comparativa.pdf`
     .replace(/[^a-zA-Z0-9._-]+/g, "_");
 
-  const blob = doc.output("blob");
-
-  if (mode !== "share") {
-    doc.save(fileName);
-  }
-
-  return { blob, fileName };
+  doc.save(fileName);
 }
