@@ -175,7 +175,7 @@ function renderGlobalObjectiveSummary(doc, summary, marginX, y) {
 function renderLegend(doc, marginX, y) {
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
-  doc.text("Mejora     Empeora     Sin cambios", marginX, y);
+  doc.text("Mejora | Empeora | Sin cambios", marginX, y);
 return y + 14;
 }
 
