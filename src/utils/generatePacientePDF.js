@@ -246,11 +246,8 @@ export function generatePacientePDFV1({ patient, compare, analytics, notes }) {
     .replace(/[^a-zA-Z0-9._-]+/g, "_");
 
   const blob = doc.output("blob");
-
-if (mode === "share") {
-  return { blob, fileName };
+if (mode !== "share") {
+  doc.save(fileName);
 }
-
-doc.save(fileName);
 return { blob, fileName };
 }
