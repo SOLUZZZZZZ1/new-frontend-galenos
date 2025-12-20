@@ -1,248 +1,208 @@
-
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import RespuestaInput from "./RespuestaInput";
 import MensajesList from "./MensajesList.jsx";
-import RespuestaInput from "./RespuestaInput.jsx";
 
-/**
- * Panel derecho: detalles del caso + hilo de mensajes.
- */
-export default function HiloPanel({ selectedCaseId, apiBase, token, currentAlias }) {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [caseData, setCaseData] = useState(null);
+export default function HiloPanel({ selectedCaseId, apiBase, token }) {
   const [messages, setMessages] = useState([]);
-  const [loadingSummary, setLoadingSummary] = useState(false);
-  const [iaSummary, setIaSummary] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState("");
+
+  const bottomRef = useRef(null);
+
+  const currentAlias = useMemo(() => {
+    return localStorage.getItem("galenos_guard_alias") || "";
+  }, []);
+
+  const caseAuthorAlias = useMemo(() => {
+    if (!messages || messages.length === 0) return "";
+    const first = messages[0]?.author_alias || "";
+    if (first === "anónimo" && currentAlias) return currentAlias;
+    return first;
+  }, [messages, currentAlias]);
+
+  const viewerIsCaseAuthor =
+    Boolean(currentAlias) && Boolean(caseAuthorAlias) && currentAlias === caseAuthorAlias;
+
+  const highlightKey = useMemo(() => {
+    return selectedCaseId ? `galenos_guard_highlight_${selectedCaseId}` : "";
+  }, [selectedCaseId]);
+
+  const highlightedMessageId = useMemo(() => {
+    if (!highlightKey) return null;
+    const v = localStorage.getItem(highlightKey);
+    const n = v ? Number(v) : null;
+    return n && !Number.isNaN(n) ? n : null;
+  }, [highlightKey, messages.length]);
+
+  function scrollToBottom(smooth = true) {
+    if (!bottomRef.current) return;
+    try {
+      bottomRef.current.scrollIntoView({
+        behavior: smooth ? "smooth" : "auto",
+        block: "end",
+      });
+    } catch {}
+  }
+
+  async function loadMessages() {
+    if (!selectedCaseId || !token) return;
+
+    try {
+      setLoading(true);
+      setError("");
+
+      const res = await fetch(
+        `${apiBase}/guard/cases/${selectedCaseId}/messages`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      const raw = await res.text();
+      console.log("👉 [DeGuardia] GET /messages raw:", raw);
+
+      if (!res.ok) {
+        setError("No se pudieron cargar los mensajes.");
+        return;
+      }
+
+      let data;
+      try { data = JSON.parse(raw); } catch {
+        setError("Respuesta inesperada al cargar mensajes.");
+        return;
+      }
+
+      const items = Array.isArray(data.items) ? data.items : [];
+      setMessages(items);
+
+      setTimeout(() => scrollToBottom(false), 50);
+    } catch (err) {
+      console.error("❌ Error cargando mensajes:", err);
+      setError("Error de conexión al cargar mensajes.");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    if (!selectedCaseId || !token) return;
-    loadCaseAndMessages(selectedCaseId);
+    loadMessages();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedCaseId, token]);
+  }, [selectedCaseId]);
 
-  async function loadCaseAndMessages(caseId) {
-    setLoading(true);
-    setError("");
-    setIaSummary("");
+  function handleToggleHighlight(messageId) {
+    if (!selectedCaseId) return;
+    if (!highlightKey) return;
 
-    try {
-      // 1) Detalles del caso
-      const resCase = await fetch(`${apiBase}/guard/cases/${caseId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const rawCase = await resCase.text();
-      console.log("👉 [DeGuardia] GET /guard/cases/{id} (raw):", rawCase);
+    const current = localStorage.getItem(highlightKey);
+    const currentNum = current ? Number(current) : null;
 
-      if (!resCase.ok) {
-        setError("No se pudo cargar la consulta seleccionada.");
-        setLoading(false);
-        return;
-      }
-
-      let dataCase;
-      try {
-        dataCase = JSON.parse(rawCase);
-      } catch {
-        dataCase = null;
-      }
-      setCaseData(dataCase);
-
-      // 2) Mensajes
-      const resMsgs = await fetch(`${apiBase}/guard/cases/${caseId}/messages`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const rawMsgs = await resMsgs.text();
-      console.log("👉 [DeGuardia] GET /guard/cases/{id}/messages (raw):", rawMsgs);
-
-      if (!resMsgs.ok) {
-        setError("No se pudieron cargar los mensajes del hilo.");
-        setLoading(false);
-        return;
-      }
-
-      let dataMsgs;
-      try {
-        dataMsgs = JSON.parse(rawMsgs);
-      } catch {
-        dataMsgs = { items: [] };
-      }
-
-      setMessages(Array.isArray(dataMsgs.items) ? dataMsgs.items : []);
-      setLoading(false);
-    } catch (err) {
-      console.error("❌ [DeGuardia] Error cargando hilo:", err);
-      setError("Error de conexión al cargar el hilo de guardia.");
-      setLoading(false);
+    if (currentNum && currentNum === messageId) {
+      localStorage.removeItem(highlightKey);
+    } else {
+      localStorage.setItem(highlightKey, String(messageId));
     }
+    setMessages((prev) => [...prev]);
   }
 
-  async function handleSendMessage(content) {
-    if (!selectedCaseId || !token) return;
+  async function handleSendMessage(input) {
+    let payload;
 
-    try {
-      const res = await fetch(`${apiBase}/guard/cases/${selectedCaseId}/messages`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ content }),
-      });
+    if (typeof input === "string") {
+      const content = (input ?? "").toString().trim();
+      if (!content) return;
+      payload = { content };
+    } else {
+      const content = (input?.content ?? "").toString().trim();
+      if (!content) return;
 
-      const raw = await res.text();
-      console.log("👉 [DeGuardia] POST /guard/cases/{id}/messages (raw):", raw);
+      const atts = Array.isArray(input?.attachments) ? input.attachments : [];
+      const normalized = atts
+        .filter((a) => a && (a.kind === "analytic" || a.kind === "imaging") && a.id)
+        .map((a) => ({ kind: a.kind, id: Number(a.id) }));
 
-      if (!res.ok) {
-        let msg = "No se pudo publicar tu respuesta en De guardia.";
-        try {
-          const errData = JSON.parse(raw);
-          if (errData.detail) msg = errData.detail;
-        } catch {}
-        throw new Error(msg);
-      }
-
-      let data;
-      try {
-        data = JSON.parse(raw);
-      } catch {
-        data = null;
-      }
-
-      if (data) {
-        setMessages((prev) => [...prev, data]);
-      }
-    } catch (err) {
-      console.error("❌ [DeGuardia] Error enviando mensaje:", err);
-      throw err;
+      payload = { content };
+      if (normalized.length > 0) payload.attachments = normalized;
     }
-  }
 
-  async function handleLoadSummary() {
-    if (!selectedCaseId || !token) return;
-
-    setLoadingSummary(true);
-    setIaSummary("");
+    if (!selectedCaseId || !token) {
+      setError("No hay sesión activa o no hay caso seleccionado.");
+      return;
+    }
 
     try {
-      const res = await fetch(`${apiBase}/guard/cases/${selectedCaseId}/summary-ia`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      setSending(true);
+      setError("");
+
+      const res = await fetch(
+        `${apiBase}/guard/cases/${selectedCaseId}/messages`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(payload),
+        }
+      );
+
       const raw = await res.text();
-      console.log("👉 [DeGuardia] GET /guard/cases/{id}/summary-ia (raw):", raw);
+      console.log("👉 [DeGuardia] POST /messages raw:", raw);
 
       if (!res.ok) {
-        setIaSummary("No se pudo generar un resumen automático del debate.");
-        setLoadingSummary(false);
+        setError("No se pudo enviar el mensaje.");
         return;
       }
 
-      let data;
-      try {
-        data = JSON.parse(raw);
-      } catch {
-        data = null;
+      let newMsg;
+      try { newMsg = JSON.parse(raw); } catch {
+        await loadMessages();
+        return;
       }
 
-      setIaSummary(data?.summary || "No hay resumen disponible.");
-      setLoadingSummary(false);
+      setMessages((prev) => [...prev, newMsg]);
+      setTimeout(() => scrollToBottom(true), 50);
     } catch (err) {
-      console.error("❌ [DeGuardia] Error resumen IA:", err);
-      setIaSummary("Error de conexión al generar el resumen del debate.");
-      setLoadingSummary(false);
+      console.error("❌ Error enviando mensaje:", err);
+      setError("Error de conexión al enviar el mensaje.");
+    } finally {
+      setSending(false);
     }
   }
 
   if (!selectedCaseId) {
     return (
-      <section className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 flex items-center justify-center">
-        <p className="text-sm text-slate-500 text-center max-w-sm">
-          Selecciona una consulta de la cartelera para ver el caso clínico y el hilo de respuestas,
-          o crea una nueva consulta de diagnóstico.
-        </p>
-      </section>
-    );
-  }
-
-  if (loading) {
-    return (
-      <section className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
-        <p className="text-sm text-slate-600">Cargando hilo de guardia…</p>
-      </section>
-    );
-  }
-
-  if (error) {
-    return (
-      <section className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
-        <p className="text-sm text-red-600">{error}</p>
-      </section>
-    );
-  }
-
-  if (!caseData) {
-    return (
-      <section className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
-        <p className="text-sm text-slate-500">
-          No se encontró la consulta seleccionada. Prueba a recargar la cartelera.
-        </p>
-      </section>
+      <p className="text-sm text-gray-500">
+        Selecciona una consulta de la cartelera para ver el hilo y responder.
+      </p>
     );
   }
 
   return (
-    <section className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 flex flex-col gap-3">
-      {/* Cabecera del caso */}
-      <div className="border-b border-slate-200 pb-3 space-y-1">
-        <h2 className="text-lg font-semibold text-slate-900">
-          {caseData.title || "Consulta clínica sin título"}
-        </h2>
-        <p className="text-xs text-slate-500">
-          por <span className="font-semibold">{caseData.author_alias}</span>{" "}
-          {caseData.age_group && <>· {caseData.age_group}</>}{" "}
-          {caseData.sex && <>· {caseData.sex}</>}{" "}
-          {caseData.context && <>· {caseData.context}</>}
-        </p>
-        {caseData.anonymized_summary && (
-          <div className="mt-2 bg-slate-50 border border-slate-200 rounded-md p-2">
-            <p className="text-xs text-slate-800 whitespace-pre-line">
-              {caseData.anonymized_summary}
-            </p>
-            <p className="mt-1 text-[10px] text-slate-500">
-              Caso inicial anonimizado y moderado automáticamente.
-            </p>
-          </div>
-        )}
-        <div className="mt-2 flex items-center justify-between gap-2">
-          <span className="inline-flex items-center gap-1 rounded-full border border-emerald-300 bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-800">
-            {messages.length} mensajes en el hilo
-          </span>
-          <button
-            type="button"
-            onClick={handleLoadSummary}
-            className="text-[11px] px-2 py-1 rounded-full border border-slate-300 text-slate-600 hover:bg-slate-50"
-          >
-            {loadingSummary ? "Generando resumen…" : "🧠 Ver resumen IA del debate"}
-          </button>
-        </div>
-        {iaSummary && (
-          <div className="mt-2 bg-sky-50 border border-sky-200 rounded-md p-2">
-            <p className="text-xs text-slate-800 whitespace-pre-line">{iaSummary}</p>
-            <p className="mt-1 text-[10px] text-slate-500">
-              Resumen orientativo del debate entre médicos. No sustituye tu criterio clínico.
-            </p>
-          </div>
-        )}
+    <div className="flex flex-col h-full">
+      <div className="flex-1 overflow-y-auto space-y-3 p-3">
+        {loading && <p className="text-sm text-gray-500">Cargando mensajes…</p>}
+        {error && <p className="text-sm text-red-600">{error}</p>}
+
+        <MensajesList
+          messages={messages}
+          currentAlias={currentAlias}
+          caseId={selectedCaseId}
+          caseAuthorAlias={caseAuthorAlias}
+          highlightedMessageId={highlightedMessageId}
+          viewerIsCaseAuthor={viewerIsCaseAuthor}
+          onToggleHighlight={handleToggleHighlight}
+          apiBase={apiBase}
+          token={token}
+        />
+
+        <div ref={bottomRef} />
       </div>
 
-      {/* Lista de mensajes */}
-      <div className="flex-1 min-h-[260px] max-h-[420px] overflow-y-auto">
-        <MensajesList messages={messages} currentAlias={currentAlias} />
-      </div>
-
-      {/* Caja de respuesta */}
-      <div className="border-t border-slate-200 pt-3">
-        <RespuestaInput onSend={handleSendMessage} />
-      </div>
-    </section>
+      <RespuestaInput
+        onSend={handleSendMessage}
+        sending={sending}
+        apiBase={apiBase}
+        token={token}
+      />
+    </div>
   );
 }

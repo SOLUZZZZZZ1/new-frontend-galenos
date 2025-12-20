@@ -24,6 +24,10 @@ export default function NavbarGalenos() {
     if (path === "/de-guardia") {
       return loc.pathname.startsWith("/de-guardia");
     }
+    // ✅ NUEVO: Comunidad
+    if (path === "/comunidad") {
+      return loc.pathname.startsWith("/comunidad");
+    }
     if (path === "/actualidad-medica") {
       return loc.pathname.startsWith("/actualidad-medica");
     }
@@ -108,6 +112,20 @@ export default function NavbarGalenos() {
               }`}
             >
               De guardia
+            </Link>
+          )}
+
+          {/* ✅ NUEVO: Comunidad */}
+          {loggedIn && (
+            <Link
+              to="/comunidad"
+              className={`px-3 py-1.5 rounded-full border text-xs sm:text-sm ${
+                isActive("/comunidad")
+                  ? "border-sky-500 bg-sky-50 text-sky-700"
+                  : "border-transparent text-slate-600 hover:border-slate-200 hover:bg-slate-50"
+              }`}
+            >
+              Comunidad
             </Link>
           )}
 

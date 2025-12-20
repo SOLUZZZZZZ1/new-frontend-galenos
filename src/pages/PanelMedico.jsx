@@ -17,7 +17,100 @@ export default function PanelMedico() {
   const [billingLoading, setBillingLoading] = useState(false);
   const [billingError, setBillingError] = useState("");
 
+  // ========================
+  // GATING PRO (trial expirado)
+  // El backend decide (402 + detail PRO_REQUIRED_TRIAL_EXPIRED en escrituras)
+  // Aquí lo reflejamos en UI para guiar al médico y evitar errores repetidos.
+  // ========================
+  const [trialExpired, setTrialExpired] = useState(false);
+  const [proGateMsg, setProGateMsg] = useState("");
+
   async function handleStripeCheckout() {
+    setBillingError("");
+
+    if (!token) {
+      setBillingError("No hay sesión activa. Vuelve a iniciar sesión.");
+      navigate("/login");
+      return;
+    }
+
+    // Compatibilidad:
+    // - backend antiguo: /billing/create-checkout-session-auth
+    // - backend nuevo (Stripe FINAL): /billing/create-checkout-session
+    const endpoints = [
+      `${API}/billing/create-checkout-session-auth`,
+      `${API}/billing/create-checkout-session`,
+    ];
+
+    try {
+      setBillingLoading(true);
+
+      let lastRaw = "";
+      let lastStatus = 0;
+
+      for (const url of endpoints) {
+        const res = await fetch(url, {
+          method: "GET",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        lastStatus = res.status;
+        lastRaw = await res.text();
+
+        console.log("👉 [Billing] Respuesta checkout (raw):", lastRaw);
+
+        // Si el endpoint no existe (404) probamos el siguiente
+        if (res.status === 404) continue;
+
+        if (!res.ok) {
+          let msg = "No se ha podido iniciar el pago con Stripe.";
+          try {
+            const errData = JSON.parse(lastRaw);
+            if (errData.detail === "PROFILE_REQUIRED") {
+              msg =
+                "Antes de activar Galenos PRO, completa tu Perfil médico (nombre, especialidad, colegiado...).";
+            } else if (errData.detail) {
+              msg = errData.detail;
+            }
+          } catch {
+            // si no es JSON, dejamos el mensaje genérico
+          }
+          setBillingError(msg);
+          return;
+        }
+
+        let data;
+        try {
+          data = JSON.parse(lastRaw);
+        } catch {
+          setBillingError("Respuesta inesperada del servidor de pagos.");
+          return;
+        }
+
+        if (data.checkout_url) {
+          window.location.href = data.checkout_url;
+          return;
+        } else {
+          setBillingError("No se ha recibido la URL de pago de Stripe.");
+          return;
+        }
+      }
+
+      // Si llegamos aquí, ninguno de los endpoints respondió correctamente
+      setBillingError(
+        lastStatus === 404
+          ? "El backend de pagos no está disponible (endpoint no encontrado)."
+          : "No se ha podido iniciar el pago con Stripe."
+      );
+    } catch (err) {
+      console.error("❌ Error iniciando checkout Stripe:", err);
+      setBillingError("Error de conexión al iniciar el pago con Stripe.");
+    } finally {
+      setBillingLoading(false);
+    }
+  }
+
+  async function handleOpenBillingPortal() {
     setBillingError("");
 
     if (!token) {
@@ -28,31 +121,25 @@ export default function PanelMedico() {
 
     try {
       setBillingLoading(true);
-      const res = await fetch(`${API}/billing/create-checkout-session-auth`, {
-        method: "GET",
+      const res = await fetch(`${API}/billing/portal`, {
+        method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
 
       const raw = await res.text();
-      console.log(
-        "👉 [Billing] Respuesta create-checkout-session-auth (raw):",
-        raw
-      );
+      console.log("👉 [Billing] Respuesta portal (raw):", raw);
 
       if (!res.ok) {
-        let msg = "No se ha podido iniciar el pago con Stripe.";
+        let msg =
+          "No se ha podido abrir la gestión de suscripción. Si aún no has activado PRO, primero completa el pago.";
         try {
           const errData = JSON.parse(raw);
-          if (errData.detail === "PROFILE_REQUIRED") {
-            msg =
-              "Antes de activar Galenos PRO, completa tu Perfil médico (nombre, especialidad, colegiado...).";
-          } else if (errData.detail) {
-            msg = errData.detail;
-          }
-        } catch {
-          // si no es JSON, dejamos el mensaje genérico
+          if (errData.detail) msg = errData.detail;
+        } catch {}
+        if (msg === "No hay cliente Stripe asociado") {
+          msg = "Aún no hay una suscripción PRO activa para gestionar. Si quieres cancelar o cambiar tarjeta, primero activa Galenos PRO.";
         }
         setBillingError(msg);
         return;
@@ -62,18 +149,18 @@ export default function PanelMedico() {
       try {
         data = JSON.parse(raw);
       } catch {
-        setBillingError("Respuesta inesperada del servidor de pagos.");
+        setBillingError("Respuesta inesperada del portal de suscripción.");
         return;
       }
 
-      if (data.checkout_url) {
-        window.location.href = data.checkout_url;
+      if (data.url) {
+        window.location.href = data.url;
       } else {
-        setBillingError("No se ha recibido la URL de pago de Stripe.");
+        setBillingError("No se ha recibido la URL del portal de Stripe.");
       }
     } catch (err) {
-      console.error("❌ Error iniciando checkout Stripe:", err);
-      setBillingError("Error de conexión al iniciar el pago con Stripe.");
+      console.error("❌ Error abriendo portal Stripe:", err);
+      setBillingError("Error de conexión al abrir la gestión de suscripción.");
     } finally {
       setBillingLoading(false);
     }
@@ -110,6 +197,10 @@ export default function PanelMedico() {
         try {
           const errData = JSON.parse(raw);
           if (errData.detail) msg = errData.detail;
+          if (errData.detail === "PRO_REQUIRED_TRIAL_EXPIRED") {
+            setTrialExpired(true);
+            setProGateMsg("Tu prueba ha finalizado. Activa PRO para seguir creando pacientes y subiendo analíticas/imágenes.");
+          }
         } catch {}
         setPatientsError(msg);
         return;
@@ -168,6 +259,10 @@ export default function PanelMedico() {
         try {
           const errData = JSON.parse(raw);
           if (errData.detail) msg = errData.detail;
+          if (errData.detail === "PRO_REQUIRED_TRIAL_EXPIRED") {
+            setTrialExpired(true);
+            setProGateMsg("Tu prueba ha finalizado. Activa PRO para seguir creando pacientes y subiendo analíticas/imágenes.");
+          }
         } catch {}
         setPatientsError(msg);
         return;
@@ -288,6 +383,10 @@ export default function PanelMedico() {
         try {
           const errData = JSON.parse(raw);
           if (errData.detail) msg = errData.detail;
+          if (errData.detail === "PRO_REQUIRED_TRIAL_EXPIRED") {
+            setTrialExpired(true);
+            setProGateMsg("Tu prueba ha finalizado. Activa PRO para seguir creando pacientes y subiendo analíticas/imágenes.");
+          }
         } catch {}
         setAnalyticsError(msg);
         return;
@@ -581,12 +680,31 @@ if (data.duplicate === true) {
         <h2 className="text-sm font-semibold text-sky-800">
           Tu plan · Galenos PRO
         </h2>
-        <p className="text-xs text-sky-700">
-          Prueba gratuita interna de <strong>10 días</strong> desde el alta en
-          Galenos. El pago con Stripe activa y mantiene tu suscripción PRO.
-        </p>
+        {
+          trialExpired ? (
+            <div className="text-xs text-sky-800 space-y-1">
+              <p className="font-semibold">Tu periodo de prueba ha finalizado.</p>
+              <p className="text-sky-700">
+                Puedes seguir consultando tus pacientes y analíticas, pero para{" "}
+                <strong>crear nuevos pacientes</strong> o <strong>subir nuevas analíticas / imágenes</strong>{" "}
+                necesitas activar el plan PRO.
+              </p>
+              <p className="text-sky-700 italic">
+                Al activar PRO, la facturación se aplicará en los próximos días.
+              </p>
+            </div>
+          ) : (
+            <p className="text-xs text-sky-700">
+              Prueba clínica interna activa. Puedes crear pacientes y subir analíticas
+              e imágenes. Activa PRO cuando quieras para seguir trabajando sin límites.
+            </p>
+          )
+        }
         {billingError && (
           <p className="text-xs text-red-600">{billingError}</p>
+        )}
+        {proGateMsg && (
+          <p className="text-xs text-amber-700">{proGateMsg}</p>
         )}
         <div className="flex flex-wrap items-center gap-2">
           <button
@@ -597,8 +715,18 @@ if (data.duplicate === true) {
           >
             {billingLoading
               ? "Conectando con Stripe..."
-              : "Activar / gestionar Galenos PRO"}
+              : (trialExpired ? "Activar Galenos PRO" : "Activar Galenos PRO")}
           </button>
+
+          <button
+            type="button"
+            onClick={handleOpenBillingPortal}
+            disabled={billingLoading || trialExpired}
+            className="sr-btn-secondary text-xs disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {trialExpired ? "Gestionar suscripción (activa PRO primero)" : "Gestionar suscripción"}
+          </button>
+
           <button
             type="button"
             onClick={() => navigate("/perfil")}
@@ -664,7 +792,7 @@ if (data.duplicate === true) {
               />
               <button
                 type="submit"
-                disabled={creatingPatient}
+                disabled={creatingPatient || trialExpired}
                 className="sr-btn-secondary disabled:opacity-60 disabled:cursor-not-allowed text-xs"
               >
                 {creatingPatient ? "Creando..." : "Crear y seleccionar"}
@@ -714,7 +842,7 @@ if (data.duplicate === true) {
 
           <button
             type="submit"
-            disabled={loadingAnalitica}
+            disabled={loadingAnalitica || trialExpired}
             className="sr-btn-primary disabled:opacity-60 disabled:cursor-not-allowed mt-1"
           >
             {loadingAnalitica
@@ -915,7 +1043,7 @@ if (data.duplicate === true) {
 
           <button
             type="submit"
-            disabled={loadingImagen}
+            disabled={loadingImagen || trialExpired}
             className="sr-btn-primary disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {loadingImagen ? "Analizando imagen..." : "Analizar imagen médica"}

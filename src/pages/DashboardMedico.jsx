@@ -1,5 +1,5 @@
 // src/pages/DashboardMedico.jsx — Dashboard centrado en pacientes · Galenos.pro
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 const API =
@@ -15,6 +15,31 @@ export default function DashboardMedico() {
 
   // pacienteId -> { analytics: [...], imaging: [...] }
   const [patientDetails, setPatientDetails] = useState({});
+
+  // Invitar a un colega (UI)
+  const [inviteStatus, setInviteStatus] = useState("");
+
+  // Texto invitación (simple, profesional y directo)
+  const inviteText = useMemo(() => {
+    return (
+      "Hola! Estoy usando Galenos para analizar analíticas e imágenes médicas y para comentar casos clínicos de forma segura con otros médicos.\n\n" +
+      "Puedes darte de alta gratis aquí:\n" +
+      "https://galenos.pro"
+    );
+  }, []);
+
+  async function copyInvite() {
+    setInviteStatus("");
+    try {
+      await navigator.clipboard.writeText(inviteText);
+      setInviteStatus("✅ Copiado. Ya puedes pegarlo en WhatsApp/Email.");
+      setTimeout(() => setInviteStatus(""), 5000);
+    } catch (e) {
+      window.prompt("Copia este texto y compártelo:", inviteText);
+      setInviteStatus("ℹ️ Si no se copió automáticamente, puedes copiarlo manualmente.");
+      setTimeout(() => setInviteStatus(""), 5000);
+    }
+  }
 
   useEffect(() => {
     async function loadDashboard() {
@@ -136,7 +161,7 @@ export default function DashboardMedico() {
     if (!value) return "-";
     const d = new Date(value);
     if (Number.isNaN(d.getTime())) return value;
-    return d.toLocaleDateString();
+    return d.toLocaleDateString("es-ES");
   };
 
   function getPatientSummary(p) {
@@ -207,6 +232,36 @@ export default function DashboardMedico() {
           Todavía no has creado ningún paciente. Empieza creando tu primer
           paciente para trabajar con Galenos.
         </p>
+
+        {/* Invitar a un colega (también aquí, por si aún no hay pacientes) */}
+        <section className="bg-white rounded-xl border border-slate-200 p-4 space-y-2">
+          <p className="text-sm font-semibold text-slate-900">
+            🤝 Invitar a un colega
+          </p>
+          <p className="text-xs text-slate-600">
+            Si Galenos te está siendo útil, invitar a otro médico ayuda a mejorar el proyecto y a crear una red de apoyo clínico segura.
+          </p>
+          <div className="flex flex-wrap gap-2 items-center">
+            <button
+              type="button"
+              onClick={copyInvite}
+              className="sr-btn-secondary text-xs"
+            >
+              Copiar mensaje de invitación
+            </button>
+            <button
+              type="button"
+              onClick={() => window.open("https://galenos.pro", "_blank")}
+              className="sr-btn-secondary text-xs"
+            >
+              Abrir Galenos.pro
+            </button>
+          </div>
+          {inviteStatus && (
+            <p className="text-xs text-slate-500">{inviteStatus}</p>
+          )}
+        </section>
+
         <button
           type="button"
           onClick={() => navigate("/pacientes")}
@@ -247,6 +302,48 @@ export default function DashboardMedico() {
             Subir analítica / imagen
           </button>
         </div>
+      </section>
+
+      {/* INVITAR A UN COLEGA (Opción 1: Dashboard) */}
+      <section className="bg-slate-50 rounded-xl border border-slate-200 p-4 sm:p-5 space-y-2">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+          <div className="space-y-1">
+            <p className="text-sm font-semibold text-slate-900">
+              🤝 Invitar a un colega
+            </p>
+            <p className="text-xs text-slate-600">
+              Si Galenos te está siendo útil, invitar a otro médico ayuda a mejorar el proyecto y a crear una red de apoyo clínico segura.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2 items-center">
+            <button
+              type="button"
+              onClick={copyInvite}
+              className="sr-btn-primary text-xs"
+            >
+              Copiar invitación
+            </button>
+            <button
+              type="button"
+              onClick={() => window.open("https://galenos.pro", "_blank")}
+              className="sr-btn-secondary text-xs"
+            >
+              Abrir galenos.pro
+            </button>
+          </div>
+        </div>
+
+        <div className="bg-white border border-slate-200 rounded-lg p-3 text-xs text-slate-700 whitespace-pre-line">
+          {inviteText}
+        </div>
+
+        {inviteStatus && (
+          <p className="text-xs text-slate-500">{inviteStatus}</p>
+        )}
+
+        <p className="text-[11px] text-slate-500">
+          (Idea futura: pequeño distintivo de “benefactor” para quien apoye el proyecto. Sin rankings ni presión.)
+        </p>
       </section>
 
       {/* RESUMEN RÁPIDO */}
