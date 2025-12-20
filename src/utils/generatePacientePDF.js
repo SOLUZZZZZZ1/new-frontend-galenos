@@ -1,5 +1,5 @@
 import jsPDF from "jspdf";
-import "jspdf-autotable";
+import autoTable from "jspdf-autotable";
 
 // ========================
 // Utilidades
@@ -20,9 +20,7 @@ function safeText(v) {
 function toMadridInline(value) {
   if (!value) return "";
   const iso =
-    typeof value === "string" && value.endsWith("Z")
-      ? value
-      : `${value}Z`;
+    typeof value === "string" && value.endsWith("Z") ? value : `${value}Z`;
   try {
     return new Date(iso).toLocaleString("es-ES", {
       timeZone: "Europe/Madrid",
@@ -36,12 +34,8 @@ function pickLatestAnalytic(analyticsArr) {
   if (!Array.isArray(analyticsArr) || analyticsArr.length === 0) return null;
 
   const sorted = [...analyticsArr].sort((a, b) => {
-    const da = new Date(
-      `${a.exam_date || a.created_at || ""}Z`
-    ).getTime();
-    const db = new Date(
-      `${b.exam_date || b.created_at || ""}Z`
-    ).getTime();
+    const da = new Date(`${a.exam_date || a.created_at || ""}Z`).getTime();
+    const db = new Date(`${b.exam_date || b.created_at || ""}Z`).getTime();
     return db - da;
   });
 
@@ -57,10 +51,6 @@ function topNotes(notesArr, n = 3) {
   });
   return sorted.slice(0, n);
 }
-
-// ========================
-// Comparativa (robusta)
-// ========================
 
 function buildCompareTable(compareObj) {
   const markersObj = compareObj?.markers || {};
@@ -83,21 +73,13 @@ function buildCompareTable(compareObj) {
     const cell = (k) => {
       const vPast = row?.[k];
       const sym = tr[k] || "";
-      const delta =
-        vPast == null || b == null ? null : b - vPast;
+      const delta = vPast == null || b == null ? null : b - vPast;
       const deltaTxt =
-        delta == null
-          ? ""
-          : ` (Δ ${delta >= 0 ? "+" : ""}${delta.toFixed(2)})`;
+        delta == null ? "" : ` (Δ ${delta >= 0 ? "+" : ""}${delta.toFixed(2)})`;
       return `${vPast ?? "—"} ${sym}${deltaTxt}`.trim();
     };
 
-    const r = [
-      safeText(name),
-      safeText(b ?? "—"),
-      cell("6m"),
-      cell("12m"),
-    ];
+    const r = [safeText(name), safeText(b ?? "—"), cell("6m"), cell("12m")];
     if (has18) r.push(cell("18m"));
     if (has24) r.push(cell("24m"));
     return r;
@@ -107,41 +89,26 @@ function buildCompareTable(compareObj) {
 }
 
 // ========================
-// PDF V1 (AJUSTE A)
+// PDF V1 (AJUSTE A incluido)
 // ========================
 
-export function generatePacientePDFV1({
-  patient,
-  compare,
-  analytics,
-  notes,
-}) {
-  const doc = new jsPDF({
-    orientation: "p",
-    unit: "pt",
-    format: "a4",
-  });
+export function generatePacientePDFV1({ patient, compare, analytics, notes }) {
+  const doc = new jsPDF({ orientation: "p", unit: "pt", format: "a4" });
 
   const marginX = 40;
   let y = 48;
   const wrapW = 515;
 
-  // -------- Header --------
+  // Header
   doc.setFont("helvetica", "bold");
   doc.setFontSize(16);
-  doc.text(
-    "Galenos.pro — Comparativa temporal + Resumen IA",
-    marginX,
-    y
-  );
+  doc.text("Galenos.pro — Comparativa temporal + Resumen IA", marginX, y);
   y += 18;
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
   doc.text(
-    `Paciente: ${safeText(
-      patient?.alias || "—"
-    )} · Nº ${safeText(
+    `Paciente: ${safeText(patient?.alias || "—")} · Nº ${safeText(
       patient?.patient_number ?? "—"
     )}`,
     marginX,
@@ -152,7 +119,7 @@ export function generatePacientePDFV1({
   doc.text(`Generado: ${nowMadridString()}`, marginX, y);
   y += 18;
 
-  // -------- Resumen IA --------
+  // Resumen IA (última analítica)
   const lastA = pickLatestAnalytic(analytics);
   const summary = safeText(lastA?.summary || "");
   const differential = safeText(lastA?.differential || "");
@@ -160,22 +127,14 @@ export function generatePacientePDFV1({
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(12);
-  doc.text(
-    "Resumen IA (orientativo) — última analítica",
-    marginX,
-    y
-  );
+  doc.text("Resumen IA (orientativo) — última analítica", marginX, y);
   y += 14;
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
 
   if (examDate) {
-    doc.text(
-      `Fecha: ${toMadridInline(examDate)}`,
-      marginX,
-      y
-    );
+    doc.text(`Fecha: ${toMadridInline(examDate)}`, marginX, y);
     y += 12;
   }
 
@@ -190,11 +149,7 @@ export function generatePacientePDFV1({
 
   if (differential) {
     doc.setFont("helvetica", "bold");
-    doc.text(
-      "Diagnóstico diferencial (orientativo)",
-      marginX,
-      y
-    );
+    doc.text("Diagnóstico diferencial (orientativo)", marginX, y);
     y += 14;
 
     doc.setFont("helvetica", "normal");
@@ -203,21 +158,19 @@ export function generatePacientePDFV1({
     y += lines.length * 12 + 10;
   }
 
-  // -------- Comparativa (AJUSTE A) --------
+  // Comparativa (AJUSTE A)
   doc.setFont("helvetica", "bold");
   doc.setFontSize(12);
   doc.text("Comparativa temporal de marcadores", marginX, y);
   y += 10;
 
   const hasComparableData =
-    compare &&
-    compare.markers &&
-    Object.keys(compare.markers).length > 0;
+    compare && compare.markers && Object.keys(compare.markers).length > 0;
 
   if (hasComparableData) {
     const table = buildCompareTable(compare);
 
-    doc.autoTable({
+    autoTable(doc, {
       startY: y,
       head: [table.head],
       body: table.body,
@@ -232,7 +185,7 @@ export function generatePacientePDFV1({
       margin: { left: marginX, right: marginX },
     });
 
-    y = doc.lastAutoTable.finalY + 16;
+    y = doc.lastAutoTable?.finalY ? doc.lastAutoTable.finalY + 16 : y + 220;
   } else {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
@@ -244,7 +197,7 @@ export function generatePacientePDFV1({
     y += 24;
   }
 
-  // -------- Notas --------
+  // Notas
   const recentNotes = topNotes(notes, 3);
 
   doc.setFont("helvetica", "bold");
@@ -261,17 +214,11 @@ export function generatePacientePDFV1({
   } else {
     for (const n of recentNotes) {
       const title = safeText(n.title || "Nota");
-      const when = n.created_at
-        ? toMadridInline(n.created_at)
-        : "";
+      const when = n.created_at ? toMadridInline(n.created_at) : "";
       const content = safeText(n.content || "");
 
       doc.setFont("helvetica", "bold");
-      doc.text(
-        `${title}${when ? " · " + when : ""}`,
-        marginX,
-        y
-      );
+      doc.text(`${title}${when ? " · " + when : ""}`, marginX, y);
       y += 12;
 
       doc.setFont("helvetica", "normal");
@@ -286,7 +233,7 @@ export function generatePacientePDFV1({
     }
   }
 
-  // -------- Disclaimer --------
+  // Disclaimer
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   doc.text(
@@ -295,9 +242,8 @@ export function generatePacientePDFV1({
     Math.min(800, y + 12)
   );
 
-  const fileName = `Galenos_${safeText(
-    patient?.alias || "paciente"
-  )}_comparativa.pdf`.replace(/[^a-zA-Z0-9._-]+/g, "_");
+  const fileName = `Galenos_${safeText(patient?.alias || "paciente")}_comparativa.pdf`
+    .replace(/[^a-zA-Z0-9._-]+/g, "_");
 
   doc.save(fileName);
 }
