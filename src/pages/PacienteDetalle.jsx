@@ -177,37 +177,43 @@ export default function PacienteDetalle() {
 
 
 async function handleDownloadPDF() {
-  if (!patient || !compare || !analytics || analytics.length === 0) return;
-  await generatePacientePDFV1({ patient, compare, analytics, notes });
+  try {
+    if (!patient || !compare || !analytics || analytics.length === 0) return;
+    await generatePacientePDFV1({ patient, compare, analytics, notes, mode: "download" });
+  } catch (e) {
+    console.error("Error descargando PDF:", e);
+  }
 }
 
 async function handleSharePDF() {
-  if (!patient || !compare || !analytics || analytics.length === 0) return;
+  try {
+    if (!patient || !compare || !analytics || analytics.length === 0) return;
 
-  const { blob, fileName } = await generatePacientePDFV1({
-    patient,
-    compare,
-    analytics,
-    notes,
-    mode: "share",
-  });
-
-  const file = new File([blob], fileName, { type: "application/pdf" });
-
-  // Web Share API (ideal en móvil/tablet)
-  if (navigator.share && navigator.canShare?.({ files: [file] })) {
-    await navigator.share({
-      title: "Informe Galenos",
-      text: "Informe clínico (Galenos.pro)",
-      files: [file],
+    const { blob, fileName } = await generatePacientePDFV1({
+      patient,
+      compare,
+      analytics,
+      notes,
+      mode: "share",
     });
-    return;
-  }
 
-  // Fallback desktop: abrir PDF en nueva pestaña
-  const url = URL.createObjectURL(blob);
-  window.open(url, "_blank", "noopener,noreferrer");
-  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    const file = new File([blob], fileName, { type: "application/pdf" });
+
+    if (navigator.share && navigator.canShare?.({ files: [file] })) {
+      await navigator.share({
+        title: "Informe Galenos",
+        text: "Informe clínico (Galenos.pro)",
+        files: [file],
+      });
+      return;
+    }
+
+    const url = URL.createObjectURL(blob);
+    window.open(url, "_blank", "noopener,noreferrer");
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  } catch (e) {
+    console.error("Error compartiendo PDF:", e);
+  }
 }
 
   async function loadAll() {
