@@ -88,6 +88,17 @@ function buildCompareTable(compareObj) {
   return { head, body };
 }
 
+
+function pickMostRecentPastKey(row) {
+  // Preferimos el periodo más reciente disponible (6m > 12m > 18m > 24m)
+  const order = ["6m", "12m", "18m", "24m"];
+  for (const k of order) {
+    if (row && row[k] != null && row[k] !== "") return k;
+  }
+  return null;
+}
+
+
 // ========================
 // PDF V2 — Resumen longitudinal (automático, determinista)
 // ========================
