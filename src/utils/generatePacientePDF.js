@@ -94,22 +94,16 @@ function buildCompareTable(compareObj) {
 // ========================
 function computeGlobalObjectiveSummary(compareObj, stablePct = 2) {
   const markersObj = compareObj?.markers || {};
-  let improve = 0,
-    worsen = 0,
-    stable = 0;
+  let improve = 0, worsen = 0, stable = 0;
 
   for (const row of Object.values(markersObj)) {
     const baseline = row?.baseline;
     if (baseline == null) continue;
 
-    // Usamos el pasado más reciente disponible (6m > 12m > 18m > 24m)
     const order = ["6m", "12m", "18m", "24m"];
     let past = null;
     for (const k of order) {
-      if (row?.[k] != null && row?.[k] !== "") {
-        past = row[k];
-        break;
-      }
+      if (row?.[k] != null && row?.[k] !== "") { past = row[k]; break; }
     }
     if (past == null) continue;
 
@@ -118,7 +112,6 @@ function computeGlobalObjectiveSummary(compareObj, stablePct = 2) {
     if (!Number.isFinite(p) || !Number.isFinite(b) || p === 0) continue;
 
     const pct = ((b - p) / p) * 100;
-
     if (Math.abs(pct) < stablePct) stable++;
     else if (pct > 0) improve++;
     else worsen++;
@@ -142,7 +135,7 @@ function renderGlobalObjectiveSummary(doc, summary, marginX, y) {
     `• Sin cambios relevantes (±${summary.stablePct}%): ${summary.stable}`,
   ];
   doc.text(lines, marginX, y);
-  y += lines.length * 12 + 10;
+  y += lines.length * 12 + 8;
   return y;
 }
 
@@ -150,7 +143,7 @@ function renderLegend(doc, marginX, y) {
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   doc.text("🟢 Mejora     🔴 Empeora     ⬜ Sin cambios", marginX, y);
-  return y + 12;
+  return y + 14;
 }
 
 
@@ -255,31 +248,27 @@ export function generatePacientePDFV1({ patient, compare, analytics, notes }) {
       },
       headStyles: { fontStyle: "bold" },
       didParseCell: function (data) {
-        // Colores por DELTA numérico: usa el valor dentro del paréntesis.
-        // Soporta formatos como: ( +3.30 ), (” +0.00), (Δ +0.10), etc.
+        // Colores por DELTA numérico: tolera basura tipográfica dentro del paréntesis.
         try {
           if (data.section === "body" && data.column && data.column.index >= 2) {
             const raw = data.cell && data.cell.text != null ? data.cell.text : "";
             const txt = Array.isArray(raw) ? raw.join(" ") : String(raw);
 
-            // Captura el número permitiendo basura tipográfica tras el "("
+            // Ejemplos: (” +3.30), ( Δ -1.70 ), ( +0.10 )
             const m = txt.match(/\(\s*[^0-9+\-]*([+\-]?\d+(?:\.\d+)?)\s*\)/);
             if (!m) return;
-
             const delta = parseFloat(m[1]);
             if (Number.isNaN(delta)) return;
 
             if (delta > 0) {
-              data.cell.styles.textColor = [0, 128, 0];   // verde
-              data.cell.styles.fillColor = [232, 245, 233]; // fondo verde suave
+              data.cell.styles.textColor = [0, 128, 0];
+              data.cell.styles.fillColor = [232, 245, 233];
             } else if (delta < 0) {
-              data.cell.styles.textColor = [200, 0, 0];   // rojo
-              data.cell.styles.fillColor = [255, 235, 238]; // fondo rojo suave
+              data.cell.styles.textColor = [200, 0, 0];
+              data.cell.styles.fillColor = [255, 235, 238];
             }
           }
-        } catch (e) {
-          // no-op
-        }
+        } catch (e) {}
       },
       margin: { left: marginX, right: marginX },
     });
