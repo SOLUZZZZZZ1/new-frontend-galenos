@@ -183,19 +183,27 @@ export function generatePacientePDFV1({ patient, compare, analytics, notes }) {
       },
       headStyles: { fontStyle: "bold" },
       didParseCell: function (data) {
-        // Colores por DELTA numérico: Δ>0 verde, Δ<0 rojo
+        // Colores por DELTA numérico: usa el valor dentro del paréntesis.
+        // Soporta formatos como: ( +3.30 ), (” +0.00), (Δ +0.10), etc.
         try {
           if (data.section === "body" && data.column && data.column.index >= 2) {
-            const txt = String(data.cell.text || "");
-            // Captura el número dentro del paréntesis: ( +3.30 ) / ( -1.70 )
-            const m = txt.match(/\(\s*([+-]?\d+(?:\.\d+)?)\s*\)/);
+            const raw = data.cell && data.cell.text != null ? data.cell.text : "";
+            const txt = Array.isArray(raw) ? raw.join(" ") : String(raw);
+
+            // Captura el número permitiendo basura tipográfica tras el "("
+            const m = txt.match(/\(\s*[^0-9+\-]*([+\-]?\d+(?:\.\d+)?)\s*\)/);
             if (!m) return;
+
             const delta = parseFloat(m[1]);
             if (Number.isNaN(delta)) return;
 
-            if (delta > 0) data.cell.styles.textColor = [0, 128, 0]; // verde
-            else if (delta < 0) data.cell.styles.textColor = [200, 0, 0]; // rojo
-            // delta == 0 -> color por defecto
+            if (delta > 0) {
+              data.cell.styles.textColor = [0, 128, 0];   // verde
+              data.cell.styles.fillColor = [232, 245, 233]; // fondo verde suave
+            } else if (delta < 0) {
+              data.cell.styles.textColor = [200, 0, 0];   // rojo
+              data.cell.styles.fillColor = [255, 235, 238]; // fondo rojo suave
+            }
           }
         } catch (e) {
           // no-op
