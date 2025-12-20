@@ -155,12 +155,13 @@ function buildCompareTable(compareObj) {
 
     const cell = (k) => {
       const vPast = row?.[k];
-      const sym = tr[k] || "";
+      const rawSym = tr[k] || "";
+      const sym = (rawSym === "↑" || rawSym === "↓" || rawSym === "=") ? rawSym : "";
       const delta = vPast == null || b == null ? null : b - vPast;
       const deltaTxt =
         delta == null
           ? ""
-          : ` (Δ ${delta >= 0 ? "+" : ""}${Number(delta).toFixed(2)})`;
+          : ` (d ${delta >= 0 ? "+" : ""}${Number(delta).toFixed(2)})`;
       return `${vPast ?? "—"} ${sym}${deltaTxt}`.trim();
     };
 
@@ -288,7 +289,7 @@ function renderObjectiveSummarySection(doc, summaryObj, { marginX, y }) {
   y += lines.length * 12 + 10;
 
   const fmtItem = (it) =>
-    `- ${safeText(it.name)} (${safeText(it.pastKey)} → actual): ${formatPct(
+    `- ${safeText(it.name)} (${safeText(it.pastKey)} -> actual): ${formatPct(
       it.pct
     )}`;
 
@@ -500,7 +501,7 @@ export async function generatePacientePDFV1({ patient, compare, analytics, notes
             const raw = data.cell && data.cell.text != null ? data.cell.text : "";
             const txt = Array.isArray(raw) ? raw.join(" ") : String(raw);
 
-            // Ejemplos: (” +3.30), ( Δ -1.70 ), ( +0.10 )
+            // Ejemplos: (” +3.30), ( d -1.70 ), ( +0.10 )
             const m = txt.match(/\(\s*[^0-9+\-]*([+\-]?\d+(?:\.\d+)?)\s*\)/);
             if (!m) return;
             const delta = parseFloat(m[1]);
