@@ -1,6 +1,8 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
+export const PDFGEN_VERSION = "PDFGEN_FASE4_2025-12-20_v1";
+
 // ========================
 // Utilidades
 // ========================
@@ -102,7 +104,7 @@ export function generatePacientePDFV1({ patient, compare, analytics, notes }) {
   // Header
   doc.setFont("helvetica", "bold");
   doc.setFontSize(16);
-  doc.text("Galenos.pro — Comparativa temporal + Resumen IA", marginX, y);
+  doc.text("Galenos.pro — Comparativa temporal + Resumen IA (PDFGEN_FASE4_v1)", marginX, y);
   y += 18;
 
   doc.setFont("helvetica", "normal");
