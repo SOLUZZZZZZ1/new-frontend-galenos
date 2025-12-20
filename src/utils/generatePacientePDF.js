@@ -329,6 +329,24 @@ export function generatePacientePDFV1({ patient, compare, analytics, notes }) {
         overflow: "linebreak",
       },
       headStyles: { fontStyle: "bold" },
+
+      didParseCell: function (data) {
+        // Colores de tendencia: ↑ verde, ↓ rojo
+        try {
+          if (data.section === "body" && data.column && data.column.index >= 2) {
+            const txt = String(data.cell.text || "").trim();
+            const hasUp = txt.includes("↑");
+            const hasDown = txt.includes("↓");
+            if (hasUp) {
+              data.cell.styles.textColor = [0, 128, 0]; // verde
+            } else if (hasDown) {
+              data.cell.styles.textColor = [200, 0, 0]; // rojo
+            }
+          }
+        } catch (e) {
+          // no-op
+        }
+      },
       margin: { left: marginX, right: marginX },
     });
 
