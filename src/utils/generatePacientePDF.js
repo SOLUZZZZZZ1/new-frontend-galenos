@@ -48,7 +48,7 @@ async function fetchAsDataUrl(url) {
 }
 
 async function addGalenosLogo(doc) {
-  // Logo corporativo en cabecera (cargado desde /public).
+  // Logo corporativo en cabecera (cargado desde /public). No bloquea el PDF si falla.
   try {
     const dataUrl = await fetchAsDataUrl(GALENOS_LOGO_URL);
 
@@ -60,7 +60,7 @@ async function addGalenosLogo(doc) {
 
     doc.addImage(dataUrl, "PNG", x, y, size, size);
   } catch {
-    // Si falla el logo, no bloqueamos el PDF.
+    // no-op
   }
 }
 
@@ -267,7 +267,7 @@ function renderObjectiveSummarySection(doc, summaryObj, { marginX, y }) {
 }
 
 // ========================
-// PDF V1.6 — Resumen global objetivo + leyenda (A)
+// PDF V1.6 — Resumen global objetivo + leyenda
 // ========================
 
 function computeGlobalObjectiveSummary(compareObj, stablePct = 2) {
@@ -330,10 +330,16 @@ function renderLegend(doc, marginX, y) {
 }
 
 // ========================
-// PDF V1 — (IA + comparativa + notas)
+// PDF V1.6 — Generador (descargar + compartir)
 // ========================
 
-export async function generatePacientePDFV1({ patient, compare, analytics, notes }) {
+export async function generatePacientePDFV1({
+  patient,
+  compare,
+  analytics,
+  notes,
+  mode = "download",
+}) {
   const doc = new jsPDF({ orientation: "p", unit: "pt", format: "a4" });
 
   // Logo corporativo (no bloqueante)
@@ -528,5 +534,11 @@ export async function generatePacientePDFV1({ patient, compare, analytics, notes
   const fileName = `Galenos_${safeText(patient?.alias || "paciente")}_comparativa.pdf`
     .replace(/[^a-zA-Z0-9._-]+/g, "_");
 
-  doc.save(fileName);
+  const blob = doc.output("blob");
+
+  if (mode !== "share") {
+    doc.save(fileName);
+  }
+
+  return { blob, fileName };
 }
