@@ -175,6 +175,41 @@ export default function PacienteDetalle() {
     setExpandedText((prev) => ({ ...prev, [key]: !prev[key] }));
   }
 
+
+async function handleDownloadPDF() {
+  if (!patient || !compare || !analytics || analytics.length === 0) return;
+  await generatePacientePDFV1({ patient, compare, analytics, notes });
+}
+
+async function handleSharePDF() {
+  if (!patient || !compare || !analytics || analytics.length === 0) return;
+
+  const { blob, fileName } = await generatePacientePDFV1({
+    patient,
+    compare,
+    analytics,
+    notes,
+    mode: "share",
+  });
+
+  const file = new File([blob], fileName, { type: "application/pdf" });
+
+  // Web Share API (ideal en móvil/tablet)
+  if (navigator.share && navigator.canShare?.({ files: [file] })) {
+    await navigator.share({
+      title: "Informe Galenos",
+      text: "Informe clínico (Galenos.pro)",
+      files: [file],
+    });
+    return;
+  }
+
+  // Fallback desktop: abrir PDF en nueva pestaña
+  const url = URL.createObjectURL(blob);
+  window.open(url, "_blank", "noopener,noreferrer");
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
   async function loadAll() {
     setLoading(true);
     setError("");
@@ -416,13 +451,24 @@ export default function PacienteDetalle() {
           <div className="flex flex-wrap gap-2 justify-end">
             <button
               type="button"
-              onClick={() => generatePacientePDFV1({ patient, compare, analytics, notes })}
+              onClick={handleDownloadPDF}
               disabled={!compare || !analytics || analytics.length === 0}
               className="sr-btn-primary text-xs sm:text-sm disabled:opacity-60 disabled:cursor-not-allowed"
               title={!compare ? "Cargando comparativa..." : "Descargar PDF con comparativa, resumen IA y notas"}
             >
               Descargar PDF
-            </button>
+            
+<button
+  type="button"
+  onClick={handleSharePDF}
+  disabled={!compare || !analytics || analytics.length === 0}
+  className="sr-btn-secondary text-xs sm:text-sm disabled:opacity-60 disabled:cursor-not-allowed"
+  title={!compare ? "Cargando comparativa..." : "Compartir PDF (móvil) o abrir en pestaña nueva (desktop)"}
+>
+  Compartir informe
+</button>
+
+</button>
 
             <button type="button" onClick={() => navigate("/dashboard")} className="sr-btn-secondary text-xs sm:text-sm">Volver al dashboard</button>
             <button type="button" onClick={() => navigate("/pacientes")} className="sr-btn-secondary text-xs sm:text-sm">Volver a pacientes</button>
