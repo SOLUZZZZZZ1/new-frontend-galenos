@@ -178,7 +178,7 @@ export default function PacienteDetalle() {
 
 async function handleDownloadPDF() {
   try {
-    if (!patient || !compare || !analytics || analytics.length === 0) return;
+    if (!patient || !analytics || analytics.length === 0) return;
     await generatePacientePDFV1({ patient, compare, analytics, notes, mode: "download" });
   } catch (e) {
     console.error("Error descargando PDF:", e);
@@ -187,7 +187,7 @@ async function handleDownloadPDF() {
 
 async function handleSharePDF() {
   try {
-    if (!patient || !compare || !analytics || analytics.length === 0) return;
+    if (!patient || !analytics || analytics.length === 0) return;
 
     const { blob, fileName } = await generatePacientePDFV1({
       patient,
@@ -458,18 +458,18 @@ async function handleSharePDF() {
             <button
               type="button"
               onClick={handleDownloadPDF}
-              disabled={!compare || !analytics || analytics.length === 0}
+              disabled={!analytics || analytics.length === 0}
               className="sr-btn-primary text-xs sm:text-sm disabled:opacity-60 disabled:cursor-not-allowed"
-              title={!compare ? "Cargando comparativa..." : "Descargar PDF con comparativa, resumen IA y notas"}
+              title={!analytics || analytics.length === 0 ? "No hay analíticas" : "Descargar PDF con comparativa, resumen IA y notas"}
             >
               Descargar PDF
             
 <button
   type="button"
   onClick={handleSharePDF}
-  disabled={!compare || !analytics || analytics.length === 0}
+  disabled={!analytics || analytics.length === 0}
   className="sr-btn-secondary text-xs sm:text-sm disabled:opacity-60 disabled:cursor-not-allowed"
-  title={!compare ? "Cargando comparativa..." : "Compartir PDF (móvil) o abrir en pestaña nueva (desktop)"}
+  title={!analytics || analytics.length === 0 ? "No hay analíticas" : "Compartir PDF (móvil) o abrir en pestaña nueva (desktop)"}
 >
   Compartir informe
 </button>
