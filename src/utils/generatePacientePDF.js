@@ -78,8 +78,10 @@ function topNotes(notesArr, n = 3) {
 
 function buildCompareTable(compareObj) {
   const markersObj = compareObj?.markers || {};
+
   const has18 = Object.values(markersObj).some((row) => row && row["18m"] != null);
   const has24 = Object.values(markersObj).some((row) => row && row["24m"] != null);
+
   const head = ["Marcador", "Actual", "6m", "12m"];
   if (has18) head.push("18m");
   if (has24) head.push("24m");
@@ -88,12 +90,31 @@ function buildCompareTable(compareObj) {
     const tr = row?.trend || {};
     const b = row?.baseline;
 
+    const classify = (sym, delta) => {
+      const s = safeText(sym || "");
+      if (s.includes("↑")) return "IMPROVE";
+      if (s.includes("↓")) return "WORSEN";
+      if (s === "=") return "STABLE";
+      if (delta == null) return "STABLE";
+      if (delta > 0) return "IMPROVE";
+      if (delta < 0) return "WORSEN";
+      return "STABLE";
+    };
+
     const cell = (k) => {
       const vPast = row?.[k];
       const sym = tr[k] || "";
       const delta = vPast == null || b == null ? null : b - vPast;
-      const deltaTxt = delta == null ? "" : ` (Δ ${delta >= 0 ? "+" : ""}${Number(delta).toFixed(2)})`;
-      return `${vPast ?? "—"} ${sym}${deltaTxt}`.trim();
+      const deltaTxt =
+        delta == null
+          ? ""
+          : ` (Δ ${delta >= 0 ? "+" : ""}${Number(delta).toFixed(2)})`;
+
+      const status = classify(sym, delta);
+      const token = ` [[SR:${status}]]`;
+
+      // Deja espacio para el círculo
+      return `   ${vPast ?? "—"}${deltaTxt}${token}`.trimEnd();
     };
 
     const r = [safeText(name), safeText(b ?? "—"), cell("6m"), cell("12m")];
@@ -104,6 +125,7 @@ function buildCompareTable(compareObj) {
 
   return { head, body };
 }
+
 
 function pickMostRecentPastKey(row) {
   const order = ["6m", "12m", "18m", "24m"];
@@ -408,7 +430,6 @@ function computeSystemBuckets(compareObj, stablePct = 2) {
 function systemStatusLine(sysName, s, stablePct) {
   if (!s || !s.total) return `${sysName}: sin datos comparables.`;
 
-  // Heurística prudente y legible (sin flechas/símbolos)
   let label = "sin cambios relevantes";
   if (s.improve >= 1 && s.worsen >= 1) label = "mixto / a vigilar";
   else if (s.worsen >= 2 && s.worsen > s.improve) label = "cambios relevantes detectados";
@@ -558,7 +579,13 @@ export async function generatePacientePDFV1({ patient, compare, analytics, notes
   doc.setFont("helvetica", "bold");
   doc.setFontSize(12);
   doc.text("Comparativa temporal de marcadores", marginX, y);
+  y += 12;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.text("● mejora · ● empeora · ● a vigilar · ● estable", marginX, y);
   y += 10;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
 
   const hasComparableData = compare && compare.markers && Object.keys(compare.markers).length > 0;
 
@@ -572,24 +599,54 @@ export async function generatePacientePDFV1({ patient, compare, analytics, notes
       styles: { font: "helvetica", fontSize: 8, cellPadding: 3, overflow: "linebreak" },
       headStyles: { fontStyle: "bold" },
       didParseCell: function (data) {
-        try {
-          if (data.section === "body" && data.column && data.column.index >= 2) {
-            const raw = data.cell && data.cell.text != null ? data.cell.text : "";
-            const txt = Array.isArray(raw) ? raw.join(" ") : String(raw);
-            const m = txt.match(/\(\s*[^0-9+\-]*([+\-]?\d+(?:\.\d+)?)\s*\)/);
-            if (!m) return;
-            const delta = parseFloat(m[1]);
-            if (Number.isNaN(delta)) return;
-            if (delta > 0) {
-              data.cell.styles.textColor = [0, 128, 0];
-              data.cell.styles.fillColor = [232, 245, 233];
-            } else if (delta < 0) {
-              data.cell.styles.textColor = [200, 0, 0];
-              data.cell.styles.fillColor = [255, 235, 238];
-            }
-          }
-        } catch {}
-      },
+  try {
+    if (data.section !== "body") return;
+
+    const raw = data.cell && data.cell.text != null ? data.cell.text : "";
+    const txt = Array.isArray(raw) ? raw.join(" ") : String(raw);
+
+    const m = txt.match(/\[\[SR:(IMPROVE|WORSEN|STABLE|UNCERTAIN)\]\]/);
+    if (m) {
+      data.cell._srStatus = m[1];
+      const clean = txt.replace(/\s*\[\[SR:(?:IMPROVE|WORSEN|STABLE|UNCERTAIN)\]\]\s*/g, "");
+      data.cell.text = [clean];
+    } else {
+      data.cell._srStatus = "STABLE";
+    }
+
+    if (data.column && data.column.index >= 2) {
+      const t = Array.isArray(data.cell.text) ? data.cell.text.join(" ") : String(data.cell.text || "");
+      if (!t.startsWith("   ")) data.cell.text = ["   " + t];
+    }
+  } catch {
+    // no-op
+  }
+},
+didDrawCell: function (data) {
+  try {
+    if (data.section !== "body") return;
+    if (!data.column || data.column.index < 2) return;
+
+    const status = data.cell && data.cell._srStatus ? String(data.cell._srStatus) : "STABLE";
+
+    const x = data.cell.x;
+    const y = data.cell.y;
+    const h = data.cell.height;
+
+    const cx = x + 7.5;
+    const cy = y + h / 2;
+    const r = 3.2;
+
+    if (status === "IMPROVE") doc.setFillColor(34, 197, 94);
+    else if (status === "WORSEN") doc.setFillColor(239, 68, 68);
+    else if (status === "UNCERTAIN") doc.setFillColor(245, 158, 11);
+    else doc.setFillColor(148, 163, 184);
+
+    doc.circle(cx, cy, r, "F");
+  } catch {
+    // no-op
+  }
+},
       margin: { left: marginX, right: marginX },
     });
     y = doc.lastAutoTable?.finalY ? doc.lastAutoTable.finalY + 16 : y + 220;
