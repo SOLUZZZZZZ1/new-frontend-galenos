@@ -419,7 +419,7 @@ export default function PacienteDetalle() {
               onClick={() => generatePacientePDFV1({ patient, compare, analytics, notes })}
               disabled={!compare || !analytics || analytics.length === 0}
               className="sr-btn-primary text-xs sm:text-sm disabled:opacity-60 disabled:cursor-not-allowed"
-              title={!compare ? "Cargando comparativa..." : "Descargar PDF con comparativa, resumen IA y notas"}
+              title={!compare ? "Cargando comparativa..." : "Descargar PDF (portada clínica + resumen global + resumen IA + comparativa + notas)"}
             >
               Descargar PDF
             </button>
