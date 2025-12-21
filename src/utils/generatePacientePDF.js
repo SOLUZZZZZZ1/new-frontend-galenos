@@ -1,3 +1,6 @@
+
+
+console.log("USANDO GENERADOR PDF: CIRCULOS v1");
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
@@ -326,7 +329,7 @@ function renderCoverPage(doc, { patient, compare, analytics }) {
   const lines1 = [
     `Fecha y hora (Madrid): ${nowMadridString()}`,
     idCorto ? `ID informe: ${idCorto}` : null,
-    "Tipo: V2.0 (Prioridades clínicas + Sistemas) + Comparativa + Resumen IA + Notas",
+    "Tipo: V2.0 (CÍRCULOS v1) + Prioridades clínicas + Sistemas + Comparativa + Resumen IA + Notas",
   ].filter(Boolean);
   doc.text(lines1, marginX, y); y += lines1.length * 12 + 10;
 
@@ -582,7 +585,7 @@ export async function generatePacientePDFV1({ patient, compare, analytics, notes
   y += 12;
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
-  doc.text("● mejora · ● empeora · ● a vigilar · ● estable", marginX, y);
+  doc.text("● mejora · ● empeora · ● a vigilar · ● estable   (CÍRCULOS v1)", marginX, y);
   y += 10;
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
