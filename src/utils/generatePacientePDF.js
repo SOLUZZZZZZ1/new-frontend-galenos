@@ -77,7 +77,7 @@ const pageH = doc.internal.pageSize.getHeight();
 if (y > pageH - 120) {
   doc.addPage();
   y = 60;
-  await addGalenosLogo(doc); // OK: estamos dentro de una función async
+  addGalenosLogo(doc);
 }
 
 addFooterDisclaimer(doc, footerDisclaimer, { marginX, wrapW, fontSize: 9 });
