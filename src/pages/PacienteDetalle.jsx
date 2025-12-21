@@ -103,6 +103,156 @@ function trendClass(marker, sym) {
   return "text-amber-600 font-semibold";
 }
 
+// ========================
+// Resumen clínico rápido (V2.0) — frontend (determinista, sin IA)
+// ========================
+
+function pickMostRecentPastKeyFrontend(row) {
+  const order = ["6m", "12m", "18m", "24m"];
+  for (const k of order) {
+    if (row && row[k] != null && row[k] !== "") return k;
+  }
+  return null;
+}
+
+function classifySystemFrontend(markerName) {
+  const n = normName(markerName);
+
+  const renal = [
+    "creatinina",
+    "urea",
+    "filtrat glomerular",
+    "filtrado glomerular",
+    "aclarament de creatinina",
+    "aclarament d'urea",
+    "protein",
+    "proteinúria",
+    "proteinuria",
+    "proteïnúria",
+    "proteïnùria",
+    "quocient prote",
+    "densitat",
+    "orina",
+  ];
+
+  const acid = ["co2", "bicarbon", "exces de base", "excés de base", "pressió parcial co2", "presión parcial co2", "ph "];
+
+  const metab = [
+    "glucosa",
+    "hba1c",
+    "hemoglobina glicada",
+    "colesterol",
+    "triglic",
+    "ldl",
+    "hdl",
+    "sodi",
+    "potassi",
+    "calci",
+    "vitamina d",
+    "àcid úric",
+    "acido uric",
+  ];
+
+  const hema = [
+    "hemoglobina",
+    "hematòcrit",
+    "hematocrit",
+    "hematies",
+    "leuc",
+    "neutr",
+    "limf",
+    "mon",
+    "eosin",
+    "basof",
+    "basòf",
+    "plaquet",
+    "ferritina",
+    "ferro",
+    "transferrina",
+    "reticul",
+  ];
+
+  if (renal.some((k) => n.includes(k))) return "Renal / Orina";
+  if (acid.some((k) => n.includes(k))) return "Ácido–Base / Resp.";
+  if (metab.some((k) => n.includes(k))) return "Metabólico / Cardio.";
+  if (hema.some((k) => n.includes(k))) return "Hematológico / Hierro";
+  return "Otros";
+}
+
+function buildResumenV2Frontend(compareObj, stablePct = 2) {
+  const markersObj = compareObj?.markers || {};
+  const items = [];
+  const systems = {};
+
+  let improve = 0,
+    worsen = 0,
+    stable = 0;
+
+  for (const [name, row] of Object.entries(markersObj)) {
+    const baseline = row?.baseline;
+    const pastKey = pickMostRecentPastKeyFrontend(row);
+    if (baseline == null || !pastKey) continue;
+
+    const past = Number(row?.[pastKey]);
+    const b = Number(baseline);
+    if (!Number.isFinite(past) || !Number.isFinite(b) || past === 0) continue;
+
+    const pct = ((b - past) / past) * 100;
+
+    let cls = "stable";
+    if (Math.abs(pct) >= stablePct) cls = pct > 0 ? "improve" : "worsen";
+
+    if (cls === "improve") improve++;
+    else if (cls === "worsen") worsen++;
+    else stable++;
+
+    items.push({ name, pct, absPct: Math.abs(pct), cls });
+
+    const sys = classifySystemFrontend(name);
+    if (!systems[sys]) systems[sys] = { improve: 0, worsen: 0, stable: 0, total: 0 };
+    systems[sys].total++;
+    systems[sys][cls]++;
+  }
+
+  const topWorsen = items
+    .filter((x) => x.cls === "worsen")
+    .sort((a, b) => b.absPct - a.absPct)
+    .slice(0, 3)
+    .map((x) => x.name);
+
+  const topImprove = items
+    .filter((x) => x.cls === "improve")
+    .sort((a, b) => b.absPct - a.absPct)
+    .slice(0, 3)
+    .map((x) => x.name);
+
+  const systemRows = Object.entries(systems).map(([sys, s]) => {
+    let label = "sin cambios";
+    if (s.improve >= 1 && s.worsen >= 1) label = "mixto / a vigilar";
+    else if (s.worsen >= 2 && s.worsen > s.improve) label = "cambios relevantes";
+    else if (s.improve >= 2 && s.improve > s.worsen) label = "mejoría global";
+    return { sys, label, ...s };
+  });
+
+  const order = ["Renal / Orina", "Ácido–Base / Resp.", "Metabólico / Cardio.", "Hematológico / Hierro", "Otros"];
+  systemRows.sort((a, b) => order.indexOf(a.sys) - order.indexOf(b.sys));
+
+  return {
+    hasData: items.length > 0,
+    totals: { total: items.length, improve, worsen, stable, stablePct },
+    topWorsen,
+    topImprove,
+    systemRows,
+  };
+}
+
+function badgeClass(label) {
+  if (label.includes("cambios")) return "bg-rose-50 text-rose-700 border-rose-200";
+  if (label.includes("mejoría")) return "bg-emerald-50 text-emerald-700 border-emerald-200";
+  if (label.includes("mixto")) return "bg-amber-50 text-amber-700 border-amber-200";
+  return "bg-slate-50 text-slate-700 border-slate-200";
+}
+
 export default function PacienteDetalle() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -440,11 +590,67 @@ export default function PacienteDetalle() {
           <div className="mt-3 space-y-3 text-sm text-slate-700">
             {!editing ? (
               <>
-                <p><strong>Alias:</strong> {patient.alias}</p>
-                <p><strong>Edad:</strong> {patient.age != null ? `${patient.age} años` : "—"}</p>
-                <p><strong>Sexo:</strong> {patient.gender || "—"}</p>
-                <p><strong>Notas internas:</strong> {patient.notes || "—"}</p>
-                <button type="button" onClick={() => setEditing(true)} className="sr-btn-secondary text-xs mt-2">Editar datos</button>
+                <div className="grid sm:grid-cols-2 gap-4">
+  <div className="space-y-2">
+    <p><strong>Alias:</strong> {patient.alias}</p>
+    <p><strong>Edad:</strong> {patient.age != null ? `${patient.age} años` : "—"}</p>
+    <p><strong>Sexo:</strong> {patient.gender || "—"}</p>
+    <p><strong>Notas internas:</strong> {patient.notes || "—"}</p>
+    <button type="button" onClick={() => setEditing(true)} className="sr-btn-secondary text-xs mt-2">Editar datos</button>
+  </div>
+
+  <div className="border border-slate-200 rounded-lg bg-slate-50/60 p-3">
+    <div className="flex items-center justify-between gap-2">
+      <h3 className="text-sm font-semibold text-slate-900">🩺 Resumen clínico rápido</h3>
+      <span className="text-[10px] px-2 py-0.5 rounded-full border border-slate-200 bg-white text-slate-600">V2.0</span>
+    </div>
+
+    {(() => {
+      const v2 = buildResumenV2Frontend(compare, 2);
+      if (!compare || !v2.hasData) {
+        return <p className="text-xs text-slate-600 mt-2">Cargando comparativa…</p>;
+      }
+
+      return (
+        <div className="mt-2 space-y-3 text-xs text-slate-800">
+          <div>
+            <p className="font-semibold text-slate-700">🔴 Prioridades clínicas</p>
+            <p className="mt-1">
+              {v2.topWorsen.length ? v2.topWorsen.join(" · ") : "Sin prioridades detectadas"}
+            </p>
+          </div>
+
+          <div>
+            <p className="font-semibold text-slate-700">🧠 Sistemas</p>
+            <div className="mt-1 space-y-1">
+              {v2.systemRows.slice(0, 4).map((r) => (
+                <div key={r.sys} className="flex items-center justify-between gap-2">
+                  <span className="text-slate-700">{r.sys}</span>
+                  <span className={`px-2 py-0.5 rounded-full border ${badgeClass(r.label)}`}>{r.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <p className="font-semibold text-slate-700">📈 Tendencia global</p>
+            <p className="mt-1 text-slate-700">
+              <span className="font-medium">{v2.totals.total}</span> eval ·{" "}
+              <span className="text-emerald-700 font-medium">{v2.totals.improve}</span> mejoran ·{" "}
+              <span className="text-rose-700 font-medium">{v2.totals.worsen}</span> empeoran ·{" "}
+              <span className="text-slate-600 font-medium">{v2.totals.stable}</span> estables
+            </p>
+          </div>
+
+          <p className="text-[10px] text-slate-500">
+            Documento de apoyo a la deliberación clínica. La decisión final corresponde al profesional sanitario responsable.
+          </p>
+        </div>
+      );
+    })()}
+  </div>
+</div>
+
               </>
             ) : (
               <form onSubmit={handleSavePatient} className="space-y-2">
