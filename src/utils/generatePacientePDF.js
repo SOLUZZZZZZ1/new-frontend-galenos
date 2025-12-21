@@ -407,11 +407,15 @@ function computeSystemBuckets(compareObj, stablePct = 2) {
 
 function systemStatusLine(sysName, s, stablePct) {
   if (!s || !s.total) return `${sysName}: sin datos comparables.`;
+
+  // Heurística prudente y legible (sin flechas/símbolos)
   let label = "sin cambios relevantes";
-  if (s.worsen >= 2 && s.worsen > s.improve) label = "cambios relevantes detectados";
+  if (s.improve >= 1 && s.worsen >= 1) label = "mixto / a vigilar";
+  else if (s.worsen >= 2 && s.worsen > s.improve) label = "cambios relevantes detectados";
   else if (s.improve >= 2 && s.improve > s.worsen) label = "mejoría global";
   else if (s.worsen === 1 && s.improve === 0) label = "cambio puntual a vigilar";
-  return `${sysName}: ${label} (↑${s.improve} · ↓${s.worsen} · =${s.stable} · ±${stablePct}% , n=${s.total}).`;
+
+  return `${sysName}: ${label} (Mejoran: ${s.improve} · Empeoran: ${s.worsen} · Estables: ${s.stable} · n=${s.total} · ±${stablePct}%).`;
 }
 
 function renderV2PrioritiesAndSystems(doc, { compare, marginX, y, wrapW, stablePct = 2 }) {
@@ -567,6 +571,25 @@ export async function generatePacientePDFV1({ patient, compare, analytics, notes
       theme: "grid",
       styles: { font: "helvetica", fontSize: 8, cellPadding: 3, overflow: "linebreak" },
       headStyles: { fontStyle: "bold" },
+      didParseCell: function (data) {
+        try {
+          if (data.section === "body" && data.column && data.column.index >= 2) {
+            const raw = data.cell && data.cell.text != null ? data.cell.text : "";
+            const txt = Array.isArray(raw) ? raw.join(" ") : String(raw);
+            const m = txt.match(/\(\s*[^0-9+\-]*([+\-]?\d+(?:\.\d+)?)\s*\)/);
+            if (!m) return;
+            const delta = parseFloat(m[1]);
+            if (Number.isNaN(delta)) return;
+            if (delta > 0) {
+              data.cell.styles.textColor = [0, 128, 0];
+              data.cell.styles.fillColor = [232, 245, 233];
+            } else if (delta < 0) {
+              data.cell.styles.textColor = [200, 0, 0];
+              data.cell.styles.fillColor = [255, 235, 238];
+            }
+          }
+        } catch {}
+      },
       margin: { left: marginX, right: marginX },
     });
     y = doc.lastAutoTable?.finalY ? doc.lastAutoTable.finalY + 16 : y + 220;
