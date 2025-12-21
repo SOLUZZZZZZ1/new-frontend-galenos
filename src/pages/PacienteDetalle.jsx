@@ -33,6 +33,47 @@ function fmtDelta(d) {
   const s = d >= 0 ? `+${d.toFixed(2)}` : d.toFixed(2);
   return s.replace(".", ",");
 }
+function computeSinceReviewChanges(baseMarkers = [], refMarkers = []) {
+  const toMap = (arr) => {
+    const out = {};
+    for (const m of (arr || [])) {
+      const name = (m?.name || "").toString().trim();
+      const v = Number(m?.value);
+      if (!name || !Number.isFinite(v)) continue;
+      out[name] = v;
+    }
+    return out;
+  };
+
+  const base = toMap(baseMarkers);
+  const ref = toMap(refMarkers);
+
+  const rows = [];
+  for (const [name, vBase] of Object.entries(base)) {
+    if (!(name in ref)) continue;
+    const vRef = ref[name];
+    const delta = vBase - vRef;
+    if (!Number.isFinite(delta)) continue;
+    rows.push({ name, vBase, vRef, delta, abs: Math.abs(delta) });
+  }
+
+  rows.sort((a, b) => b.abs - a.abs);
+  return rows.slice(0, 5);
+}
+
+function changeLabel(delta, eps = 0.000001) {
+  if (delta > eps) return "mejora";
+  if (delta < -eps) return "empeora";
+  return "estable";
+}
+
+function changeBadgeClass(label) {
+  if (label === "empeora") return "bg-rose-50 text-rose-700 border-rose-200";
+  if (label === "mejora") return "bg-emerald-50 text-emerald-700 border-emerald-200";
+  return "bg-slate-50 text-slate-700 border-slate-200";
+}
+
+
 
 function normName(s) {
   return (s || "").toString().toLowerCase();
@@ -103,156 +144,6 @@ function trendClass(marker, sym) {
   return "text-amber-600 font-semibold";
 }
 
-// ========================
-// Resumen clínico rápido (V2.0) — frontend (determinista, sin IA)
-// ========================
-
-function pickMostRecentPastKeyFrontend(row) {
-  const order = ["6m", "12m", "18m", "24m"];
-  for (const k of order) {
-    if (row && row[k] != null && row[k] !== "") return k;
-  }
-  return null;
-}
-
-function classifySystemFrontend(markerName) {
-  const n = normName(markerName);
-
-  const renal = [
-    "creatinina",
-    "urea",
-    "filtrat glomerular",
-    "filtrado glomerular",
-    "aclarament de creatinina",
-    "aclarament d'urea",
-    "protein",
-    "proteinúria",
-    "proteinuria",
-    "proteïnúria",
-    "proteïnùria",
-    "quocient prote",
-    "densitat",
-    "orina",
-  ];
-
-  const acid = ["co2", "bicarbon", "exces de base", "excés de base", "pressió parcial co2", "presión parcial co2", "ph "];
-
-  const metab = [
-    "glucosa",
-    "hba1c",
-    "hemoglobina glicada",
-    "colesterol",
-    "triglic",
-    "ldl",
-    "hdl",
-    "sodi",
-    "potassi",
-    "calci",
-    "vitamina d",
-    "àcid úric",
-    "acido uric",
-  ];
-
-  const hema = [
-    "hemoglobina",
-    "hematòcrit",
-    "hematocrit",
-    "hematies",
-    "leuc",
-    "neutr",
-    "limf",
-    "mon",
-    "eosin",
-    "basof",
-    "basòf",
-    "plaquet",
-    "ferritina",
-    "ferro",
-    "transferrina",
-    "reticul",
-  ];
-
-  if (renal.some((k) => n.includes(k))) return "Renal / Orina";
-  if (acid.some((k) => n.includes(k))) return "Ácido–Base / Resp.";
-  if (metab.some((k) => n.includes(k))) return "Metabólico / Cardio.";
-  if (hema.some((k) => n.includes(k))) return "Hematológico / Hierro";
-  return "Otros";
-}
-
-function buildResumenV2Frontend(compareObj, stablePct = 2) {
-  const markersObj = compareObj?.markers || {};
-  const items = [];
-  const systems = {};
-
-  let improve = 0,
-    worsen = 0,
-    stable = 0;
-
-  for (const [name, row] of Object.entries(markersObj)) {
-    const baseline = row?.baseline;
-    const pastKey = pickMostRecentPastKeyFrontend(row);
-    if (baseline == null || !pastKey) continue;
-
-    const past = Number(row?.[pastKey]);
-    const b = Number(baseline);
-    if (!Number.isFinite(past) || !Number.isFinite(b) || past === 0) continue;
-
-    const pct = ((b - past) / past) * 100;
-
-    let cls = "stable";
-    if (Math.abs(pct) >= stablePct) cls = pct > 0 ? "improve" : "worsen";
-
-    if (cls === "improve") improve++;
-    else if (cls === "worsen") worsen++;
-    else stable++;
-
-    items.push({ name, pct, absPct: Math.abs(pct), cls });
-
-    const sys = classifySystemFrontend(name);
-    if (!systems[sys]) systems[sys] = { improve: 0, worsen: 0, stable: 0, total: 0 };
-    systems[sys].total++;
-    systems[sys][cls]++;
-  }
-
-  const topWorsen = items
-    .filter((x) => x.cls === "worsen")
-    .sort((a, b) => b.absPct - a.absPct)
-    .slice(0, 3)
-    .map((x) => x.name);
-
-  const topImprove = items
-    .filter((x) => x.cls === "improve")
-    .sort((a, b) => b.absPct - a.absPct)
-    .slice(0, 3)
-    .map((x) => x.name);
-
-  const systemRows = Object.entries(systems).map(([sys, s]) => {
-    let label = "sin cambios";
-    if (s.improve >= 1 && s.worsen >= 1) label = "mixto / a vigilar";
-    else if (s.worsen >= 2 && s.worsen > s.improve) label = "cambios relevantes";
-    else if (s.improve >= 2 && s.improve > s.worsen) label = "mejoría global";
-    return { sys, label, ...s };
-  });
-
-  const order = ["Renal / Orina", "Ácido–Base / Resp.", "Metabólico / Cardio.", "Hematológico / Hierro", "Otros"];
-  systemRows.sort((a, b) => order.indexOf(a.sys) - order.indexOf(b.sys));
-
-  return {
-    hasData: items.length > 0,
-    totals: { total: items.length, improve, worsen, stable, stablePct },
-    topWorsen,
-    topImprove,
-    systemRows,
-  };
-}
-
-function badgeClass(label) {
-  if (label.includes("cambios")) return "bg-rose-50 text-rose-700 border-rose-200";
-  if (label.includes("mejoría")) return "bg-emerald-50 text-emerald-700 border-emerald-200";
-  if (label.includes("mixto")) return "bg-amber-50 text-amber-700 border-amber-200";
-  return "bg-slate-50 text-slate-700 border-slate-200";
-}
-
 export default function PacienteDetalle() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -308,6 +199,12 @@ export default function PacienteDetalle() {
 
   // Comparativa automática
   const [compare, setCompare] = useState(null);
+const [reviewState, setReviewState] = useState(null);
+const [reviewStateError, setReviewStateError] = useState("");
+const [reviewSaving, setReviewSaving] = useState(false);
+
+const [sinceChanges, setSinceChanges] = useState([]);
+const [sinceChangesError, setSinceChangesError] = useState("");
   const [compareError, setCompareError] = useState("");
   const [showLongWindows, setShowLongWindows] = useState(false);
   const [showCompareHelp, setShowCompareHelp] = useState(false);
@@ -389,10 +286,103 @@ export default function PacienteDetalle() {
     }
   }
 
+async function loadReviewState() {
+  setReviewStateError("");
+  if (!id || !token) return;
+
+  try {
+    const res = await fetch(`${API}/patients/${id}/review-state`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const raw = await res.text();
+    if (!res.ok) throw new Error(raw);
+    const data = JSON.parse(raw);
+    setReviewState(data);
+  } catch {
+    setReviewStateError("No se pudo cargar el estado de revisión.");
+    setReviewState(null);
+  }
+}
+
+async function markAsReviewed() {
+  if (!id || !token) return;
+  setReviewSaving(true);
+  setReviewStateError("");
+  try {
+    const latest = (analytics || [])
+      .slice()
+      .sort((a, b) => String(b.exam_date || b.created_at || "").localeCompare(String(a.exam_date || a.created_at || "")))[0];
+
+    const latestId = latest?.id ?? null;
+
+    const res = await fetch(`${API}/patients/${id}/review-state`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ last_reviewed_analytic_id: latestId }),
+    });
+    const raw = await res.text();
+    if (!res.ok) throw new Error(raw);
+    const data = JSON.parse(raw);
+    setReviewState(data);
+    setSinceChanges([]);
+  } catch {
+    setReviewStateError("No se pudo marcar como revisado.");
+  } finally {
+    setReviewSaving(false);
+  }
+}
+
+async function computeChangesSinceReview() {
+  setSinceChangesError("");
+  setSinceChanges([]);
+
+  try {
+    if (!reviewState?.last_reviewed_analytic_id) return;
+
+    const reviewedId = Number(reviewState.last_reviewed_analytic_id);
+    if (!reviewedId) return;
+
+    const latest = (analytics || [])
+      .slice()
+      .sort((a, b) => String(b.exam_date || b.created_at || "").localeCompare(String(a.exam_date || a.created_at || "")))[0];
+
+    const latestId = latest?.id ?? null;
+    if (!latestId || latestId === reviewedId) return;
+
+    const ensureMarkers = async (aid) => {
+      const cached = Array.isArray(markersCache[aid]) ? markersCache[aid] : null;
+      if (cached) return cached;
+
+      const res = await fetch(`${API}/analytics/markers/${aid}`, { headers: { Authorization: `Bearer ${token}` } });
+      const raw = await res.text();
+      if (!res.ok) throw new Error(raw);
+      const data = JSON.parse(raw);
+      const markers = Array.isArray(data.markers) ? data.markers : [];
+      setMarkersCache((prev) => ({ ...prev, [aid]: markers }));
+      return markers;
+    };
+
+    const baseMarkers = await ensureMarkers(latestId);
+    const refMarkers = await ensureMarkers(reviewedId);
+
+    const rows = computeSinceReviewChanges(baseMarkers, refMarkers);
+    setSinceChanges(rows);
+  } catch {
+    setSinceChangesError("No se pudieron calcular los cambios desde la última revisión.");
+  }
+}
+
+
   useEffect(() => {
     loadAll();
+    loadReviewState();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, token]);
+
+useEffect(() => {
+  computeChangesSinceReview();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [reviewState, analytics]);
 
   useEffect(() => {
     if (manualBaselineId == null) {
@@ -590,67 +580,11 @@ export default function PacienteDetalle() {
           <div className="mt-3 space-y-3 text-sm text-slate-700">
             {!editing ? (
               <>
-                <div className="grid sm:grid-cols-2 gap-4">
-  <div className="space-y-2">
-    <p><strong>Alias:</strong> {patient.alias}</p>
-    <p><strong>Edad:</strong> {patient.age != null ? `${patient.age} años` : "—"}</p>
-    <p><strong>Sexo:</strong> {patient.gender || "—"}</p>
-    <p><strong>Notas internas:</strong> {patient.notes || "—"}</p>
-    <button type="button" onClick={() => setEditing(true)} className="sr-btn-secondary text-xs mt-2">Editar datos</button>
-  </div>
-
-  <div className="border border-slate-200 rounded-lg bg-slate-50/60 p-3">
-    <div className="flex items-center justify-between gap-2">
-      <h3 className="text-sm font-semibold text-slate-900">🩺 Resumen clínico rápido</h3>
-      <span className="text-[10px] px-2 py-0.5 rounded-full border border-slate-200 bg-white text-slate-600">V2.0</span>
-    </div>
-
-    {(() => {
-      const v2 = buildResumenV2Frontend(compare, 2);
-      if (!compare || !v2.hasData) {
-        return <p className="text-xs text-slate-600 mt-2">Cargando comparativa…</p>;
-      }
-
-      return (
-        <div className="mt-2 space-y-3 text-xs text-slate-800">
-          <div>
-            <p className="font-semibold text-slate-700">🔴 Prioridades clínicas</p>
-            <p className="mt-1">
-              {v2.topWorsen.length ? v2.topWorsen.join(" · ") : "Sin prioridades detectadas"}
-            </p>
-          </div>
-
-          <div>
-            <p className="font-semibold text-slate-700">🧠 Sistemas</p>
-            <div className="mt-1 space-y-1">
-              {v2.systemRows.slice(0, 4).map((r) => (
-                <div key={r.sys} className="flex items-center justify-between gap-2">
-                  <span className="text-slate-700">{r.sys}</span>
-                  <span className={`px-2 py-0.5 rounded-full border ${badgeClass(r.label)}`}>{r.label}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <p className="font-semibold text-slate-700">📈 Tendencia global</p>
-            <p className="mt-1 text-slate-700">
-              <span className="font-medium">{v2.totals.total}</span> eval ·{" "}
-              <span className="text-emerald-700 font-medium">{v2.totals.improve}</span> mejoran ·{" "}
-              <span className="text-rose-700 font-medium">{v2.totals.worsen}</span> empeoran ·{" "}
-              <span className="text-slate-600 font-medium">{v2.totals.stable}</span> estables
-            </p>
-          </div>
-
-          <p className="text-[10px] text-slate-500">
-            Documento de apoyo a la deliberación clínica. La decisión final corresponde al profesional sanitario responsable.
-          </p>
-        </div>
-      );
-    })()}
-  </div>
-</div>
-
+                <p><strong>Alias:</strong> {patient.alias}</p>
+                <p><strong>Edad:</strong> {patient.age != null ? `${patient.age} años` : "—"}</p>
+                <p><strong>Sexo:</strong> {patient.gender || "—"}</p>
+                <p><strong>Notas internas:</strong> {patient.notes || "—"}</p>
+                <button type="button" onClick={() => setEditing(true)} className="sr-btn-secondary text-xs mt-2">Editar datos</button>
               </>
             ) : (
               <form onSubmit={handleSavePatient} className="space-y-2">
