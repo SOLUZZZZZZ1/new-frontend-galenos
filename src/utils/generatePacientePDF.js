@@ -1,6 +1,3 @@
-
-
-console.log("USANDO GENERADOR PDF: CIRCULOS v1");
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
@@ -46,6 +43,26 @@ async function addGalenosLogo(doc) {
   } catch {
     // no-op
   }
+}
+
+function drawLegendCircles(doc, x, y) {
+  // Leyenda sin caracteres especiales: círculos dibujados + texto.
+  const r = 3.2;
+  const gap = 10;
+  let cx = x + r;
+
+  const item = (fill, label) => {
+    doc.setFillColor(fill[0], fill[1], fill[2]);
+    doc.circle(cx, y, r, "F");
+    doc.setTextColor(0, 0, 0);
+    doc.text(label, cx + r + 4, y + 3);
+    cx += r * 2 + 4 + doc.getTextWidth(label) + gap;
+  };
+
+  item([34, 197, 94], "mejora");
+  item([239, 68, 68], "empeora");
+  item([245, 158, 11], "a vigilar");
+  item([148, 163, 184], "estable");
 }
 
 function addFooterDisclaimer(doc, text, { marginX = 40, wrapW = 515, fontSize = 9, bottom = 34 } = {}) {
@@ -263,7 +280,7 @@ function renderObjectiveSummarySection(doc, summaryObj, { marginX, y, wrapW }) {
   doc.text(lines, marginX, y);
   y += lines.length * 12 + 10;
 
-  const fmtItem = (it) => `- ${safeText(it.name)} (${safeText(it.pastKey)} → actual): ${formatPct(it.pct)}`;
+  const fmtItem = (it) => `- ${safeText(it.name)} (${safeText(it.pastKey)} a actual): ${formatPct(it.pct)}`;
 
   if (summaryObj.topImprove?.length) {
     doc.setFont("helvetica", "bold");
@@ -329,7 +346,7 @@ function renderCoverPage(doc, { patient, compare, analytics }) {
   const lines1 = [
     `Fecha y hora (Madrid): ${nowMadridString()}`,
     idCorto ? `ID informe: ${idCorto}` : null,
-    "Tipo: V2.0 (CÍRCULOS v1) + Prioridades clínicas + Sistemas + Comparativa + Resumen IA + Notas",
+    "Tipo: V2.0 (CÍRCULOS v2) + Prioridades clínicas + Sistemas + Comparativa + Resumen IA + Notas",
   ].filter(Boolean);
   doc.text(lines1, marginX, y); y += lines1.length * 12 + 10;
 
@@ -585,7 +602,7 @@ export async function generatePacientePDFV1({ patient, compare, analytics, notes
   y += 12;
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
-  doc.text("● mejora · ● empeora · ● a vigilar · ● estable   (CÍRCULOS v1)", marginX, y);
+  drawLegendCircles(doc, marginX, y);
   y += 10;
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
