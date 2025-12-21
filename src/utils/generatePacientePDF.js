@@ -330,217 +330,213 @@ function renderLegend(doc, marginX, y) {
 }
 
 // ========================
-// PDF V2-lite — Portada clínica (FASE 2) + Resumen global determinista (Opción 1)
+// PDF V2.0 — Prioridades clínicas + Resumen por sistemas (determinista)
 // ========================
 
-function shortIdFromParts(patient, compare) {
-  // ID corto NO criptográfico: suficiente para trazabilidad visual en PDF sin backend.
-  // Si no hay datos, devuelve vacío.
-  try {
-    const base =
-      safeText(patient?.id || "") +
-      "|" +
-      safeText(compare?.baseline?.analytic_id || "") +
-      "|" +
-      safeText(compare?.baseline?.date || "");
-    if (!base.trim()) return "";
-    let h = 0;
-    for (let i = 0; i < base.length; i++) h = (h * 31 + base.charCodeAt(i)) >>> 0;
-    return `G-${h.toString(16).toUpperCase().padStart(8, "0")}`;
-  } catch {
-    return "";
+function normalizeKey(s) {
+  return (s || "").toString().toLowerCase();
+}
+
+function classifySystem(markerName) {
+  const n = normalizeKey(markerName);
+
+  // Renal / orina
+  const renal = [
+    "creatinina",
+    "urea",
+    "filtrat glomerular",
+    "filtrado glomerular",
+    "aclarament de creatinina",
+    "aclarament d'urea",
+    "proteinúria",
+    "proteinuria",
+    "proteïnúria",
+    "proteïnùria",
+    "quocient prote",
+    "densitat",
+    "ph orina",
+    "pH (orina)".toLowerCase(),
+    "volum orina",
+    "creatinina orina",
+    "urea orina",
+  ];
+
+  // Metabólico / cardiovascular
+  const metab = [
+    "glucosa",
+    "hemoglobina glicada",
+    "hba1c",
+    "colesterol",
+    "triglic",
+    "ldl",
+    "hdl",
+    "uric",
+    "àcid úric",
+    "sodi",
+    "potassi",
+    "calci",
+    "fòsfor",
+    "fosfor",
+    "vitamina d",
+  ];
+
+  // Hematológico / hierro
+  const hema = [
+    "hemoglobina",
+    "hematòcrit",
+    "hematocrit",
+    "hematies",
+    "leuc",
+    "neutr",
+    "limf",
+    "mon",
+    "eosin",
+    "basòf",
+    "basof",
+    "plaquet",
+    "ferritina",
+    "ferro",
+    "transferrina",
+    "reticul",
+    "índex dispersió".toLowerCase(),
+    "index dispersio".toLowerCase(),
+  ];
+
+  // Acidobásico / respiratorio
+  const acid = [
+    "co2",
+    "bicarbonat",
+    "bicarbonato",
+    "pressió parcial co2",
+    "presión parcial co2",
+    "exces de base",
+    "excés de base",
+    "ph ",
+    "pH ".toLowerCase(),
+  ];
+
+  if (renal.some((k) => n.includes(k))) return "Renal / Orina";
+  if (acid.some((k) => n.includes(k))) return "Ácido–Base / Respiratorio";
+  if (metab.some((k) => n.includes(k))) return "Metabólico / Cardiovascular";
+  if (hema.some((k) => n.includes(k))) return "Hematológico / Hierro";
+  return "Otros";
+}
+
+function computeSystemBuckets(compareObj, stablePct = 2) {
+  const markersObj = compareObj?.markers || {};
+  const buckets = {};
+
+  // Reutilizamos lógica de % sobre el pasado más reciente disponible.
+  for (const [name, row] of Object.entries(markersObj)) {
+    const baseline = row?.baseline;
+    const pastKey = pickMostRecentPastKey(row);
+    if (baseline == null || !pastKey) continue;
+
+    const past = row?.[pastKey];
+    const p = Number(past);
+    const b = Number(baseline);
+    if (!Number.isFinite(p) || !Number.isFinite(b) || p === 0) continue;
+
+    const pct = ((b - p) / p) * 100;
+    const sys = classifySystem(name);
+
+    if (!buckets[sys]) buckets[sys] = { improve: 0, worsen: 0, stable: 0, total: 0 };
+    buckets[sys].total += 1;
+
+    if (Math.abs(pct) < stablePct) buckets[sys].stable += 1;
+    else if (pct > 0) buckets[sys].improve += 1;
+    else buckets[sys].worsen += 1;
   }
+
+  return buckets;
 }
 
-function renderCoverPage(doc, { patient, compare, analytics }) {
-  const marginX = 40;
-  const pageW = doc.internal.pageSize.getWidth();
-  const pageH = doc.internal.pageSize.getHeight();
+function systemStatusLine(sysName, s, stablePct) {
+  if (!s || !s.total) return `${sysName}: sin datos comparables.`;
 
-  let y = 88;
+  // Heurística simple y prudente
+  let label = "sin cambios relevantes";
+  if (s.worsen >= 2 && s.worsen > s.improve) label = "cambios relevantes detectados";
+  else if (s.improve >= 2 && s.improve > s.worsen) label = "mejoría global";
+  else if (s.worsen === 1 && s.improve === 0) label = "cambio puntual a vigilar";
 
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(22);
-  doc.text("GALENOS.PRO", marginX, y);
-  y += 18;
-
-  doc.setFontSize(14);
-  doc.text("INFORME CLÍNICO (APOYO A LA DECISIÓN)", marginX, y);
-  y += 14;
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(10);
-  doc.text(
-    "Documento generado automáticamente a partir de datos registrados en la plataforma.",
-    marginX,
-    y
-  );
-  y += 22;
-
-  // Identificación
-  const idCorto = shortIdFromParts(patient, compare);
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
-  doc.text("Identificación del informe", marginX, y);
-  y += 12;
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(10);
-
-  const lastA = pickLatestAnalytic(analytics);
-  const lastDate = lastA?.exam_date || lastA?.created_at || null;
-
-  const windows = (() => {
-    const markersObj = compare?.markers || {};
-    const has18 = Object.values(markersObj).some((row) => row && row["18m"] != null);
-    const has24 = Object.values(markersObj).some((row) => row && row["24m"] != null);
-    const arr = ["6/12 meses"];
-    if (has18 || has24) arr.push("18/24 meses (si aplica)");
-    return arr.join(" + ");
-  })();
-
-  const lines1 = [
-    `Fecha y hora (Madrid): ${nowMadridString()}`,
-    idCorto ? `ID informe: ${idCorto}` : null,
-    "Tipo: Comparativa temporal + Resumen IA + Notas clínicas",
-  ].filter(Boolean);
-
-  doc.text(lines1, marginX, y);
-  y += lines1.length * 12 + 10;
-
-  // Paciente
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
-  doc.text("Paciente", marginX, y);
-  y += 12;
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(10);
-
-  const lines2 = [
-    `Alias: ${safeText(patient?.alias || "—")}`,
-    `Nº paciente: ${safeText(patient?.patient_number ?? "—")}`,
-    patient?.id != null ? `ID interno: ${safeText(patient.id)}` : null,
-  ].filter(Boolean);
-
-  doc.text(lines2, marginX, y);
-  y += lines2.length * 12 + 10;
-
-  // Periodo
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
-  doc.text("Periodo analizado", marginX, y);
-  y += 12;
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(10);
-
-  const baselineLine = compare?.baseline
-    ? `Baseline: ${safeText(compare.baseline.date || "—")} · Analítica ID ${safeText(
-        compare.baseline.analytic_id || "—"
-      )}`
-    : "Baseline: —";
-
-  const lines3 = [
-    baselineLine,
-    `Ventanas: ${windows}`,
-    lastDate
-      ? `Última analítica disponible: ${toMadridInline(lastDate)}`
-      : "Última analítica disponible: —",
-  ];
-
-  doc.text(lines3, marginX, y);
-  y += lines3.length * 12 + 14;
-
-  // Contenido
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
-  doc.text("Contenido del informe", marginX, y);
-  y += 12;
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(10);
-  const contentLines = [
-    "• Resumen global de evolución (objetivo, determinista)",
-    "• Resumen IA (orientativo) — última analítica",
-    "• Comparativa temporal de marcadores (tabla)",
-    "• Notas clínicas recientes (2–3)",
-  ];
-  doc.text(contentLines, marginX, y);
-  y += contentLines.length * 12 + 18;
-
-  // Aviso legal (caja)
-  const boxX = marginX;
-  const boxW = pageW - marginX * 2;
-  const boxH = 92;
-  const boxY = Math.min(y, pageH - 170);
-
-  doc.setDrawColor(210);
-  doc.setFillColor(245, 246, 248);
-  doc.roundedRect(boxX, boxY, boxW, boxH, 6, 6, "FD");
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(10);
-  doc.text("AVISO IMPORTANTE", boxX + 12, boxY + 18);
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-
-  const legal =
-    "Este documento es un apoyo a la deliberación clínica. Galenos.pro no diagnostica ni prescribe. " +
-    "Las secciones generadas por IA son orientativas y pueden contener errores o imprecisiones. " +
-    "La interpretación y la decisión final corresponden al profesional sanitario responsable.";
-
-  const legalLines = doc.splitTextToSize(legal, boxW - 24);
-  doc.text(legalLines, boxX + 12, boxY + 34);
-
-  // Pie
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.text("Galenos.pro · Documento clínico interno · Hora Madrid", marginX, pageH - 38);
+  return `${sysName}: ${label} (↑${s.improve} · ↓${s.worsen} · =${s.stable} · ±${stablePct}% , n=${s.total}).`;
 }
 
-function renderNarrativeGlobalSummary(doc, { compare, stablePct = 2, marginX, y, wrapW }) {
-  const global = computeGlobalObjectiveSummary(compare, stablePct);
+function renderV2PrioritiesAndSystems(doc, { compare, marginX, y, wrapW, stablePct = 2 }) {
   const obj = buildObjectiveDeltaSummary(compare, { stablePct });
 
-  const topImprove = (obj?.topImprove || [])
-    .map((x) => safeText(x.name))
-    .filter(Boolean);
-  const topWorsen = (obj?.topWorsen || [])
-    .map((x) => safeText(x.name))
-    .filter(Boolean);
-
+  // ========================
+  // Prioridades clínicas (determinista)
+  // ========================
   doc.setFont("helvetica", "bold");
   doc.setFontSize(12);
-  doc.text("Resumen global de evolución (objetivo)", marginX, y);
+  doc.text("Prioridades clínicas", marginX, y);
   y += 14;
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
 
-  if (!global?.total || global.total === 0) {
-    doc.text("No hay suficientes datos comparables para generar un resumen global.", marginX, y);
-    return y + 16;
+  if (!obj?.hasData) {
+    doc.text("No hay suficientes datos comparables para priorizar marcadores.", marginX, y);
+    y += 16;
+  } else {
+    const worsenNames = (obj.topWorsen || []).map((x) => safeText(x.name)).filter(Boolean).slice(0, 5);
+    const improveNames = (obj.topImprove || []).map((x) => safeText(x.name)).filter(Boolean).slice(0, 5);
+
+    const priText = worsenNames.length
+      ? `Empeoramientos relevantes (top): ${worsenNames.join(", ")}.`
+      : "No se detectan empeoramientos relevantes según el umbral configurado.";
+
+    const priLines = doc.splitTextToSize(priText, wrapW);
+    doc.text(priLines, marginX, y);
+    y += priLines.length * 12 + 6;
+
+    if (improveNames.length) {
+      const impText = `Mejoras relevantes (top): ${improveNames.join(", ")}.`;
+      const impLines = doc.splitTextToSize(impText, wrapW);
+      doc.text(impLines, marginX, y);
+      y += impLines.length * 12 + 8;
+    } else {
+      y += 6;
+    }
   }
 
-  const line1 = `Se han evaluado ${global.total} marcadores: ${global.improve} mejoran, ${global.worsen} empeoran y ${global.stable} se mantienen estables (±${global.stablePct}%).`;
-  const line2 = topImprove.length ? `Mejoras destacadas: ${topImprove.slice(0, 3).join(", ")}.` : "";
-  const line3 = topWorsen.length ? `Empeoramientos destacados: ${topWorsen.slice(0, 3).join(", ")}.` : "";
-  const line4 = obj?.avgPct != null ? `Variación media (orientativa): ${formatPct(obj.avgPct)}.` : "";
+  // ========================
+  // Resumen por sistemas
+  // ========================
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  doc.text("Resumen por sistemas", marginX, y);
+  y += 14;
 
-  const narrative = [line1, line2, line3, line4]
-    .filter((s) => safeText(s))
-    .join(" ");
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
 
-  const lines = doc.splitTextToSize(narrative, wrapW);
-  doc.text(lines, marginX, y);
-  y += lines.length * 12 + 10;
+  const buckets = computeSystemBuckets(compare, stablePct);
 
-  doc.setFontSize(9);
-  doc.text("Nota: resumen calculado de forma determinista a partir de marcadores comparables.", marginX, y);
-  return y + 14;
+  // Orden preferido
+  const order = [
+    "Renal / Orina",
+    "Ácido–Base / Respiratorio",
+    "Metabólico / Cardiovascular",
+    "Hematológico / Hierro",
+    "Otros",
+  ];
+
+  const lines = order
+    .filter((k) => buckets[k])
+    .map((k) => systemStatusLine(k, buckets[k], stablePct));
+
+  if (!lines.length) {
+    doc.text("No hay suficientes datos comparables para generar el resumen por sistemas.", marginX, y);
+    y += 16;
+  } else {
+    doc.text(lines, marginX, y);
+    y += lines.length * 12 + 10;
+  }
+
+  return y;
 }
 
 // ========================
@@ -556,32 +552,34 @@ export async function generatePacientePDFV1({
 }) {
   const doc = new jsPDF({ orientation: "p", unit: "pt", format: "a4" });
 
+  // Logo corporativo (no bloqueante)
+  await addGalenosLogo(doc);
+
   const marginX = 40;
+  let y = 48;
   const wrapW = 515;
 
-  // ========================
-  // Página 1 — Portada clínica (FASE 2)
-  // ========================
-  await addGalenosLogo(doc); // no bloqueante
-  renderCoverPage(doc, { patient, compare, analytics });
-
-  // ========================
-  // Página 2 — Resumen global determinista + Resumen IA
-  // ========================
-  doc.addPage();
-  await addGalenosLogo(doc); // no bloqueante
-
-  let y = 60;
-
+  // Header
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(14);
-  doc.text("Informe clínico — Evolución y detalle", marginX, y);
+  doc.setFontSize(16);
+  doc.text("Galenos.pro — Comparativa temporal + Resumen IA", marginX, y);
   y += 18;
 
-  // Resumen global narrativo (Opción 1, determinista)
-  y = renderNarrativeGlobalSummary(doc, { compare, stablePct: 2, marginX, y, wrapW });
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.text(
+    `Paciente: ${safeText(patient?.alias || "—")} · Nº ${safeText(
+      patient?.patient_number ?? "—"
+    )}`,
+    marginX,
+    y
+  );
+  y += 14;
 
-  // Resumen global numérico + leyenda (V1.6)
+  doc.text(`Generado: ${nowMadridString()}`, marginX, y);
+  y += 18;
+
+  // Resumen global + leyenda (V1.6)
   const globalSummary = computeGlobalObjectiveSummary(compare, 2);
   y = renderGlobalObjectiveSummary(doc, globalSummary, marginX, y);
   y = renderLegend(doc, marginX, y);
@@ -734,14 +732,23 @@ export async function generatePacientePDFV1({
     }
   }
 
-  // Disclaimer
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.text(
-    "Nota: Galenos.pro no diagnostica ni prescribe. Documento de apoyo a la deliberación clínica. La decisión final corresponde al médico responsable.",
-    marginX,
-    Math.min(800, y + 12)
-  );
+  // Disclaimer (corto, envuelto, siempre visible)
+const shortDisclaimer =
+  "Documento de apoyo a la deliberación clínica. " +
+  "La decisión final corresponde al profesional sanitario responsable.";
+
+// Si estamos muy abajo, saltamos de página para no cortar el texto.
+if (y > 740) {
+  doc.addPage();
+  y = 60;
+  await addGalenosLogo(doc);
+}
+
+doc.setFont("helvetica", "normal");
+doc.setFontSize(9);
+const discLines = doc.splitTextToSize(shortDisclaimer, wrapW);
+doc.text(discLines, marginX, Math.min(800, y + 12));
+
 
   const fileName = `Galenos_${safeText(patient?.alias || "paciente")}_comparativa.pdf`
     .replace(/[^a-zA-Z0-9._-]+/g, "_");
