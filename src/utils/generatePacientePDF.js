@@ -64,7 +64,7 @@ async function addGalenosLogo(doc) {
   }
 }
 
-function addFooterDisclaimer(doc, text, { marginX = 40, wrapW = 515, fontSize = 9 } = {}) {
+function addFooterDisclaimer(doc, text, { marginX = 40, wrapW = 515, fontSize = 9, bottom = 34 } = {}) {
 
 // Disclaimer final (corto y envuelto)
 // Nota: el aviso largo ya está en portada; aquí repetimos versión corta, siempre visible.
@@ -76,8 +76,8 @@ const footerDisclaimer =
 const pageH = doc.internal.pageSize.getHeight();
 if (y > pageH - 120) {
   doc.addPage();
-  await addGalenosLogo(doc);
   y = 60;
+  await addGalenosLogo(doc); // OK: estamos dentro de una función async
 }
 
 addFooterDisclaimer(doc, footerDisclaimer, { marginX, wrapW, fontSize: 9 });
