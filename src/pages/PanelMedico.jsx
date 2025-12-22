@@ -420,6 +420,9 @@ const [selectedPostId, setSelectedPostId] = useState("");
 const [cosCompareLoading, setCosCompareLoading] = useState(false);
 const [cosCompareError, setCosCompareError] = useState("");
 const [cosCompareResult, setCosCompareResult] = useState("");
+const [cosPdfLoading, setCosPdfLoading] = useState(false);
+const [cosPdfError, setCosPdfError] = useState("");
+const [cosNote, setCosNote] = useState("");
 
   // ========================
   // HANDLERS ANALÍTICAS
@@ -850,6 +853,71 @@ async function handleCompareCosmetic() {
     setCosCompareError("Error de conexión al comparar imágenes.");
   } finally {
     setCosCompareLoading(false);
+  }
+}
+
+async function handleGenerateCosmeticPdf() {
+  setCosPdfError("");
+
+  if (!token) {
+    setCosPdfError("No hay sesión activa. Vuelve a iniciar sesión.");
+    return;
+  }
+  if (!selectedPreId || !selectedPostId) {
+    setCosPdfError("Selecciona una imagen 'Antes' y una 'Después'.");
+    return;
+  }
+  if (!cosCompareResult || !cosCompareResult.trim()) {
+    setCosPdfError("Primero genera la comparativa Antes/Después.");
+    return;
+  }
+
+  try {
+    setCosPdfLoading(true);
+
+    const payload = {
+      pre_image_id: parseInt(selectedPreId, 10),
+      post_image_id: parseInt(selectedPostId, 10),
+      compare_text: cosCompareResult,
+      note: cosNote && cosNote.trim() ? cosNote.trim() : null,
+    };
+
+    const res = await fetch(`${API}/pdf/cosmetic-compare`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const raw = await res.text();
+      console.log("👉 [Cosmetic] pdf (raw error):", raw);
+      let msg = "No se pudo generar el PDF.";
+      try {
+        const errData = JSON.parse(raw);
+        if (errData.detail) msg = errData.detail;
+      } catch {}
+      setCosPdfError(msg);
+      return;
+    }
+
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `Galenos_Comparativa_${selectedPreId}_${selectedPostId}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  } catch (err) {
+    console.error("❌ Error generando PDF cosmético:", err);
+    setCosPdfError("Error de conexión al generar el PDF.");
+  } finally {
+    setCosPdfLoading(false);
   }
 }
 
@@ -1468,11 +1536,10 @@ async function handleCompareCosmetic() {
     </button>
   </form>
 
-  {/* Vista de la última imagen subida (opcional) */}
-  {cosmeticFilePath ? (
+  {cosmeticFilePath && (
     <div className="mt-4 space-y-3">
       <div>
-        <h3 className="text-sm font-semibold mb-1">Última imagen subida</h3>
+        <h3 className="text-sm font-semibold mb-1">Imagen guardada</h3>
         <img
           src={cosmeticFilePath}
           alt="Imagen quirúrgica"
@@ -1507,104 +1574,127 @@ async function handleCompareCosmetic() {
           </div>
         )}
       </div>
+
+      <div className="mt-4 border-t border-slate-200 pt-3">
+  <h4 className="text-sm font-semibold">🔁 Comparar Antes / Después</h4>
+  <p className="text-xs text-slate-600 mt-1">
+    Elige una foto <strong>Antes</strong> y una <strong>Después</strong>. (Selector visual)
+  </p>
+
+  {cosmeticItemsLoading ? (
+    <p className="text-xs text-slate-600 mt-2">Cargando imágenes quirúrgicas…</p>
+  ) : cosmeticItemsError ? (
+    <p className="text-sm text-red-600 mt-2">{cosmeticItemsError}</p>
+  ) : (
+    <div className="mt-2 space-y-3">
+      <div>
+        <p className="text-xs font-semibold text-slate-700 mb-1">Antes</p>
+        <div className="flex gap-2 overflow-x-auto pb-2">
+          {cosmeticItems
+            .filter((x) => String(x.type || "").toUpperCase() === "COSMETIC_PRE")
+            .map((x) => {
+              const active = String(selectedPreId) === String(x.id);
+              const dateTxt = fmtDateCompact(x.exam_date || x.created_at);
+              return (
+                <button
+                  key={x.id}
+                  type="button"
+                  onClick={() => setSelectedPreId(String(x.id))}
+                  className={`flex-shrink-0 w-[96px] text-left rounded-lg border ${active ? "border-slate-900" : "border-slate-200 hover:border-slate-300"}`}
+                  title={`ID ${x.id} · ${dateTxt}`}
+                >
+                  <img src={x.file_path} alt={`Antes ${x.id}`} className="w-full h-[72px] object-cover rounded-t-lg" />
+                  <div className="px-2 py-1">
+                    <p className="text-[10px] text-slate-600">ID {x.id}</p>
+                    <p className="text-[10px] text-slate-500">{dateTxt}</p>
+                  </div>
+                </button>
+              );
+            })}
+        </div>
+      </div>
+
+      <div>
+        <p className="text-xs font-semibold text-slate-700 mb-1">Después / Seguimiento</p>
+        <div className="flex gap-2 overflow-x-auto pb-2">
+          {cosmeticItems
+            .filter((x) => {
+              const t = String(x.type || "").toUpperCase();
+              return t === "COSMETIC_POST" || t === "COSMETIC_FOLLOWUP";
+            })
+            .map((x) => {
+              const active = String(selectedPostId) === String(x.id);
+              const dateTxt = fmtDateCompact(x.exam_date || x.created_at);
+              const label = String(x.type || "").toUpperCase().replace("COSMETIC_", "");
+              return (
+                <button
+                  key={x.id}
+                  type="button"
+                  onClick={() => setSelectedPostId(String(x.id))}
+                  className={`flex-shrink-0 w-[96px] text-left rounded-lg border ${active ? "border-slate-900" : "border-slate-200 hover:border-slate-300"}`}
+                  title={`ID ${x.id} · ${label} · ${dateTxt}`}
+                >
+                  <img src={x.file_path} alt={`Después ${x.id}`} className="w-full h-[72px] object-cover rounded-t-lg" />
+                  <div className="px-2 py-1">
+                    <p className="text-[10px] text-slate-600">ID {x.id} · {label}</p>
+                    <p className="text-[10px] text-slate-500">{dateTxt}</p>
+                  </div>
+                </button>
+              );
+            })}
+        </div>
+      </div>
     </div>
-  ) : null}
+  )}
 
-  {/* Comparar SIEMPRE visible al seleccionar paciente */}
-  <div className="mt-4 border-t border-slate-200 pt-3">
-    <h4 className="text-sm font-semibold">🔁 Comparar Antes / Después</h4>
-    <p className="text-xs text-slate-600 mt-1">
-      Elige una foto <strong>Antes</strong> y una <strong>Después</strong>. (Selector visual)
-    </p>
+  {cosCompareError && <p className="text-sm text-red-600 mt-2">{cosCompareError}</p>}
 
-    {cosmeticItemsLoading ? (
-      <p className="text-xs text-slate-600 mt-2">Cargando imágenes quirúrgicas…</p>
-    ) : cosmeticItemsError ? (
-      <p className="text-sm text-red-600 mt-2">{cosmeticItemsError}</p>
-    ) : cosmeticItems.length === 0 ? (
-      <p className="text-xs text-slate-600 mt-2">Aún no hay imágenes quirúrgicas guardadas para este paciente.</p>
-    ) : (
-      <div className="mt-2 space-y-3">
-        <div>
-          <p className="text-xs font-semibold text-slate-700 mb-1">Antes</p>
-          <div className="flex gap-2 overflow-x-auto pb-2">
-            {cosmeticItems
-              .filter((x) => String(x.type || "").toUpperCase() === "COSMETIC_PRE")
-              .map((x) => {
-                const active = String(selectedPreId) === String(x.id);
-                const dateTxt = fmtDateCompact(x.exam_date || x.created_at);
-                return (
-                  <button
-                    key={x.id}
-                    type="button"
-                    onClick={() => setSelectedPreId(String(x.id))}
-                    className={`flex-shrink-0 w-[96px] text-left rounded-lg border ${active ? "border-slate-900" : "border-slate-200 hover:border-slate-300"}`}
-                    title={`ID ${x.id} · ${dateTxt}`}
-                  >
-                    <img src={x.file_path} alt={`Antes ${x.id}`} className="w-full h-[72px] object-cover rounded-t-lg" />
-                    <div className="px-2 py-1">
-                      <p className="text-[10px] text-slate-600">ID {x.id}</p>
-                      <p className="text-[10px] text-slate-500">{dateTxt}</p>
-                    </div>
-                  </button>
-                );
-              })}
-          </div>
-        </div>
+  <button
+    type="button"
+    onClick={handleCompareCosmetic}
+    disabled={cosCompareLoading || !selectedPreId || !selectedPostId}
+    className="sr-btn-secondary mt-2 disabled:opacity-60 disabled:cursor-not-allowed"
+  >
+    {cosCompareLoading ? "Comparando..." : "Comparar"}
+  </button>
 
-        <div>
-          <p className="text-xs font-semibold text-slate-700 mb-1">Después / Seguimiento</p>
-          <div className="flex gap-2 overflow-x-auto pb-2">
-            {cosmeticItems
-              .filter((x) => {
-                const t = String(x.type || "").toUpperCase();
-                return t === "COSMETIC_POST" || t === "COSMETIC_FOLLOWUP";
-              })
-              .map((x) => {
-                const active = String(selectedPostId) === String(x.id);
-                const dateTxt = fmtDateCompact(x.exam_date || x.created_at);
-                const label = String(x.type || "").toUpperCase().replace("COSMETIC_", "");
-                return (
-                  <button
-                    key={x.id}
-                    type="button"
-                    onClick={() => setSelectedPostId(String(x.id))}
-                    className={`flex-shrink-0 w-[96px] text-left rounded-lg border ${active ? "border-slate-900" : "border-slate-200 hover:border-slate-300"}`}
-                    title={`ID ${x.id} · ${label} · ${dateTxt}`}
-                  >
-                    <img src={x.file_path} alt={`Después ${x.id}`} className="w-full h-[72px] object-cover rounded-t-lg" />
-                    <div className="px-2 py-1">
-                      <p className="text-[10px] text-slate-600">ID {x.id} · {label}</p>
-                      <p className="text-[10px] text-slate-500">{dateTxt}</p>
-                    </div>
-                  </button>
-                );
-              })}
-          </div>
-        </div>
-      </div>
-    )}
+  {cosCompareResult && (
+    <div className="mt-3 p-3 rounded-lg border border-slate-200 bg-slate-50/60">
+      <p className="text-xs text-slate-500 mb-1">Comparativa descriptiva (IA) — borrador</p>
+      <p className="text-sm text-slate-800 whitespace-pre-wrap">{cosCompareResult}</p>
+    </div>
+  )}
+<div className="mt-3 border-t border-slate-200 pt-3">
+  <h4 className="text-sm font-semibold">📄 PDF quirúrgico (Antes / Después)</h4>
+  <p className="text-xs text-slate-600 mt-1">
+    Genera un PDF con imágenes lado a lado + texto comparativo. La nota del cirujano es opcional.
+  </p>
 
-    {cosCompareError && <p className="text-sm text-red-600 mt-2">{cosCompareError}</p>}
+  <label className="sr-label mt-2">Nota del cirujano (opcional)</label>
+  <textarea
+    className="sr-input w-full min-h-[70px]"
+    value={cosNote}
+    onChange={(e) => setCosNote(e.target.value)}
+    placeholder="Ej. Seguimiento a 6 semanas. Edema esperado. Revisión en 3 meses..."
+  />
 
-    <button
-      type="button"
-      onClick={handleCompareCosmetic}
-      disabled={cosCompareLoading || !selectedPreId || !selectedPostId}
-      className="sr-btn-secondary mt-2 disabled:opacity-60 disabled:cursor-not-allowed"
-    >
-      {cosCompareLoading ? "Comparando..." : "Comparar"}
-    </button>
+  {cosPdfError && <p className="text-sm text-red-600 mt-2">{cosPdfError}</p>}
 
-    {cosCompareResult && (
-      <div className="mt-3 p-3 rounded-lg border border-slate-200 bg-slate-50/60">
-        <p className="text-xs text-slate-500 mb-1">Comparativa descriptiva (IA) — borrador</p>
-        <p className="text-sm text-slate-800 whitespace-pre-wrap">{cosCompareResult}</p>
-      </div>
-    )}
-  </div>
+  <button
+    type="button"
+    onClick={handleGenerateCosmeticPdf}
+    disabled={cosPdfLoading}
+    className="sr-btn-secondary mt-2 disabled:opacity-60 disabled:cursor-not-allowed"
+  >
+    {cosPdfLoading ? "Generando PDF..." : "📄 Generar PDF"}
+  </button>
+</div>
+
+</div>
+
+    </div>
+  )}
 </section>
-
 
     </main>
   );
