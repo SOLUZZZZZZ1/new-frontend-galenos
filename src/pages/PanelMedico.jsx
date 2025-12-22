@@ -1506,8 +1506,47 @@ async function handleCompareCosmetic() {
           </div>
         )}
       </div>
+<div>
+              <label className="sr-label">Después / Seguimiento</label>
+              <select className="sr-input w-full text-xs" value={selectedPostId} onChange={(e) => setSelectedPostId(e.target.value)}>
+                <option value="">Selecciona “Después”…</option>
+                {cosmeticItems
+                  .filter((x) => {
+                    const t = String(x.type || "").toUpperCase();
+                    return t === "COSMETIC_POST" || t === "COSMETIC_FOLLOWUP";
+                  })
+                  .map((x) => (
+                    <option key={x.id} value={x.id}>
+                      ID {x.id} · {(x.exam_date || x.created_at || "").toString()} · {String(x.type || "").replace("COSMETIC_", "")}
+                    </option>
+                  ))}
+              </select>
+            </div>
+          </div>
+        )}
 
-      <div className="mt-4 border-t border-slate-200 pt-3">
+        {cosCompareError && <p className="text-sm text-red-600 mt-2">{cosCompareError}</p>}
+
+        <button
+          type="button"
+          onClick={handleCompareCosmetic}
+          disabled={cosCompareLoading || !selectedPreId || !selectedPostId}
+          className="sr-btn-secondary mt-2 disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          {cosCompareLoading ? "Comparando..." : "Comparar"}
+        </button>
+
+        {cosCompareResult && (
+          <div className="mt-3 p-3 rounded-lg border border-slate-200 bg-slate-50/60">
+            <p className="text-xs text-slate-500 mb-1">Comparativa descriptiva (IA) — borrador</p>
+            <p className="text-sm text-slate-800 whitespace-pre-wrap">{cosCompareResult}</p>
+          </div>
+        )}
+      </div>
+    </div>
+  )}
+
+<div className="mt-4 border-t border-slate-200 pt-3">
   <h4 className="text-sm font-semibold">🔁 Comparar Antes / Después</h4>
   <p className="text-xs text-slate-600 mt-1">
     Elige una foto <strong>Antes</strong> y una <strong>Después</strong>. (Selector visual)
@@ -1517,6 +1556,8 @@ async function handleCompareCosmetic() {
     <p className="text-xs text-slate-600 mt-2">Cargando imágenes quirúrgicas…</p>
   ) : cosmeticItemsError ? (
     <p className="text-sm text-red-600 mt-2">{cosmeticItemsError}</p>
+  ) : cosmeticItems.length === 0 ? (
+    <p className="text-xs text-slate-600 mt-2">Aún no hay imágenes quirúrgicas guardadas para este paciente.</p>
   ) : (
     <div className="mt-2 space-y-3">
       <div>
@@ -1598,8 +1639,6 @@ async function handleCompareCosmetic() {
   )}
 </div>
 
-    </div>
-  )}
 </section>
 
     </main>
