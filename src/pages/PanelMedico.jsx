@@ -258,8 +258,8 @@ async function loadCosmeticItemsForPatient(pid) {
     });
 
     const sortKey = (it) => String(it.exam_date || it.created_at || "");
-    pre.sort((a,b)=> sortKey(a).localeCompare(sortKey(b)));
-    post.sort((a,b)=> sortKey(b).localeCompare(sortKey(a)));
+    pre.sort((a,b)=> sortKey(a).localeCompare(sortKey(b)));   // más antiguo primero
+    post.sort((a,b)=> sortKey(b).localeCompare(sortKey(a)));  // más reciente primero
 
     if (pre[0]?.id) setSelectedPreId(String(pre[0].id));
     if (post[0]?.id) setSelectedPostId(String(post[0].id));
@@ -382,15 +382,6 @@ useEffect(() => {
   // Detección de duplicados (imágenes)
   const [lastImagenId, setLastImagenId] = useState(null);
   const [duplicateImagen, setDuplicateImagen] = useState(false);
-const [cosCompareLoading, setCosCompareLoading] = useState(false);
-const [cosCompareError, setCosCompareError] = useState("");
-const [cosCompareResult, setCosCompareResult] = useState("");
-
-const [cosmeticItems, setCosmeticItems] = useState([]);
-const [cosmeticItemsLoading, setCosmeticItemsLoading] = useState(false);
-const [cosmeticItemsError, setCosmeticItemsError] = useState("");
-const [selectedPreId, setSelectedPreId] = useState("");
-const [selectedPostId, setSelectedPostId] = useState("");
 
 // ========================
 // ESTADO IMÁGENES QUIRÚRGICAS (ANTES / DESPUÉS) — sin IA automática
@@ -402,9 +393,20 @@ const [loadingCosmeticUpload, setLoadingCosmeticUpload] = useState(false);
 const [cosmeticError, setCosmeticError] = useState("");
 const [cosmeticFilePath, setCosmeticFilePath] = useState("");
 const [cosmeticId, setCosmeticId] = useState(null);
+
 const [cosmeticAiDraft, setCosmeticAiDraft] = useState("");
 const [cosmeticAiLoading, setCosmeticAiLoading] = useState(false);
 const [cosmeticAiError, setCosmeticAiError] = useState("");
+
+// Comparar (dropdowns)
+const [cosmeticItems, setCosmeticItems] = useState([]);
+const [cosmeticItemsLoading, setCosmeticItemsLoading] = useState(false);
+const [cosmeticItemsError, setCosmeticItemsError] = useState("");
+const [selectedPreId, setSelectedPreId] = useState("");
+const [selectedPostId, setSelectedPostId] = useState("");
+const [cosCompareLoading, setCosCompareLoading] = useState(false);
+const [cosCompareError, setCosCompareError] = useState("");
+const [cosCompareResult, setCosCompareResult] = useState("");
 
   // ========================
   // HANDLERS ANALÍTICAS
@@ -677,6 +679,8 @@ async function handleUploadCosmetic(e) {
   setCosmeticId(null);
   setCosmeticAiDraft("");
   setCosmeticAiError("");
+  setCosCompareResult("");
+  setCosCompareError("");
 
   if (!token) {
     setCosmeticError("No hay sesión activa. Vuelve a iniciar sesión.");
@@ -696,7 +700,8 @@ async function handleUploadCosmetic(e) {
 
   const formData = new FormData();
   formData.append("patient_id", String(pid));
-  formData.append("img_type", cosType);
+  // ✅ ESTA ES LA CLAVE: marcamos el tipo como COSMETIC_*
+  formData.append("img_type", cosType);  // COSMETIC_PRE / COSMETIC_POST / COSMETIC_FOLLOWUP
   if (cosContext && cosContext.trim()) formData.append("context", cosContext.trim());
   formData.append("file", fileCosmetic);
 
@@ -723,8 +728,12 @@ async function handleUploadCosmetic(e) {
 
     let data;
     try { data = JSON.parse(raw); } catch { data = null; }
+
     setCosmeticId(data?.id ?? null);
     setCosmeticFilePath(data?.file_path || "");
+
+    // refrescamos lista para dropdowns
+    await loadCosmeticItemsForPatient(pid);
   } catch (err) {
     console.error("❌ Error upload cosmetic:", err);
     setCosmeticError("Error de conexión al subir imagen quirúrgica.");
@@ -741,6 +750,45 @@ async function handleAnalyzeCosmetic() {
     setCosmeticAiError("No hay sesión activa. Vuelve a iniciar sesión.");
     return;
   }
+  if (!cosmeticId) {
+    setCosmeticAiError("Primero sube una imagen quirúrgica.");
+    return;
+  }
+
+  try {
+    setCosmeticAiLoading(true);
+    const formData = new FormData();
+    if (cosContext && cosContext.trim()) formData.append("context", cosContext.trim());
+
+    const res = await fetch(`${API}/imaging/cosmetic/${cosmeticId}/analyze`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    });
+
+    const raw = await res.text();
+    console.log("👉 [Cosmetic] analyze (raw):", raw);
+
+    if (!res.ok) {
+      let msg = "No se pudo analizar la imagen quirúrgica.";
+      try {
+        const errData = JSON.parse(raw);
+        if (errData.detail) msg = errData.detail;
+      } catch {}
+      setCosmeticAiError(msg);
+      return;
+    }
+
+    let data;
+    try { data = JSON.parse(raw); } catch { data = null; }
+    setCosmeticAiDraft(data?.ai_description_draft || "");
+  } catch (err) {
+    console.error("❌ Error analyze cosmetic:", err);
+    setCosmeticAiError("Error de conexión al analizar la imagen quirúrgica.");
+  } finally {
+    setCosmeticAiLoading(false);
+  }
+}
 
 async function handleCompareCosmetic() {
   setCosCompareError("");
@@ -789,45 +837,6 @@ async function handleCompareCosmetic() {
     setCosCompareError("Error de conexión al comparar imágenes.");
   } finally {
     setCosCompareLoading(false);
-  }
-}
-  if (!cosmeticId) {
-    setCosmeticAiError("Primero sube una imagen quirúrgica.");
-    return;
-  }
-
-  try {
-    setCosmeticAiLoading(true);
-    const formData = new FormData();
-    if (cosContext && cosContext.trim()) formData.append("context", cosContext.trim());
-
-    const res = await fetch(`${API}/imaging/cosmetic/${cosmeticId}/analyze`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-      body: formData,
-    });
-
-    const raw = await res.text();
-    console.log("👉 [Cosmetic] analyze (raw):", raw);
-
-    if (!res.ok) {
-      let msg = "No se pudo analizar la imagen quirúrgica.";
-      try {
-        const errData = JSON.parse(raw);
-        if (errData.detail) msg = errData.detail;
-      } catch {}
-      setCosmeticAiError(msg);
-      return;
-    }
-
-    let data;
-    try { data = JSON.parse(raw); } catch { data = null; }
-    setCosmeticAiDraft(data?.ai_description_draft || "");
-  } catch (err) {
-    console.error("❌ Error analyze cosmetic:", err);
-    setCosmeticAiError("Error de conexión al analizar la imagen quirúrgica.");
-  } finally {
-    setCosmeticAiLoading(false);
   }
 }
 
@@ -1479,72 +1488,72 @@ async function handleCompareCosmetic() {
 
         {cosmeticAiDraft && (
           <div className="mt-3 p-3 rounded-lg border border-slate-200 bg-slate-50/60">
-            <p className="text-xs text-slate-500 mb-1"><div className="mt-4 border-t border-slate-200 pt-3">
-  <h4 className="text-sm font-semibold">🔁 Comparar Antes / Después</h4>
-  <p className="text-xs text-slate-600 mt-1">
-    Selecciona una imagen <strong>Antes</strong> y una <strong>Después</strong> guardadas para este paciente.
-  </p>
-
-  {cosmeticItemsLoading ? (
-    <p className="text-xs text-slate-600 mt-2">Cargando imágenes quirúrgicas…</p>
-  ) : cosmeticItemsError ? (
-    <p className="text-sm text-red-600 mt-2">{cosmeticItemsError}</p>
-  ) : (
-    <div className="mt-2 grid sm:grid-cols-2 gap-2">
-      <div>
-        <label className="sr-label">Antes</label>
-        <select className="sr-input w-full text-xs" value={selectedPreId} onChange={(e) => setSelectedPreId(e.target.value)}>
-          <option value="">Selecciona “Antes”…</option>
-          {cosmeticItems
-            .filter((x) => String(x.type || "").toUpperCase() === "COSMETIC_PRE")
-            .map((x) => (
-              <option key={x.id} value={x.id}>
-                ID {x.id} · {(x.exam_date || x.created_at || "").toString()}
-              </option>
-            ))}
-        </select>
-      </div>
-
-      <div>
-        <label className="sr-label">Después / Seguimiento</label>
-        <select className="sr-input w-full text-xs" value={selectedPostId} onChange={(e) => setSelectedPostId(e.target.value)}>
-          <option value="">Selecciona “Después”…</option>
-          {cosmeticItems
-            .filter((x) => {
-              const t = String(x.type || "").toUpperCase();
-              return t === "COSMETIC_POST" || t === "COSMETIC_FOLLOWUP";
-            })
-            .map((x) => (
-              <option key={x.id} value={x.id}>
-                ID {x.id} · {(x.exam_date || x.created_at || "").toString()} · {String(x.type || "").replace("COSMETIC_", "")}
-              </option>
-            ))}
-        </select>
-      </div>
-    </div>
-  )}
-
-  {cosCompareError && <p className="text-sm text-red-600 mt-2">{cosCompareError}</p>}
-
-  <button
-    type="button"
-    onClick={handleCompareCosmetic}
-    disabled={cosCompareLoading || !selectedPreId || !selectedPostId}
-    className="sr-btn-secondary mt-2 disabled:opacity-60 disabled:cursor-not-allowed"
-  >
-    {cosCompareLoading ? "Comparando..." : "Comparar"}
-  </button>
-
-  {cosCompareResult && (
-    <div className="mt-3 p-3 rounded-lg border border-slate-200 bg-slate-50/60">
-      <p className="text-xs text-slate-500 mb-1">Comparativa descriptiva (IA) — borrador</p>
-      <p className="text-sm text-slate-800 whitespace-pre-wrap">{cosCompareResult}</p>
-    </div>
-  )}
-</div>
-
-Sugerencia de descripción (IA) — borrador</p>
+            <p className="text-xs text-slate-500 mb-1">Sugerencia de descripción (IA) — borrador</p>
             <p className="text-sm text-slate-800 whitespace-pre-wrap">{cosmeticAiDraft}</p>
+          </div>
+        )}
+      </div>
+
+      <div className="mt-4 border-t border-slate-200 pt-3">
+        <h4 className="text-sm font-semibold">🔁 Comparar Antes / Después</h4>
+        <p className="text-xs text-slate-600 mt-1">
+          Selecciona una imagen <strong>Antes</strong> y una <strong>Después</strong> guardadas para este paciente.
+        </p>
+
+        {cosmeticItemsLoading ? (
+          <p className="text-xs text-slate-600 mt-2">Cargando imágenes quirúrgicas…</p>
+        ) : cosmeticItemsError ? (
+          <p className="text-sm text-red-600 mt-2">{cosmeticItemsError}</p>
+        ) : (
+          <div className="mt-2 grid sm:grid-cols-2 gap-2">
+            <div>
+              <label className="sr-label">Antes</label>
+              <select className="sr-input w-full text-xs" value={selectedPreId} onChange={(e) => setSelectedPreId(e.target.value)}>
+                <option value="">Selecciona “Antes”…</option>
+                {cosmeticItems
+                  .filter((x) => String(x.type || "").toUpperCase() === "COSMETIC_PRE")
+                  .map((x) => (
+                    <option key={x.id} value={x.id}>
+                      ID {x.id} · {(x.exam_date || x.created_at || "").toString()}
+                    </option>
+                  ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="sr-label">Después / Seguimiento</label>
+              <select className="sr-input w-full text-xs" value={selectedPostId} onChange={(e) => setSelectedPostId(e.target.value)}>
+                <option value="">Selecciona “Después”…</option>
+                {cosmeticItems
+                  .filter((x) => {
+                    const t = String(x.type || "").toUpperCase();
+                    return t === "COSMETIC_POST" || t === "COSMETIC_FOLLOWUP";
+                  })
+                  .map((x) => (
+                    <option key={x.id} value={x.id}>
+                      ID {x.id} · {(x.exam_date || x.created_at || "").toString()} · {String(x.type || "").replace("COSMETIC_", "")}
+                    </option>
+                  ))}
+              </select>
+            </div>
+          </div>
+        )}
+
+        {cosCompareError && <p className="text-sm text-red-600 mt-2">{cosCompareError}</p>}
+
+        <button
+          type="button"
+          onClick={handleCompareCosmetic}
+          disabled={cosCompareLoading || !selectedPreId || !selectedPostId}
+          className="sr-btn-secondary mt-2 disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          {cosCompareLoading ? "Comparando..." : "Comparar"}
+        </button>
+
+        {cosCompareResult && (
+          <div className="mt-3 p-3 rounded-lg border border-slate-200 bg-slate-50/60">
+            <p className="text-xs text-slate-500 mb-1">Comparativa descriptiva (IA) — borrador</p>
+            <p className="text-sm text-slate-800 whitespace-pre-wrap">{cosCompareResult}</p>
           </div>
         )}
       </div>
