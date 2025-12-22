@@ -271,6 +271,19 @@ async function loadCosmeticItemsForPatient(pid) {
   }
 }
 
+function fmtDateCompact(v) {
+  if (!v) return "";
+  try {
+    const s = String(v);
+    const d = new Date(s);
+    if (!isNaN(d.getTime())) return d.toLocaleDateString("es-ES");
+    if (s.includes("-") && s.length >= 10) return s.slice(0, 10);
+    return s;
+  } catch {
+    return String(v);
+  }
+}
+
   useEffect(() => {
     loadPatients();
   }, []);
@@ -1495,68 +1508,96 @@ async function handleCompareCosmetic() {
       </div>
 
       <div className="mt-4 border-t border-slate-200 pt-3">
-        <h4 className="text-sm font-semibold">🔁 Comparar Antes / Después</h4>
-        <p className="text-xs text-slate-600 mt-1">
-          Selecciona una imagen <strong>Antes</strong> y una <strong>Después</strong> guardadas para este paciente.
-        </p>
+  <h4 className="text-sm font-semibold">🔁 Comparar Antes / Después</h4>
+  <p className="text-xs text-slate-600 mt-1">
+    Elige una foto <strong>Antes</strong> y una <strong>Después</strong>. (Selector visual)
+  </p>
 
-        {cosmeticItemsLoading ? (
-          <p className="text-xs text-slate-600 mt-2">Cargando imágenes quirúrgicas…</p>
-        ) : cosmeticItemsError ? (
-          <p className="text-sm text-red-600 mt-2">{cosmeticItemsError}</p>
-        ) : (
-          <div className="mt-2 grid sm:grid-cols-2 gap-2">
-            <div>
-              <label className="sr-label">Antes</label>
-              <select className="sr-input w-full text-xs" value={selectedPreId} onChange={(e) => setSelectedPreId(e.target.value)}>
-                <option value="">Selecciona “Antes”…</option>
-                {cosmeticItems
-                  .filter((x) => String(x.type || "").toUpperCase() === "COSMETIC_PRE")
-                  .map((x) => (
-                    <option key={x.id} value={x.id}>
-                      ID {x.id} · {(x.exam_date || x.created_at || "").toString()}
-                    </option>
-                  ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="sr-label">Después / Seguimiento</label>
-              <select className="sr-input w-full text-xs" value={selectedPostId} onChange={(e) => setSelectedPostId(e.target.value)}>
-                <option value="">Selecciona “Después”…</option>
-                {cosmeticItems
-                  .filter((x) => {
-                    const t = String(x.type || "").toUpperCase();
-                    return t === "COSMETIC_POST" || t === "COSMETIC_FOLLOWUP";
-                  })
-                  .map((x) => (
-                    <option key={x.id} value={x.id}>
-                      ID {x.id} · {(x.exam_date || x.created_at || "").toString()} · {String(x.type || "").replace("COSMETIC_", "")}
-                    </option>
-                  ))}
-              </select>
-            </div>
-          </div>
-        )}
-
-        {cosCompareError && <p className="text-sm text-red-600 mt-2">{cosCompareError}</p>}
-
-        <button
-          type="button"
-          onClick={handleCompareCosmetic}
-          disabled={cosCompareLoading || !selectedPreId || !selectedPostId}
-          className="sr-btn-secondary mt-2 disabled:opacity-60 disabled:cursor-not-allowed"
-        >
-          {cosCompareLoading ? "Comparando..." : "Comparar"}
-        </button>
-
-        {cosCompareResult && (
-          <div className="mt-3 p-3 rounded-lg border border-slate-200 bg-slate-50/60">
-            <p className="text-xs text-slate-500 mb-1">Comparativa descriptiva (IA) — borrador</p>
-            <p className="text-sm text-slate-800 whitespace-pre-wrap">{cosCompareResult}</p>
-          </div>
-        )}
+  {cosmeticItemsLoading ? (
+    <p className="text-xs text-slate-600 mt-2">Cargando imágenes quirúrgicas…</p>
+  ) : cosmeticItemsError ? (
+    <p className="text-sm text-red-600 mt-2">{cosmeticItemsError}</p>
+  ) : (
+    <div className="mt-2 space-y-3">
+      <div>
+        <p className="text-xs font-semibold text-slate-700 mb-1">Antes</p>
+        <div className="flex gap-2 overflow-x-auto pb-2">
+          {cosmeticItems
+            .filter((x) => String(x.type || "").toUpperCase() === "COSMETIC_PRE")
+            .map((x) => {
+              const active = String(selectedPreId) === String(x.id);
+              const dateTxt = fmtDateCompact(x.exam_date || x.created_at);
+              return (
+                <button
+                  key={x.id}
+                  type="button"
+                  onClick={() => setSelectedPreId(String(x.id))}
+                  className={`flex-shrink-0 w-[96px] text-left rounded-lg border ${active ? "border-slate-900" : "border-slate-200 hover:border-slate-300"}`}
+                  title={`ID ${x.id} · ${dateTxt}`}
+                >
+                  <img src={x.file_path} alt={`Antes ${x.id}`} className="w-full h-[72px] object-cover rounded-t-lg" />
+                  <div className="px-2 py-1">
+                    <p className="text-[10px] text-slate-600">ID {x.id}</p>
+                    <p className="text-[10px] text-slate-500">{dateTxt}</p>
+                  </div>
+                </button>
+              );
+            })}
+        </div>
       </div>
+
+      <div>
+        <p className="text-xs font-semibold text-slate-700 mb-1">Después / Seguimiento</p>
+        <div className="flex gap-2 overflow-x-auto pb-2">
+          {cosmeticItems
+            .filter((x) => {
+              const t = String(x.type || "").toUpperCase();
+              return t === "COSMETIC_POST" || t === "COSMETIC_FOLLOWUP";
+            })
+            .map((x) => {
+              const active = String(selectedPostId) === String(x.id);
+              const dateTxt = fmtDateCompact(x.exam_date || x.created_at);
+              const label = String(x.type || "").toUpperCase().replace("COSMETIC_", "");
+              return (
+                <button
+                  key={x.id}
+                  type="button"
+                  onClick={() => setSelectedPostId(String(x.id))}
+                  className={`flex-shrink-0 w-[96px] text-left rounded-lg border ${active ? "border-slate-900" : "border-slate-200 hover:border-slate-300"}`}
+                  title={`ID ${x.id} · ${label} · ${dateTxt}`}
+                >
+                  <img src={x.file_path} alt={`Después ${x.id}`} className="w-full h-[72px] object-cover rounded-t-lg" />
+                  <div className="px-2 py-1">
+                    <p className="text-[10px] text-slate-600">ID {x.id} · {label}</p>
+                    <p className="text-[10px] text-slate-500">{dateTxt}</p>
+                  </div>
+                </button>
+              );
+            })}
+        </div>
+      </div>
+    </div>
+  )}
+
+  {cosCompareError && <p className="text-sm text-red-600 mt-2">{cosCompareError}</p>}
+
+  <button
+    type="button"
+    onClick={handleCompareCosmetic}
+    disabled={cosCompareLoading || !selectedPreId || !selectedPostId}
+    className="sr-btn-secondary mt-2 disabled:opacity-60 disabled:cursor-not-allowed"
+  >
+    {cosCompareLoading ? "Comparando..." : "Comparar"}
+  </button>
+
+  {cosCompareResult && (
+    <div className="mt-3 p-3 rounded-lg border border-slate-200 bg-slate-50/60">
+      <p className="text-xs text-slate-500 mb-1">Comparativa descriptiva (IA) — borrador</p>
+      <p className="text-sm text-slate-800 whitespace-pre-wrap">{cosCompareResult}</p>
+    </div>
+  )}
+</div>
+
     </div>
   )}
 </section>
