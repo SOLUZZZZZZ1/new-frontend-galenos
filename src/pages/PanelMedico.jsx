@@ -229,7 +229,6 @@ async function loadCosmeticItemsForPatient(pid) {
 
   const t = localStorage.getItem("galenos_token");
   if (!t) return;
-
   if (!pid || Number.isNaN(pid)) return;
 
   try {
@@ -252,17 +251,15 @@ async function loadCosmeticItemsForPatient(pid) {
     const cosmetic = arr.filter((x) => String(x.type || "").toUpperCase().startsWith("COSMETIC"));
     setCosmeticItems(cosmetic);
 
-    // Defaults inteligentes (visibles y cambiables)
     const pre = cosmetic.filter((x) => String(x.type || "").toUpperCase() === "COSMETIC_PRE");
     const post = cosmetic.filter((x) => {
       const t2 = String(x.type || "").toUpperCase();
       return t2 === "COSMETIC_POST" || t2 === "COSMETIC_FOLLOWUP";
     });
 
-    // orden por fecha (exam_date) o created_at
     const sortKey = (it) => String(it.exam_date || it.created_at || "");
-    pre.sort((a,b)=> sortKey(a).localeCompare(sortKey(b)));           // más antiguo primero
-    post.sort((a,b)=> sortKey(b).localeCompare(sortKey(a)));          // más reciente primero
+    pre.sort((a,b)=> sortKey(a).localeCompare(sortKey(b)));
+    post.sort((a,b)=> sortKey(b).localeCompare(sortKey(a)));
 
     if (pre[0]?.id) setSelectedPreId(String(pre[0].id));
     if (post[0]?.id) setSelectedPostId(String(post[0].id));
@@ -385,6 +382,29 @@ useEffect(() => {
   // Detección de duplicados (imágenes)
   const [lastImagenId, setLastImagenId] = useState(null);
   const [duplicateImagen, setDuplicateImagen] = useState(false);
+const [cosCompareLoading, setCosCompareLoading] = useState(false);
+const [cosCompareError, setCosCompareError] = useState("");
+const [cosCompareResult, setCosCompareResult] = useState("");
+
+const [cosmeticItems, setCosmeticItems] = useState([]);
+const [cosmeticItemsLoading, setCosmeticItemsLoading] = useState(false);
+const [cosmeticItemsError, setCosmeticItemsError] = useState("");
+const [selectedPreId, setSelectedPreId] = useState("");
+const [selectedPostId, setSelectedPostId] = useState("");
+
+// ========================
+// ESTADO IMÁGENES QUIRÚRGICAS (ANTES / DESPUÉS) — sin IA automática
+// ========================
+const [cosType, setCosType] = useState("COSMETIC_PRE");
+const [cosContext, setCosContext] = useState("");
+const [fileCosmetic, setFileCosmetic] = useState(null);
+const [loadingCosmeticUpload, setLoadingCosmeticUpload] = useState(false);
+const [cosmeticError, setCosmeticError] = useState("");
+const [cosmeticFilePath, setCosmeticFilePath] = useState("");
+const [cosmeticId, setCosmeticId] = useState(null);
+const [cosmeticAiDraft, setCosmeticAiDraft] = useState("");
+const [cosmeticAiLoading, setCosmeticAiLoading] = useState(false);
+const [cosmeticAiError, setCosmeticAiError] = useState("");
 
   // ========================
   // HANDLERS ANALÍTICAS
@@ -647,6 +667,170 @@ if (data.duplicate === true) {
       setLoadingImagen(false);
     }
   }
+// ========================
+// HANDLERS IMÁGENES QUIRÚRGICAS
+// ========================
+async function handleUploadCosmetic(e) {
+  e.preventDefault();
+  setCosmeticError("");
+  setCosmeticFilePath("");
+  setCosmeticId(null);
+  setCosmeticAiDraft("");
+  setCosmeticAiError("");
+
+  if (!token) {
+    setCosmeticError("No hay sesión activa. Vuelve a iniciar sesión.");
+    return;
+  }
+
+  const pid = parseInt(selectedPatientId, 10);
+  if (!pid || Number.isNaN(pid)) {
+    setCosmeticError("Selecciona un paciente válido antes de subir la imagen quirúrgica.");
+    return;
+  }
+
+  if (!fileCosmetic) {
+    setCosmeticError("Selecciona una foto (JPG/PNG) o PDF.");
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("patient_id", String(pid));
+  formData.append("img_type", cosType);
+  if (cosContext && cosContext.trim()) formData.append("context", cosContext.trim());
+  formData.append("file", fileCosmetic);
+
+  try {
+    setLoadingCosmeticUpload(true);
+    const res = await fetch(`${API}/imaging/cosmetic/upload`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    });
+
+    const raw = await res.text();
+    console.log("👉 [Cosmetic] upload (raw):", raw);
+
+    if (!res.ok) {
+      let msg = "No se pudo guardar la imagen quirúrgica.";
+      try {
+        const errData = JSON.parse(raw);
+        if (errData.detail) msg = errData.detail;
+      } catch {}
+      setCosmeticError(msg);
+      return;
+    }
+
+    let data;
+    try { data = JSON.parse(raw); } catch { data = null; }
+    setCosmeticId(data?.id ?? null);
+    setCosmeticFilePath(data?.file_path || "");
+  } catch (err) {
+    console.error("❌ Error upload cosmetic:", err);
+    setCosmeticError("Error de conexión al subir imagen quirúrgica.");
+  } finally {
+    setLoadingCosmeticUpload(false);
+  }
+}
+
+async function handleAnalyzeCosmetic() {
+  setCosmeticAiError("");
+  setCosmeticAiDraft("");
+
+  if (!token) {
+    setCosmeticAiError("No hay sesión activa. Vuelve a iniciar sesión.");
+    return;
+  }
+
+async function handleCompareCosmetic() {
+  setCosCompareError("");
+  setCosCompareResult("");
+
+  if (!token) {
+    setCosCompareError("No hay sesión activa. Vuelve a iniciar sesión.");
+    return;
+  }
+  if (!selectedPreId || !selectedPostId) {
+    setCosCompareError("Selecciona una imagen 'Antes' y una 'Después' para comparar.");
+    return;
+  }
+
+  try {
+    setCosCompareLoading(true);
+    const formData = new FormData();
+    formData.append("pre_image_id", String(selectedPreId));
+    formData.append("post_image_id", String(selectedPostId));
+    if (cosContext && cosContext.trim()) formData.append("context", cosContext.trim());
+
+    const res = await fetch(`${API}/imaging/cosmetic/compare`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    });
+
+    const raw = await res.text();
+    console.log("👉 [Cosmetic] compare (raw):", raw);
+
+    if (!res.ok) {
+      let msg = "No se pudo comparar Antes/Después.";
+      try {
+        const errData = JSON.parse(raw);
+        if (errData.detail) msg = errData.detail;
+      } catch {}
+      setCosCompareError(msg);
+      return;
+    }
+
+    let data;
+    try { data = JSON.parse(raw); } catch { data = null; }
+    setCosCompareResult(data?.compare_text || "");
+  } catch (err) {
+    console.error("❌ Error compare cosmetic:", err);
+    setCosCompareError("Error de conexión al comparar imágenes.");
+  } finally {
+    setCosCompareLoading(false);
+  }
+}
+  if (!cosmeticId) {
+    setCosmeticAiError("Primero sube una imagen quirúrgica.");
+    return;
+  }
+
+  try {
+    setCosmeticAiLoading(true);
+    const formData = new FormData();
+    if (cosContext && cosContext.trim()) formData.append("context", cosContext.trim());
+
+    const res = await fetch(`${API}/imaging/cosmetic/${cosmeticId}/analyze`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    });
+
+    const raw = await res.text();
+    console.log("👉 [Cosmetic] analyze (raw):", raw);
+
+    if (!res.ok) {
+      let msg = "No se pudo analizar la imagen quirúrgica.";
+      try {
+        const errData = JSON.parse(raw);
+        if (errData.detail) msg = errData.detail;
+      } catch {}
+      setCosmeticAiError(msg);
+      return;
+    }
+
+    let data;
+    try { data = JSON.parse(raw); } catch { data = null; }
+    setCosmeticAiDraft(data?.ai_description_draft || "");
+  } catch (err) {
+    console.error("❌ Error analyze cosmetic:", err);
+    setCosmeticAiError("Error de conexión al analizar la imagen quirúrgica.");
+  } finally {
+    setCosmeticAiLoading(false);
+  }
+}
+
 
   async function handleImagingChat(e) {
     e.preventDefault();
@@ -1210,6 +1394,164 @@ if (data.duplicate === true) {
           </div>
         )}
       </section>
+
+{/* BLOQUE IMÁGENES QUIRÚRGICAS */}
+<section className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 space-y-4">
+  <h2 className="text-lg font-semibold">Imágenes quirúrgicas (Antes / Después)</h2>
+  <p className="text-sm text-slate-600">
+    Sube fotografías quirúrgicas (antes/después/seguimiento). Se guardan en la ficha del paciente.
+    La IA <strong>solo</strong> se ejecuta cuando pulsas <em>Analizar imagen</em>.
+  </p>
+
+  <form onSubmit={handleUploadCosmetic} className="space-y-3">
+    <div className="grid md:grid-cols-3 gap-3">
+      <div>
+        <label className="sr-label">Tipo</label>
+        <select className="sr-input w-full" value={cosType} onChange={(e) => setCosType(e.target.value)}>
+          <option value="COSMETIC_PRE">Antes</option>
+          <option value="COSMETIC_POST">Después</option>
+          <option value="COSMETIC_FOLLOWUP">Seguimiento</option>
+        </select>
+      </div>
+
+      <div>
+        <label className="sr-label">Fichero (foto o PDF)</label>
+        <input
+          type="file"
+          accept=".pdf,image/*"
+          className="sr-input w-full"
+          onChange={(e) => setFileCosmetic(e.target.files?.[0] || null)}
+        />
+      </div>
+
+      <div>
+        <label className="sr-label">Contexto (opcional)</label>
+        <textarea
+          className="sr-input w-full min-h-[60px]"
+          value={cosContext}
+          onChange={(e) => setCosContext(e.target.value)}
+          placeholder="Ej. Rinoplastia primaria · 6 semanas post · marcajes visibles..."
+        />
+      </div>
+    </div>
+
+    {cosmeticError && <p className="text-sm text-red-600">{cosmeticError}</p>}
+
+    <button
+      type="submit"
+      disabled={loadingCosmeticUpload || trialExpired}
+      className="sr-btn-primary disabled:opacity-60 disabled:cursor-not-allowed"
+    >
+      {loadingCosmeticUpload ? "Guardando imagen..." : "Guardar imagen quirúrgica"}
+    </button>
+  </form>
+
+  {cosmeticFilePath && (
+    <div className="mt-4 space-y-3">
+      <div>
+        <h3 className="text-sm font-semibold mb-1">Imagen guardada</h3>
+        <img
+          src={cosmeticFilePath}
+          alt="Imagen quirúrgica"
+          className="mt-2 max-w-xs md:max-w-sm w-full rounded-lg border border-slate-200"
+        />
+        {cosmeticId && (
+          <p className="text-xs text-slate-500 mt-1">
+            ID imagen: <span className="font-mono">{cosmeticId}</span>
+          </p>
+        )}
+      </div>
+
+      <div className="border-t border-slate-200 pt-3">
+        <h4 className="text-sm font-semibold">🧠 Analizar imagen (bajo demanda)</h4>
+        <p className="text-xs text-slate-600 mt-1">Análisis descriptivo. No diagnóstico.</p>
+
+        {cosmeticAiError && <p className="text-sm text-red-600 mt-2">{cosmeticAiError}</p>}
+
+        <button
+          type="button"
+          onClick={handleAnalyzeCosmetic}
+          disabled={cosmeticAiLoading || !cosmeticId}
+          className="sr-btn-secondary mt-2 disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          {cosmeticAiLoading ? "Analizando..." : "Analizar imagen"}
+        </button>
+
+        {cosmeticAiDraft && (
+          <div className="mt-3 p-3 rounded-lg border border-slate-200 bg-slate-50/60">
+            <p className="text-xs text-slate-500 mb-1"><div className="mt-4 border-t border-slate-200 pt-3">
+  <h4 className="text-sm font-semibold">🔁 Comparar Antes / Después</h4>
+  <p className="text-xs text-slate-600 mt-1">
+    Selecciona una imagen <strong>Antes</strong> y una <strong>Después</strong> guardadas para este paciente.
+  </p>
+
+  {cosmeticItemsLoading ? (
+    <p className="text-xs text-slate-600 mt-2">Cargando imágenes quirúrgicas…</p>
+  ) : cosmeticItemsError ? (
+    <p className="text-sm text-red-600 mt-2">{cosmeticItemsError}</p>
+  ) : (
+    <div className="mt-2 grid sm:grid-cols-2 gap-2">
+      <div>
+        <label className="sr-label">Antes</label>
+        <select className="sr-input w-full text-xs" value={selectedPreId} onChange={(e) => setSelectedPreId(e.target.value)}>
+          <option value="">Selecciona “Antes”…</option>
+          {cosmeticItems
+            .filter((x) => String(x.type || "").toUpperCase() === "COSMETIC_PRE")
+            .map((x) => (
+              <option key={x.id} value={x.id}>
+                ID {x.id} · {(x.exam_date || x.created_at || "").toString()}
+              </option>
+            ))}
+        </select>
+      </div>
+
+      <div>
+        <label className="sr-label">Después / Seguimiento</label>
+        <select className="sr-input w-full text-xs" value={selectedPostId} onChange={(e) => setSelectedPostId(e.target.value)}>
+          <option value="">Selecciona “Después”…</option>
+          {cosmeticItems
+            .filter((x) => {
+              const t = String(x.type || "").toUpperCase();
+              return t === "COSMETIC_POST" || t === "COSMETIC_FOLLOWUP";
+            })
+            .map((x) => (
+              <option key={x.id} value={x.id}>
+                ID {x.id} · {(x.exam_date || x.created_at || "").toString()} · {String(x.type || "").replace("COSMETIC_", "")}
+              </option>
+            ))}
+        </select>
+      </div>
+    </div>
+  )}
+
+  {cosCompareError && <p className="text-sm text-red-600 mt-2">{cosCompareError}</p>}
+
+  <button
+    type="button"
+    onClick={handleCompareCosmetic}
+    disabled={cosCompareLoading || !selectedPreId || !selectedPostId}
+    className="sr-btn-secondary mt-2 disabled:opacity-60 disabled:cursor-not-allowed"
+  >
+    {cosCompareLoading ? "Comparando..." : "Comparar"}
+  </button>
+
+  {cosCompareResult && (
+    <div className="mt-3 p-3 rounded-lg border border-slate-200 bg-slate-50/60">
+      <p className="text-xs text-slate-500 mb-1">Comparativa descriptiva (IA) — borrador</p>
+      <p className="text-sm text-slate-800 whitespace-pre-wrap">{cosCompareResult}</p>
+    </div>
+  )}
+</div>
+
+Sugerencia de descripción (IA) — borrador</p>
+            <p className="text-sm text-slate-800 whitespace-pre-wrap">{cosmeticAiDraft}</p>
+          </div>
+        )}
+      </div>
+    </div>
+  )}
+</section>
+
     </main>
   );
 }
