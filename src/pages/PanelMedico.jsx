@@ -326,6 +326,20 @@ export default function PanelMedico() {
   const [lastImagenId, setLastImagenId] = useState(null);
   const [duplicateImagen, setDuplicateImagen] = useState(false);
 
+// ========================
+// ESTADO IMÁGENES QUIRÚRGICAS (ANTES / DESPUÉS) — sin IA automática
+// ========================
+const [cosType, setCosType] = useState("COSMETIC_PRE");
+const [cosContext, setCosContext] = useState("");
+const [fileCosmetic, setFileCosmetic] = useState(null);
+const [loadingCosmeticUpload, setLoadingCosmeticUpload] = useState(false);
+const [cosmeticError, setCosmeticError] = useState("");
+const [cosmeticFilePath, setCosmeticFilePath] = useState("");
+const [cosmeticId, setCosmeticId] = useState(null);
+const [cosmeticAiDraft, setCosmeticAiDraft] = useState("");
+const [cosmeticAiLoading, setCosmeticAiLoading] = useState(false);
+const [cosmeticAiError, setCosmeticAiError] = useState("");
+
   // ========================
   // HANDLERS ANALÍTICAS
   // ========================
@@ -587,6 +601,120 @@ if (data.duplicate === true) {
       setLoadingImagen(false);
     }
   }
+// ========================
+// HANDLERS IMÁGENES QUIRÚRGICAS
+// ========================
+async function handleUploadCosmetic(e) {
+  e.preventDefault();
+  setCosmeticError("");
+  setCosmeticFilePath("");
+  setCosmeticId(null);
+  setCosmeticAiDraft("");
+  setCosmeticAiError("");
+
+  if (!token) {
+    setCosmeticError("No hay sesión activa. Vuelve a iniciar sesión.");
+    return;
+  }
+
+  const pid = parseInt(selectedPatientId, 10);
+  if (!pid || Number.isNaN(pid)) {
+    setCosmeticError("Selecciona un paciente válido antes de subir la imagen quirúrgica.");
+    return;
+  }
+
+  if (!fileCosmetic) {
+    setCosmeticError("Selecciona una foto (JPG/PNG) o PDF.");
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("patient_id", String(pid));
+  formData.append("img_type", cosType);
+  if (cosContext && cosContext.trim()) formData.append("context", cosContext.trim());
+  formData.append("file", fileCosmetic);
+
+  try {
+    setLoadingCosmeticUpload(true);
+    const res = await fetch(`${API}/imaging/cosmetic/upload`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    });
+
+    const raw = await res.text();
+    console.log("👉 [Cosmetic] upload (raw):", raw);
+
+    if (!res.ok) {
+      let msg = "No se pudo guardar la imagen quirúrgica.";
+      try {
+        const errData = JSON.parse(raw);
+        if (errData.detail) msg = errData.detail;
+      } catch {}
+      setCosmeticError(msg);
+      return;
+    }
+
+    let data;
+    try { data = JSON.parse(raw); } catch { data = null; }
+    setCosmeticId(data?.id ?? null);
+    setCosmeticFilePath(data?.file_path || "");
+  } catch (err) {
+    console.error("❌ Error upload cosmetic:", err);
+    setCosmeticError("Error de conexión al subir imagen quirúrgica.");
+  } finally {
+    setLoadingCosmeticUpload(false);
+  }
+}
+
+async function handleAnalyzeCosmetic() {
+  setCosmeticAiError("");
+  setCosmeticAiDraft("");
+
+  if (!token) {
+    setCosmeticAiError("No hay sesión activa. Vuelve a iniciar sesión.");
+    return;
+  }
+  if (!cosmeticId) {
+    setCosmeticAiError("Primero sube una imagen quirúrgica.");
+    return;
+  }
+
+  try {
+    setCosmeticAiLoading(true);
+    const formData = new FormData();
+    if (cosContext && cosContext.trim()) formData.append("context", cosContext.trim());
+
+    const res = await fetch(`${API}/imaging/cosmetic/${cosmeticId}/analyze`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    });
+
+    const raw = await res.text();
+    console.log("👉 [Cosmetic] analyze (raw):", raw);
+
+    if (!res.ok) {
+      let msg = "No se pudo analizar la imagen quirúrgica.";
+      try {
+        const errData = JSON.parse(raw);
+        if (errData.detail) msg = errData.detail;
+      } catch {}
+      setCosmeticAiError(msg);
+      return;
+    }
+
+    let data;
+    try { data = JSON.parse(raw); } catch { data = null; }
+    setCosmeticAiDraft(data?.ai_description_draft || "");
+  } catch (err) {
+    console.error("❌ Error analyze cosmetic:", err);
+    setCosmeticAiError("Error de conexión al analizar la imagen quirúrgica.");
+  } finally {
+    setCosmeticAiLoading(false);
+  }
+}
+
 
   async function handleImagingChat(e) {
     e.preventDefault();
@@ -1150,6 +1278,100 @@ if (data.duplicate === true) {
           </div>
         )}
       </section>
+
+{/* BLOQUE IMÁGENES QUIRÚRGICAS */}
+<section className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 space-y-4">
+  <h2 className="text-lg font-semibold">Imágenes quirúrgicas (Antes / Después)</h2>
+  <p className="text-sm text-slate-600">
+    Sube fotografías quirúrgicas (antes/después/seguimiento). Se guardan en la ficha del paciente.
+    La IA <strong>solo</strong> se ejecuta cuando pulsas <em>Analizar imagen</em>.
+  </p>
+
+  <form onSubmit={handleUploadCosmetic} className="space-y-3">
+    <div className="grid md:grid-cols-3 gap-3">
+      <div>
+        <label className="sr-label">Tipo</label>
+        <select className="sr-input w-full" value={cosType} onChange={(e) => setCosType(e.target.value)}>
+          <option value="COSMETIC_PRE">Antes</option>
+          <option value="COSMETIC_POST">Después</option>
+          <option value="COSMETIC_FOLLOWUP">Seguimiento</option>
+        </select>
+      </div>
+
+      <div>
+        <label className="sr-label">Fichero (foto o PDF)</label>
+        <input
+          type="file"
+          accept=".pdf,image/*"
+          className="sr-input w-full"
+          onChange={(e) => setFileCosmetic(e.target.files?.[0] || null)}
+        />
+      </div>
+
+      <div>
+        <label className="sr-label">Contexto (opcional)</label>
+        <textarea
+          className="sr-input w-full min-h-[60px]"
+          value={cosContext}
+          onChange={(e) => setCosContext(e.target.value)}
+          placeholder="Ej. Rinoplastia primaria · 6 semanas post · marcajes visibles..."
+        />
+      </div>
+    </div>
+
+    {cosmeticError && <p className="text-sm text-red-600">{cosmeticError}</p>}
+
+    <button
+      type="submit"
+      disabled={loadingCosmeticUpload || trialExpired}
+      className="sr-btn-primary disabled:opacity-60 disabled:cursor-not-allowed"
+    >
+      {loadingCosmeticUpload ? "Guardando imagen..." : "Guardar imagen quirúrgica"}
+    </button>
+  </form>
+
+  {cosmeticFilePath && (
+    <div className="mt-4 space-y-3">
+      <div>
+        <h3 className="text-sm font-semibold mb-1">Imagen guardada</h3>
+        <img
+          src={cosmeticFilePath}
+          alt="Imagen quirúrgica"
+          className="mt-2 max-w-xs md:max-w-sm w-full rounded-lg border border-slate-200"
+        />
+        {cosmeticId && (
+          <p className="text-xs text-slate-500 mt-1">
+            ID imagen: <span className="font-mono">{cosmeticId}</span>
+          </p>
+        )}
+      </div>
+
+      <div className="border-t border-slate-200 pt-3">
+        <h4 className="text-sm font-semibold">🧠 Analizar imagen (bajo demanda)</h4>
+        <p className="text-xs text-slate-600 mt-1">Análisis descriptivo. No diagnóstico.</p>
+
+        {cosmeticAiError && <p className="text-sm text-red-600 mt-2">{cosmeticAiError}</p>}
+
+        <button
+          type="button"
+          onClick={handleAnalyzeCosmetic}
+          disabled={cosmeticAiLoading || !cosmeticId}
+          className="sr-btn-secondary mt-2 disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          {cosmeticAiLoading ? "Analizando..." : "Analizar imagen"}
+        </button>
+
+        {cosmeticAiDraft && (
+          <div className="mt-3 p-3 rounded-lg border border-slate-200 bg-slate-50/60">
+            <p className="text-xs text-slate-500 mb-1">Sugerencia de descripción (IA) — borrador</p>
+            <p className="text-sm text-slate-800 whitespace-pre-wrap">{cosmeticAiDraft}</p>
+          </div>
+        )}
+      </div>
+    </div>
+  )}
+</section>
+
     </main>
   );
 }
