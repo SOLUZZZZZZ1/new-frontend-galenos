@@ -34,8 +34,26 @@ function fmtDelta(d) {
   return s.replace(".", ",");
 }
 
+function isCosmeticType(t) {
+  return String(t || "").toUpperCase().startsWith("COSMETIC");
+}
 
-function isCosmeticType(t){return String(t||'').toUpperCase().startsWith('COSMETIC');}
+function cosmeticLabel(t) {
+  const u = String(t || "").toUpperCase();
+  if (u === "COSMETIC_PRE") return "Antes";
+  if (u === "COSMETIC_POST") return "Después";
+  if (u === "COSMETIC_FOLLOWUP") return "Seguimiento";
+  return u.replace("COSMETIC_", "");
+}
+
+function fmtShortDate(v) {
+  if (!v) return "—";
+  try {
+    const d = new Date(String(v));
+    if (!isNaN(d.getTime())) return d.toLocaleString("es-ES");
+  } catch {}
+  return String(v);
+}
 
 function normName(s) {
   return (s || "").toString().toLowerCase();
@@ -1161,7 +1179,7 @@ useEffect(() => {
             {!imagingError && imaging.length === 0 ? (
               <p className="text-sm text-slate-500">No hay imágenes registradas para este paciente.</p>
             ) : (
-              imaging.filter((x)=>!isCosmeticType(x.type)).map((img) => {
+              imaging.map((img) => {
                 const sum = (img.summary || "").toString();
                 const diff = (img.differential || "").toString();
                 const patterns = Array.isArray(img.patterns) ? img.patterns : [];
@@ -1223,6 +1241,74 @@ useEffect(() => {
           </div>
         )}
       </section>
+<section className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 space-y-4">
+  <div className="flex items-center justify-between gap-4">
+    <h2 className="text-lg font-semibold">Imágenes quirúrgicas</h2>
+    <p className="text-xs text-slate-500">
+      Antes / Después / Seguimiento (solo lectura). La subida y comparativa avanzada están en Panel médico.
+    </p>
+  </div>
+
+  {(() => {
+    const cos = (imaging || []).filter((x) => isCosmeticType(x.type));
+    const pre = cos.filter((x) => String(x.type || "").toUpperCase() === "COSMETIC_PRE");
+    const post = cos.filter((x) => String(x.type || "").toUpperCase() === "COSMETIC_POST");
+    const follow = cos.filter((x) => String(x.type || "").toUpperCase() === "COSMETIC_FOLLOWUP");
+
+    const renderRow = (arr) => (
+      <div className="flex gap-2 overflow-x-auto pb-2">
+        {arr.map((img) => (
+          <a
+            key={img.id}
+            href={img.file_path}
+            target="_blank"
+            rel="noreferrer"
+            className="flex-shrink-0 w-[120px] rounded-lg border border-slate-200 hover:border-slate-300 bg-white"
+            title={`ID ${img.id} · ${cosmeticLabel(img.type)} · ${fmtShortDate(img.exam_date || img.created_at)}`}
+          >
+            <img
+              src={img.file_path}
+              alt={`Cosmetic ${img.id}`}
+              className="w-full h-[86px] object-cover rounded-t-lg"
+            />
+            <div className="px-2 py-1">
+              <p className="text-[10px] text-slate-600">ID {img.id} · {cosmeticLabel(img.type)}</p>
+              <p className="text-[10px] text-slate-500">{fmtShortDate(img.exam_date || img.created_at)}</p>
+            </div>
+          </a>
+        ))}
+      </div>
+    );
+
+    if (cos.length === 0) {
+      return <p className="text-sm text-slate-600">Aún no hay imágenes quirúrgicas para este paciente.</p>;
+    }
+
+    return (
+      <div className="space-y-4">
+        {pre.length > 0 && (
+          <div>
+            <p className="text-sm font-semibold text-slate-800 mb-1">Antes</p>
+            {renderRow(pre)}
+          </div>
+        )}
+        {post.length > 0 && (
+          <div>
+            <p className="text-sm font-semibold text-slate-800 mb-1">Después</p>
+            {renderRow(post)}
+          </div>
+        )}
+        {follow.length > 0 && (
+          <div>
+            <p className="text-sm font-semibold text-slate-800 mb-1">Seguimiento</p>
+            {renderRow(follow)}
+          </div>
+        )}
+      </div>
+    );
+  })()}
+</section>
+
 
       <section className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 sm:p-6">
         <button type="button" onClick={() => toggleBlock("notas")} className="flex items-center justify-between w-full text-left">
