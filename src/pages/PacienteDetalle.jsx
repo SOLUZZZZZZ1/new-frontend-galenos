@@ -1,3 +1,23 @@
+function isCosmeticType(t) {
+  return String(t || "").toUpperCase().startsWith("COSMETIC");
+}
+
+function cosmeticLabel(t) {
+  const u = String(t || "").toUpperCase();
+  if (u === "COSMETIC_PRE") return "Antes";
+  if (u === "COSMETIC_POST") return "Después";
+  if (u === "COSMETIC_FOLLOWUP") return "Seguimiento";
+  return u.replace("COSMETIC_", "");
+}
+
+function fmtShortDate(v) {
+  if (!v) return "—";
+  try {
+    const d = new Date(String(v));
+    if (!isNaN(d.getTime())) return d.toLocaleString("es-ES");
+  } catch {}
+  return String(v);
+}
 // src/pages/PacienteDetalle.jsx — FULL (estable) + Comparativas (auto + manual) + UX marcadores
 // ✅ Mantiene: Datos paciente (con edición), Analíticas (resumen/diferencial + marcadores), Imágenes, Notas, Timeline
 // ✅ Comparativa automática 6/12/18/24 (backend): flechas rojas + delta (Actual − Histórico) + toggle 18/24
@@ -34,160 +54,8 @@ function fmtDelta(d) {
   return s.replace(".", ",");
 }
 
-
-function isCosmeticType(t) {
-  return String(t || "").toUpperCase().startsWith("COSMETIC");
-}
-
-function cosmeticLabel(t) {
-  const u = String(t || "").toUpperCase();
-  if (u === "COSMETIC_PRE") return "Antes";
-  if (u === "COSMETIC_POST") return "Después";
-  if (u === "COSMETIC_FOLLOWUP") return "Seguimiento";
-  return u.replace("COSMETIC_", "");
-}
-
-function fmtShortDate(v) {
-  if (!v) return "—";
-  try {
-    const d = new Date(String(v));
-    if (!isNaN(d.getTime())) return d.toLocaleString("es-ES");
-  } catch {}
-  return String(v);
-}
-
 function normName(s) {
-  
-
-async function handleCosDetCompare() {
-  setCosDetCompareError("");
-  setCosDetCompareResult("");
-
-  if (!token) {
-    setCosDetCompareError("Sesión caducada. Vuelve a iniciar sesión.");
-    return;
-  }
-  if (!cosDetPreId || !cosDetPostId) {
-    setCosDetCompareError("Selecciona una imagen 'Antes' y una 'Después/Seguimiento'.");
-    return;
-  }
-
-  try {
-    setCosDetCompareLoading(true);
-    const formData = new FormData();
-    formData.append("pre_image_id", String(cosDetPreId));
-    formData.append("post_image_id", String(cosDetPostId));
-
-    const res = await fetch(`${API}/imaging/cosmetic/compare`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-      body: formData,
-    });
-
-    const raw = await res.text();
-    if (!res.ok) {
-      let msg = "No se pudo comparar Antes/Después.";
-      try {
-        const errData = JSON.parse(raw);
-        if (errData.detail) msg = errData.detail;
-      } catch {}
-      setCosDetCompareError(msg);
-      return;
-    }
-
-    const data = JSON.parse(raw || "{}");
-    setCosDetCompareResult(data.compare_text || "");
-  } catch (err) {
-    console.error(err);
-    setCosDetCompareError("Error de conexión al comparar imágenes.");
-  } finally {
-    setCosDetCompareLoading(false);
-  }
-}
-
-async function handleCosDetPdf() {
-  setCosDetPdfError("");
-
-  if (!token) {
-    setCosDetPdfError("Sesión caducada. Vuelve a iniciar sesión.");
-    return;
-  }
-  if (!cosDetPreId || !cosDetPostId) {
-    setCosDetPdfError("Selecciona una imagen 'Antes' y una 'Después/Seguimiento'.");
-    return;
-  }
-  if (!cosDetCompareResult || !cosDetCompareResult.trim()) {
-    setCosDetPdfError("Primero genera la comparativa.");
-    return;
-  }
-
-  try {
-    setCosDetPdfLoading(true);
-    const payload = {
-      pre_image_id: parseInt(cosDetPreId, 10),
-      post_image_id: parseInt(cosDetPostId, 10),
-      compare_text: cosDetCompareResult,
-      note: cosDetNote && cosDetNote.trim() ? cosDetNote.trim() : null,
-    };
-
-    const res = await fetch(`${API}/pdf/cosmetic-compare`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (!res.ok) {
-      const raw = await res.text();
-      let msg = "No se pudo generar el PDF.";
-      try {
-        const errData = JSON.parse(raw);
-        if (errData.detail) msg = errData.detail;
-      } catch {}
-      setCosDetPdfError(msg);
-      return;
-    }
-
-    const blob = await res.blob();
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `Galenos_Comparativa_${cosDetPreId}_${cosDetPostId}.pdf`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    window.URL.revokeObjectURL(url);
-  } catch (err) {
-    console.error(err);
-    setCosDetPdfError("Error de conexión al generar el PDF.");
-  } finally {
-    setCosDetPdfLoading(false);
-  }
-}
-
-// Preselección automática (si hay imágenes quirúrgicas)
-useEffect(() => {
-  try {
-    const cos = (imaging || []).filter((x) => isCosmeticType(x.type));
-    const pre = cos.filter((x) => String(x.type || "").toUpperCase() === "COSMETIC_PRE");
-    const post = cos.filter((x) => {
-      const t = String(x.type || "").toUpperCase();
-      return t === "COSMETIC_POST" || t === "COSMETIC_FOLLOWUP";
-    });
-
-    const key = (it) => String(it.exam_date || it.created_at || "");
-    pre.sort((a, b) => key(a).localeCompare(key(b)));
-    post.sort((a, b) => key(b).localeCompare(key(a)));
-
-    if (!cosDetPreId && pre[0]?.id) setCosDetPreId(String(pre[0].id));
-    if (!cosDetPostId && post[0]?.id) setCosDetPostId(String(post[0].id));
-  } catch {}
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [imaging]);
-
-return (s || "").toString().toLowerCase();
+  return (s || "").toString().toLowerCase();
 }
 
 // Reglas simples "clínicas" (Capa 1):
@@ -566,7 +434,137 @@ const [cosDetNote, setCosDetNote] = useState("");
   if (error) return <div className="sr-container py-8"><p className="text-red-600">{error}</p></div>;
   if (!patient) return <div className="sr-container py-8"><p className="text-slate-600">Paciente no encontrado.</p></div>;
 
-  return (
+  
+
+async function handleCosDetCompare() {
+  setCosDetCompareError("");
+  setCosDetCompareResult("");
+
+  if (!token) {
+    setCosDetCompareError("Sesión caducada. Vuelve a iniciar sesión.");
+    return;
+  }
+  if (!cosDetPreId || !cosDetPostId) {
+    setCosDetCompareError("Selecciona una imagen 'Antes' y una 'Después/Seguimiento'.");
+    return;
+  }
+
+  try {
+    setCosDetCompareLoading(true);
+    const formData = new FormData();
+    formData.append("pre_image_id", String(cosDetPreId));
+    formData.append("post_image_id", String(cosDetPostId));
+
+    const res = await fetch(`${API}/imaging/cosmetic/compare`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    });
+
+    const raw = await res.text();
+    if (!res.ok) {
+      let msg = "No se pudo comparar Antes/Después.";
+      try {
+        const errData = JSON.parse(raw);
+        if (errData.detail) msg = errData.detail;
+      } catch {}
+      setCosDetCompareError(msg);
+      return;
+    }
+
+    const data = JSON.parse(raw || "{}");
+    setCosDetCompareResult(data.compare_text || "");
+  } catch (err) {
+    console.error(err);
+    setCosDetCompareError("Error de conexión al comparar imágenes.");
+  } finally {
+    setCosDetCompareLoading(false);
+  }
+}
+
+async function handleCosDetPdf() {
+  setCosDetPdfError("");
+
+  if (!token) {
+    setCosDetPdfError("Sesión caducada. Vuelve a iniciar sesión.");
+    return;
+  }
+  if (!cosDetPreId || !cosDetPostId) {
+    setCosDetPdfError("Selecciona una imagen 'Antes' y una 'Después/Seguimiento'.");
+    return;
+  }
+  if (!cosDetCompareResult || !cosDetCompareResult.trim()) {
+    setCosDetPdfError("Primero genera la comparativa.");
+    return;
+  }
+
+  try {
+    setCosDetPdfLoading(true);
+    const payload = {
+      pre_image_id: parseInt(cosDetPreId, 10),
+      post_image_id: parseInt(cosDetPostId, 10),
+      compare_text: cosDetCompareResult,
+      note: cosDetNote && cosDetNote.trim() ? cosDetNote.trim() : null,
+    };
+
+    const res = await fetch(`${API}/pdf/cosmetic-compare`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const raw = await res.text();
+      let msg = "No se pudo generar el PDF.";
+      try {
+        const errData = JSON.parse(raw);
+        if (errData.detail) msg = errData.detail;
+      } catch {}
+      setCosDetPdfError(msg);
+      return;
+    }
+
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `Galenos_Comparativa_${cosDetPreId}_${cosDetPostId}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  } catch (err) {
+    console.error(err);
+    setCosDetPdfError("Error de conexión al generar el PDF.");
+  } finally {
+    setCosDetPdfLoading(false);
+  }
+}
+
+// Preselección automática (si hay imágenes quirúrgicas)
+useEffect(() => {
+  try {
+    const cos = (imaging || []).filter((x) => isCosmeticType(x.type));
+    const pre = cos.filter((x) => String(x.type || "").toUpperCase() === "COSMETIC_PRE");
+    const post = cos.filter((x) => {
+      const t = String(x.type || "").toUpperCase();
+      return t === "COSMETIC_POST" || t === "COSMETIC_FOLLOWUP";
+    });
+
+    const key = (it) => String(it.exam_date || it.created_at || "");
+    pre.sort((a, b) => key(a).localeCompare(key(b)));
+    post.sort((a, b) => key(b).localeCompare(key(a)));
+
+    if (!cosDetPreId && pre[0]?.id) setCosDetPreId(String(pre[0].id));
+    if (!cosDetPostId && post[0]?.id) setCosDetPostId(String(post[0].id));
+  } catch {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [imaging]);
+
+return (
     <div className="sr-container py-6 space-y-6">
       <section className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 sm:p-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -1084,7 +1082,7 @@ const [cosDetNote, setCosDetNote] = useState("");
   <div className="flex items-center justify-between gap-4">
     <h2 className="text-lg font-semibold">Imágenes quirúrgicas</h2>
     <p className="text-xs text-slate-500">
-      Antes / Después / Seguimiento (solo lectura). La subida y edición avanzadas están en Panel médico.
+      Antes / Después / Seguimiento (solo consulta). La subida y edición avanzadas están en Panel médico.
     </p>
   </div>
 
