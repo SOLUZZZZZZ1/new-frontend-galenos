@@ -56,7 +56,117 @@ function fmtShortDate(v) {
 }
 
 function normName(s) {
-  return (s || "").toString().toLowerCase();
+  
+
+async function handleCosDetCompare() {
+  setCosDetCompareError("");
+  setCosDetCompareResult("");
+
+  if (!token) {
+    setCosDetCompareError("Sesión caducada. Vuelve a iniciar sesión.");
+    return;
+  }
+  if (!cosDetPreId || !cosDetPostId) {
+    setCosDetCompareError("Selecciona una imagen 'Antes' y una 'Después/Seguimiento'.");
+    return;
+  }
+
+  try {
+    setCosDetCompareLoading(true);
+    const formData = new FormData();
+    formData.append("pre_image_id", String(cosDetPreId));
+    formData.append("post_image_id", String(cosDetPostId));
+
+    const res = await fetch(`${API}/imaging/cosmetic/compare`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    });
+
+    const raw = await res.text();
+    if (!res.ok) {
+      let msg = "No se pudo comparar Antes/Después.";
+      try {
+        const errData = JSON.parse(raw);
+        if (errData.detail) msg = errData.detail;
+      } catch {}
+      setCosDetCompareError(msg);
+      return;
+    }
+
+    const data = JSON.parse(raw || "{}");
+    setCosDetCompareResult(data.compare_text || "");
+  } catch (err) {
+    console.error(err);
+    setCosDetCompareError("Error de conexión al comparar imágenes.");
+  } finally {
+    setCosDetCompareLoading(false);
+  }
+}
+
+async function handleCosDetPdf() {
+  setCosDetPdfError("");
+
+  if (!token) {
+    setCosDetPdfError("Sesión caducada. Vuelve a iniciar sesión.");
+    return;
+  }
+  if (!cosDetPreId || !cosDetPostId) {
+    setCosDetPdfError("Selecciona una imagen 'Antes' y una 'Después/Seguimiento'.");
+    return;
+  }
+  if (!cosDetCompareResult || !cosDetCompareResult.trim()) {
+    setCosDetPdfError("Primero genera la comparativa.");
+    return;
+  }
+
+  try {
+    setCosDetPdfLoading(true);
+    const payload = {
+      pre_image_id: parseInt(cosDetPreId, 10),
+      post_image_id: parseInt(cosDetPostId, 10),
+      compare_text: cosDetCompareResult,
+      note: cosDetNote && cosDetNote.trim() ? cosDetNote.trim() : null,
+    };
+
+    const res = await fetch(`${API}/pdf/cosmetic-compare`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const raw = await res.text();
+      let msg = "No se pudo generar el PDF.";
+      try {
+        const errData = JSON.parse(raw);
+        if (errData.detail) msg = errData.detail;
+      } catch {}
+      setCosDetPdfError(msg);
+      return;
+    }
+
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `Galenos_Comparativa_${cosDetPreId}_${cosDetPostId}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  } catch (err) {
+    console.error(err);
+    setCosDetPdfError("Error de conexión al generar el PDF.");
+  } finally {
+    setCosDetPdfLoading(false);
+  }
+}
+
+return (s || "").toString().toLowerCase();
 }
 
 // Reglas simples "clínicas" (Capa 1):
@@ -258,6 +368,19 @@ export default function PacienteDetalle() {
   const [analyticsError, setAnalyticsError] = useState("");
 
   const [imaging, setImaging] = useState([]);
+
+// ========================
+// PacienteDetalle — Comparativa quirúrgica + PDF (solo consulta)
+// ========================
+const [cosDetPreId, setCosDetPreId] = useState("");
+const [cosDetPostId, setCosDetPostId] = useState("");
+const [cosDetCompareLoading, setCosDetCompareLoading] = useState(false);
+const [cosDetCompareError, setCosDetCompareError] = useState("");
+const [cosDetCompareResult, setCosDetCompareResult] = useState("");
+const [cosDetPdfLoading, setCosDetPdfLoading] = useState(false);
+const [cosDetPdfError, setCosDetPdfError] = useState("");
+const [cosDetNote, setCosDetNote] = useState("");
+
   const [imagingError, setImagingError] = useState("");
 
   const [notes, setNotes] = useState([]);
@@ -476,6 +599,27 @@ async function computeChangesSinceReview() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, token]);
 
+
+
+// Preselección automática (quirúrgicas): más antiguo PRE + más reciente POST/FOLLOWUP
+useEffect(() => {
+  try {
+    const cos = (imaging || []).filter((x) => isCosmeticType(x.type));
+    const pre = cos.filter((x) => String(x.type || "").toUpperCase() === "COSMETIC_PRE");
+    const post = cos.filter((x) => {
+      const t = String(x.type || "").toUpperCase();
+      return t === "COSMETIC_POST" || t === "COSMETIC_FOLLOWUP";
+    });
+
+    const key = (it) => String(it.exam_date || it.created_at || "");
+    pre.sort((a, b) => key(a).localeCompare(key(b)));
+    post.sort((a, b) => key(b).localeCompare(key(a)));
+
+    if (!cosDetPreId && pre[0]?.id) setCosDetPreId(String(pre[0].id));
+    if (!cosDetPostId && post[0]?.id) setCosDetPostId(String(post[0].id));
+  } catch {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [imaging]);
 useEffect(() => {
   computeChangesSinceReview();
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -673,33 +817,11 @@ useEffect(() => {
 
   {(() => {
     const v2 = buildResumenV2Frontend(compare, 2);
+    if (!compare || !v2.hasData) {
+      return <p className="text-xs text-slate-600 mt-2">Cargando comparativa…</p>;
+    }
 
-      if (!compare) {
-        return <p className="text-xs text-slate-600 mt-2">Cargando comparativa…</p>;
-      }
-
-      // Si solo hay 0–1 analíticas, no hay comparativa real todavía
-      if (!analytics || analytics.length < 2) {
-        return (
-          <div className="mt-2 text-xs text-slate-700 space-y-2">
-            <p>
-              Aún no hay suficientes analíticas para calcular evolución. Añade al menos <strong>2</strong> analíticas.
-            </p>
-            <p className="text-[10px] text-slate-500">
-              El resumen V2.0 se basa en comparativa temporal (baseline vs actual).
-            </p>
-          </div>
-        );
-      }
-
-      if (!v2.hasData) {
-        return (
-          <p className="text-xs text-slate-600 mt-2">
-            Las analíticas no comparten suficientes marcadores comunes para generar una comparativa fiable.
-          </p>
-        );
-      }
-return (
+    return (
       <div className="mt-2 space-y-3 text-xs text-slate-800">
         <div>
           <p className="font-semibold text-slate-700">🔴 Prioridades clínicas</p>
@@ -1201,7 +1323,7 @@ return (
             {!imagingError && imaging.length === 0 ? (
               <p className="text-sm text-slate-500">No hay imágenes registradas para este paciente.</p>
             ) : (
-              imaging.filter((img)=>!String(img.type||'').toUpperCase().startsWith('COSMETIC')).map((img) => {
+              imaging.map((img) => {
                 const sum = (img.summary || "").toString();
                 const diff = (img.differential || "").toString();
                 const patterns = Array.isArray(img.patterns) ? img.patterns : [];
@@ -1329,6 +1451,99 @@ return (
       </div>
     );
   })()}
+
+
+<div className="border-t border-slate-200 pt-4">
+  <h3 className="text-base font-semibold">🔁 Comparativa quirúrgica y PDF</h3>
+  <p className="text-sm text-slate-600">
+    Consulta la evolución quirúrgica y genera PDF desde el expediente (sin subir imágenes aquí).
+  </p>
+
+  {(() => {
+    const cos = (imaging || []).filter((x) => isCosmeticType(x.type));
+    const pre = cos.filter((x) => String(x.type || "").toUpperCase() === "COSMETIC_PRE");
+    const post = cos.filter((x) => {
+      const t = String(x.type || "").toUpperCase();
+      return t === "COSMETIC_POST" || t === "COSMETIC_FOLLOWUP";
+    });
+
+    if (cos.length === 0) {
+      return <p className="text-sm text-slate-600 mt-2">Añade imágenes quirúrgicas en Panel médico para poder comparar.</p>;
+    }
+
+    return (
+      <div className="mt-3 space-y-3">
+        <div className="grid sm:grid-cols-2 gap-3">
+          <div>
+            <label className="sr-label">Antes</label>
+            <select className="sr-input w-full text-sm" value={cosDetPreId} onChange={(e) => setCosDetPreId(e.target.value)}>
+              <option value="">Selecciona “Antes”…</option>
+              {pre.map((x) => (
+                <option key={x.id} value={x.id}>
+                  ID {x.id} · {fmtShortDate(x.exam_date || x.created_at)}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="sr-label">Después / Seguimiento</label>
+            <select className="sr-input w-full text-sm" value={cosDetPostId} onChange={(e) => setCosDetPostId(e.target.value)}>
+              <option value="">Selecciona “Después”…</option>
+              {post.map((x) => (
+                <option key={x.id} value={x.id}>
+                  ID {x.id} · {fmtShortDate(x.exam_date || x.created_at)} · {cosmeticLabel(x.type)}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {cosDetCompareError && <p className="text-sm text-red-600">{cosDetCompareError}</p>}
+
+        <button
+          type="button"
+          onClick={handleCosDetCompare}
+          disabled={cosDetCompareLoading || !cosDetPreId || !cosDetPostId}
+          className="sr-btn-secondary disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          {cosDetCompareLoading ? "Comparando..." : "Comparar"}
+        </button>
+
+        {cosDetCompareResult && (
+          <div className="p-3 rounded-lg border border-slate-200 bg-slate-50/60">
+            <p className="text-xs text-slate-500 mb-1">Comparativa descriptiva (IA) — borrador</p>
+            <p className="text-sm text-slate-800 whitespace-pre-wrap">{cosDetCompareResult}</p>
+          </div>
+        )}
+
+        <div className="border-t border-slate-200 pt-3">
+          <h4 className="text-sm font-semibold">📄 PDF quirúrgico (Antes / Después)</h4>
+          <p className="text-xs text-slate-600 mt-1">Requiere comparativa generada.</p>
+
+          <label className="sr-label mt-2">Nota del cirujano (opcional)</label>
+          <textarea
+            className="sr-input w-full min-h-[70px]"
+            value={cosDetNote}
+            onChange={(e) => setCosDetNote(e.target.value)}
+            placeholder="Ej. Seguimiento a 6 semanas. Edema esperado. Revisión en 3 meses..."
+          />
+
+          {cosDetPdfError && <p className="text-sm text-red-600 mt-2">{cosDetPdfError}</p>}
+
+          <button
+            type="button"
+            onClick={handleCosDetPdf}
+            disabled={cosDetPdfLoading || !cosDetCompareResult}
+            className="sr-btn-secondary mt-2 disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {cosDetPdfLoading ? "Generando PDF..." : "📄 Generar PDF"}
+          </button>
+        </div>
+      </div>
+    );
+  })()}
+</div>
 </section>
 
 
