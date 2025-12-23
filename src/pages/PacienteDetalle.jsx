@@ -277,6 +277,27 @@ const [cosDetNote, setCosDetNote] = useState("");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, token]);
 
+// Preselección automática (solo consulta) para comparativa quirúrgica en PacienteDetalle
+useEffect(() => {
+  try {
+    const cos = (imaging || []).filter((x) => isCosmeticType(x.type));
+    const pre = cos.filter((x) => String(x.type || "").toUpperCase() === "COSMETIC_PRE");
+    const post = cos.filter((x) => {
+      const t = String(x.type || "").toUpperCase();
+      return t === "COSMETIC_POST" || t === "COSMETIC_FOLLOWUP";
+    });
+
+    const key = (it) => String(it.exam_date || it.created_at || "");
+    pre.sort((a, b) => key(a).localeCompare(key(b)));
+    post.sort((a, b) => key(b).localeCompare(key(a)));
+
+    if (!cosDetPreId && pre[0]?.id) setCosDetPreId(String(pre[0].id));
+    if (!cosDetPostId && post[0]?.id) setCosDetPostId(String(post[0].id));
+  } catch {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [imaging]);
+
+
   useEffect(() => {
     if (manualBaselineId == null) {
       const autoId = compare?.baseline?.analytic_id ?? null;
@@ -543,26 +564,6 @@ async function handleCosDetPdf() {
     setCosDetPdfLoading(false);
   }
 }
-
-// Preselección automática (si hay imágenes quirúrgicas)
-useEffect(() => {
-  try {
-    const cos = (imaging || []).filter((x) => isCosmeticType(x.type));
-    const pre = cos.filter((x) => String(x.type || "").toUpperCase() === "COSMETIC_PRE");
-    const post = cos.filter((x) => {
-      const t = String(x.type || "").toUpperCase();
-      return t === "COSMETIC_POST" || t === "COSMETIC_FOLLOWUP";
-    });
-
-    const key = (it) => String(it.exam_date || it.created_at || "");
-    pre.sort((a, b) => key(a).localeCompare(key(b)));
-    post.sort((a, b) => key(b).localeCompare(key(a)));
-
-    if (!cosDetPreId && pre[0]?.id) setCosDetPreId(String(pre[0].id));
-    if (!cosDetPostId && post[0]?.id) setCosDetPostId(String(post[0].id));
-  } catch {}
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [imaging]);
 
 return (
     <div className="sr-container py-6 space-y-6">
