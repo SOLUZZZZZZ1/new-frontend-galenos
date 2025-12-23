@@ -599,27 +599,6 @@ async function computeChangesSinceReview() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, token]);
 
-
-
-// Preselección automática (quirúrgicas): más antiguo PRE + más reciente POST/FOLLOWUP
-useEffect(() => {
-  try {
-    const cos = (imaging || []).filter((x) => isCosmeticType(x.type));
-    const pre = cos.filter((x) => String(x.type || "").toUpperCase() === "COSMETIC_PRE");
-    const post = cos.filter((x) => {
-      const t = String(x.type || "").toUpperCase();
-      return t === "COSMETIC_POST" || t === "COSMETIC_FOLLOWUP";
-    });
-
-    const key = (it) => String(it.exam_date || it.created_at || "");
-    pre.sort((a, b) => key(a).localeCompare(key(b)));
-    post.sort((a, b) => key(b).localeCompare(key(a)));
-
-    if (!cosDetPreId && pre[0]?.id) setCosDetPreId(String(pre[0].id));
-    if (!cosDetPostId && post[0]?.id) setCosDetPostId(String(post[0].id));
-  } catch {}
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [imaging]);
 useEffect(() => {
   computeChangesSinceReview();
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -817,11 +796,33 @@ useEffect(() => {
 
   {(() => {
     const v2 = buildResumenV2Frontend(compare, 2);
-    if (!compare || !v2.hasData) {
-      return <p className="text-xs text-slate-600 mt-2">Cargando comparativa…</p>;
-    }
 
-    return (
+      if (!compare) {
+        return <p className="text-xs text-slate-600 mt-2">Cargando comparativa…</p>;
+      }
+
+      // Si solo hay 0–1 analíticas, no hay comparativa real todavía
+      if (!analytics || analytics.length < 2) {
+        return (
+          <div className="mt-2 text-xs text-slate-700 space-y-2">
+            <p>
+              Aún no hay suficientes analíticas para calcular evolución. Añade al menos <strong>2</strong> analíticas.
+            </p>
+            <p className="text-[10px] text-slate-500">
+              El resumen V2.0 se basa en comparativa temporal (baseline vs actual).
+            </p>
+          </div>
+        );
+      }
+
+      if (!v2.hasData) {
+        return (
+          <p className="text-xs text-slate-600 mt-2">
+            Las analíticas no comparten suficientes marcadores comunes para generar una comparativa fiable.
+          </p>
+        );
+      }
+return (
       <div className="mt-2 space-y-3 text-xs text-slate-800">
         <div>
           <p className="font-semibold text-slate-700">🔴 Prioridades clínicas</p>
@@ -1323,7 +1324,7 @@ useEffect(() => {
             {!imagingError && imaging.length === 0 ? (
               <p className="text-sm text-slate-500">No hay imágenes registradas para este paciente.</p>
             ) : (
-              imaging.map((img) => {
+              imaging.filter((img)=>!String(img.type||'').toUpperCase().startsWith('COSMETIC')).map((img) => {
                 const sum = (img.summary || "").toString();
                 const diff = (img.differential || "").toString();
                 const patterns = Array.isArray(img.patterns) ? img.patterns : [];
@@ -1456,7 +1457,7 @@ useEffect(() => {
 <div className="border-t border-slate-200 pt-4">
   <h3 className="text-base font-semibold">🔁 Comparativa quirúrgica y PDF</h3>
   <p className="text-sm text-slate-600">
-    Consulta la evolución quirúrgica y genera PDF desde el expediente (sin subir imágenes aquí).
+    Consulta y genera comparativa/PDF desde el expediente del paciente (sin subir imágenes aquí).
   </p>
 
   {(() => {
