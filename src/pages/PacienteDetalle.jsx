@@ -34,27 +34,6 @@ function fmtDelta(d) {
   return s.replace(".", ",");
 }
 
-function isCosmeticType(t) {
-  return String(t || "").toUpperCase().startsWith("COSMETIC");
-}
-
-function cosmeticLabel(t) {
-  const u = String(t || "").toUpperCase();
-  if (u === "COSMETIC_PRE") return "Antes";
-  if (u === "COSMETIC_POST") return "Después";
-  if (u === "COSMETIC_FOLLOWUP") return "Seguimiento";
-  return u.replace("COSMETIC_", "");
-}
-
-function fmtShortDate(v) {
-  if (!v) return "—";
-  try {
-    const d = new Date(String(v));
-    if (!isNaN(d.getTime())) return d.toLocaleString("es-ES");
-  } catch {}
-  return String(v);
-}
-
 function normName(s) {
   
 
@@ -234,127 +213,6 @@ function trendClass(marker, sym) {
   return "text-amber-600 font-semibold";
 }
 
-// ========================
-// Resumen V2.0 (frontend) + Última revisión (review-state)
-// ========================
-function pickMostRecentPastKeyFrontend(row) {
-  const order = ["6m", "12m", "18m", "24m"];
-  for (const k of order) {
-    if (row && row[k] != null && row[k] !== "") return k;
-  }
-  return null;
-}
-
-function classifySystemFrontend(markerName) {
-  const n = normName(markerName);
-
-  const renal = ["creatinina","urea","filtrat glomerular","filtrado glomerular","aclarament de creatinina","aclarament d'urea","protein","proteinúria","proteinuria","proteïnúria","proteïnùria","quocient prote","densitat","orina"];
-  const acid = ["co2","bicarbon","exces de base","excés de base","pressió parcial co2","presión parcial co2","ph "];
-  const metab = ["glucosa","hba1c","hemoglobina glicada","colesterol","triglic","ldl","hdl","sodi","potassi","calci","vitamina d","àcid úric","acido uric"];
-  const hema = ["hemoglobina","hematòcrit","hematocrit","hematies","leuc","neutr","limf","mon","eosin","basof","basòf","plaquet","ferritina","ferro","transferrina","reticul"];
-
-  if (renal.some((k) => n.includes(k))) return "Renal / Orina";
-  if (acid.some((k) => n.includes(k))) return "Ácido–Base / Resp.";
-  if (metab.some((k) => n.includes(k))) return "Metabólico / Cardio.";
-  if (hema.some((k) => n.includes(k))) return "Hematológico / Hierro";
-  return "Otros";
-}
-
-function buildResumenV2Frontend(compareObj, stablePct = 2) {
-  const markersObj = compareObj?.markers || {};
-  const items = [];
-  const systems = {};
-  let improve = 0, worsen = 0, stable = 0;
-
-  for (const [name, row] of Object.entries(markersObj)) {
-    const baseline = row?.baseline;
-    const pastKey = pickMostRecentPastKeyFrontend(row);
-    if (baseline == null || !pastKey) continue;
-
-    const past = Number(row?.[pastKey]);
-    const b = Number(baseline);
-    if (!Number.isFinite(past) || !Number.isFinite(b) || past === 0) continue;
-
-    const pct = ((b - past) / past) * 100;
-    let cls = "stable";
-    if (Math.abs(pct) >= stablePct) cls = pct > 0 ? "improve" : "worsen";
-
-    if (cls === "improve") improve++;
-    else if (cls === "worsen") worsen++;
-    else stable++;
-
-    items.push({ name, absPct: Math.abs(pct), cls });
-
-    const sys = classifySystemFrontend(name);
-    if (!systems[sys]) systems[sys] = { improve: 0, worsen: 0, stable: 0, total: 0 };
-    systems[sys].total++;
-    systems[sys][cls]++;
-  }
-
-  const topWorsen = items.filter((x) => x.cls === "worsen").sort((a,b)=>b.absPct-a.absPct).slice(0,3).map((x)=>x.name);
-  const topImprove = items.filter((x) => x.cls === "improve").sort((a,b)=>b.absPct-a.absPct).slice(0,3).map((x)=>x.name);
-
-  const systemRows = Object.entries(systems).map(([sys, s]) => {
-    let label = "sin cambios";
-    if (s.improve >= 1 && s.worsen >= 1) label = "mixto / a vigilar";
-    else if (s.worsen >= 2 && s.worsen > s.improve) label = "cambios relevantes";
-    else if (s.improve >= 2 && s.improve > s.worsen) label = "mejoría global";
-    return { sys, label, ...s };
-  });
-
-  const order = ["Renal / Orina", "Ácido–Base / Resp.", "Metabólico / Cardio.", "Hematológico / Hierro", "Otros"];
-  systemRows.sort((a, b) => order.indexOf(a.sys) - order.indexOf(b.sys));
-
-  return { hasData: items.length > 0, totals: { total: items.length, improve, worsen, stable, stablePct }, topWorsen, topImprove, systemRows };
-}
-
-function badgeClass(label) {
-  if (label.includes("cambios")) return "bg-rose-50 text-rose-700 border-rose-200";
-  if (label.includes("mejoría")) return "bg-emerald-50 text-emerald-700 border-emerald-200";
-  if (label.includes("mixto")) return "bg-amber-50 text-amber-700 border-amber-200";
-  return "bg-slate-50 text-slate-700 border-slate-200";
-}
-
-function computeSinceReviewChanges(baseMarkers = [], refMarkers = []) {
-  const toMap = (arr) => {
-    const out = {};
-    for (const m of (arr || [])) {
-      const name = (m?.name || "").toString().trim();
-      const v = Number(m?.value);
-      if (!name || !Number.isFinite(v)) continue;
-      out[name] = v;
-    }
-    return out;
-  };
-
-  const base = toMap(baseMarkers);
-  const ref = toMap(refMarkers);
-
-  const rows = [];
-  for (const [name, vBase] of Object.entries(base)) {
-    if (!(name in ref)) continue;
-    const vRef = ref[name];
-    const delta = vBase - vRef;
-    rows.push({ name, delta, abs: Math.abs(delta) });
-  }
-
-  rows.sort((a, b) => b.abs - a.abs);
-  return rows.slice(0, 5);
-}
-
-function changeLabel(delta, eps = 0.000001) {
-  if (delta > eps) return "mejora";
-  if (delta < -eps) return "empeora";
-  return "estable";
-}
-
-function changeBadgeClass(label) {
-  if (label === "empeora") return "bg-rose-50 text-rose-700 border-rose-200";
-  if (label === "mejora") return "bg-emerald-50 text-emerald-700 border-emerald-200";
-  return "bg-slate-50 text-slate-700 border-slate-200";
-}
-
-
 export default function PacienteDetalle() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -370,7 +228,7 @@ export default function PacienteDetalle() {
   const [imaging, setImaging] = useState([]);
 
 // ========================
-// PacienteDetalle — Comparativa quirúrgica + PDF (solo consulta)
+// Comparativa quirúrgica + PDF (solo consulta)
 // ========================
 const [cosDetPreId, setCosDetPreId] = useState("");
 const [cosDetPostId, setCosDetPostId] = useState("");
@@ -423,11 +281,6 @@ const [cosDetNote, setCosDetNote] = useState("");
 
   // Comparativa automática
   const [compare, setCompare] = useState(null);
-const [reviewState, setReviewState] = useState(null);
-const [reviewStateError, setReviewStateError] = useState("");
-const [reviewSaving, setReviewSaving] = useState(false);
-const [sinceChanges, setSinceChanges] = useState([]);
-const [sinceChangesError, setSinceChangesError] = useState("");
   const [compareError, setCompareError] = useState("");
   const [showLongWindows, setShowLongWindows] = useState(false);
   const [showCompareHelp, setShowCompareHelp] = useState(false);
@@ -509,100 +362,10 @@ const [sinceChangesError, setSinceChangesError] = useState("");
     }
   }
 
-async function loadReviewState() {
-  setReviewStateError("");
-  if (!id || !token) return;
-  try {
-    const res = await fetch(`${API}/patients/${id}/review-state`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    const raw = await res.text();
-    if (!res.ok) throw new Error(raw);
-    setReviewState(JSON.parse(raw));
-  } catch {
-    setReviewStateError("No se pudo cargar el estado de revisión.");
-    setReviewState(null);
-  }
-}
-
-async function markAsReviewed() {
-  if (!id || !token) return;
-  setReviewSaving(true);
-  setReviewStateError("");
-  try {
-    const latest = (analytics || [])
-      .slice()
-      .sort((a, b) => String(b.exam_date || b.created_at || "").localeCompare(String(a.exam_date || a.created_at || "")))[0];
-
-    const latestId = latest?.id ?? null;
-
-    const res = await fetch(`${API}/patients/${id}/review-state`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ last_reviewed_analytic_id: latestId }),
-    });
-    const raw = await res.text();
-    if (!res.ok) throw new Error(raw);
-    setReviewState(JSON.parse(raw));
-    setSinceChanges([]);
-  } catch {
-    setReviewStateError("No se pudo marcar como revisado.");
-  } finally {
-    setReviewSaving(false);
-  }
-}
-
-async function computeChangesSinceReview() {
-  setSinceChangesError("");
-  setSinceChanges([]);
-
-  try {
-    if (!reviewState?.last_reviewed_analytic_id) return;
-    const reviewedId = Number(reviewState.last_reviewed_analytic_id);
-    if (!reviewedId) return;
-
-    const latest = (analytics || [])
-      .slice()
-      .sort((a, b) => String(b.exam_date || b.created_at || "").localeCompare(String(a.exam_date || a.created_at || "")))[0];
-
-    const latestId = latest?.id ?? null;
-    if (!latestId || latestId === reviewedId) return;
-
-    const ensureMarkers = async (aid) => {
-      const cached = Array.isArray(markersCache[aid]) ? markersCache[aid] : null;
-      if (cached) return cached;
-
-      const res = await fetch(`${API}/analytics/markers/${aid}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const raw = await res.text();
-      if (!res.ok) throw new Error(raw);
-      const data = JSON.parse(raw);
-      const markers = Array.isArray(data.markers) ? data.markers : [];
-      setMarkersCache((prev) => ({ ...prev, [aid]: markers }));
-      return markers;
-    };
-
-    const baseMarkers = await ensureMarkers(latestId);
-    const refMarkers = await ensureMarkers(reviewedId);
-
-    setSinceChanges(computeSinceReviewChanges(baseMarkers, refMarkers));
-  } catch {
-    setSinceChangesError("No se pudieron calcular los cambios desde la última revisión.");
-  }
-}
-
-
   useEffect(() => {
     loadAll();
-    loadReviewState();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, token]);
-
-useEffect(() => {
-  computeChangesSinceReview();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [reviewState, analytics]);
 
   useEffect(() => {
     if (manualBaselineId == null) {
@@ -787,118 +550,6 @@ useEffect(() => {
             <button type="button" onClick={() => navigate("/dashboard")} className="sr-btn-secondary text-xs sm:text-sm">Volver al dashboard</button>
             <button type="button" onClick={() => navigate("/pacientes")} className="sr-btn-secondary text-xs sm:text-sm">Volver a pacientes</button>
           </div>
-
-<div className="mt-3 w-full sm:w-[380px] border border-slate-200 rounded-lg bg-slate-50/60 p-3">
-  <div className="flex items-center justify-between gap-2">
-    <h3 className="text-sm font-semibold text-slate-900">🩺 Resumen clínico rápido</h3>
-    <span className="text-[10px] px-2 py-0.5 rounded-full border border-slate-200 bg-white text-slate-600">V2.0</span>
-  </div>
-
-  {(() => {
-    const v2 = buildResumenV2Frontend(compare, 2);
-
-      if (!compare) {
-        return <p className="text-xs text-slate-600 mt-2">Cargando comparativa…</p>;
-      }
-
-      // Si solo hay 0–1 analíticas, no hay comparativa real todavía
-      if (!analytics || analytics.length < 2) {
-        return (
-          <div className="mt-2 text-xs text-slate-700 space-y-2">
-            <p>
-              Aún no hay suficientes analíticas para calcular evolución. Añade al menos <strong>2</strong> analíticas.
-            </p>
-            <p className="text-[10px] text-slate-500">
-              El resumen V2.0 se basa en comparativa temporal (baseline vs actual).
-            </p>
-          </div>
-        );
-      }
-
-      if (!v2.hasData) {
-        return (
-          <p className="text-xs text-slate-600 mt-2">
-            Las analíticas no comparten suficientes marcadores comunes para generar una comparativa fiable.
-          </p>
-        );
-      }
-return (
-      <div className="mt-2 space-y-3 text-xs text-slate-800">
-        <div>
-          <p className="font-semibold text-slate-700">🔴 Prioridades clínicas</p>
-          <p className="mt-1">
-            {v2.topWorsen.length ? v2.topWorsen.join(" · ") : "Sin prioridades detectadas"}
-          </p>
-        </div>
-
-        <div>
-          <p className="font-semibold text-slate-700">🧠 Sistemas</p>
-          <div className="mt-1 space-y-1">
-            {v2.systemRows.slice(0, 4).map((r) => (
-              <div key={r.sys} className="flex items-center justify-between gap-2">
-                <span className="text-slate-700">{r.sys}</span>
-                <span className={`px-2 py-0.5 rounded-full border ${badgeClass(r.label)}`}>{r.label}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <p className="font-semibold text-slate-700">🔁 Cambios desde tu última revisión</p>
-
-          {!reviewState?.last_reviewed_analytic_id ? (
-            <p className="mt-1 text-slate-600">Sin revisión previa registrada.</p>
-          ) : sinceChangesError ? (
-            <p className="mt-1 text-rose-700">{sinceChangesError}</p>
-          ) : sinceChanges.length === 0 ? (
-            <p className="mt-1 text-slate-600">Sin cambios destacados desde la última revisión.</p>
-          ) : (
-            <div className="mt-1 space-y-1">
-              {sinceChanges.map((c) => {
-                const lbl = changeLabel(c.delta);
-                return (
-                  <div key={c.name} className="flex items-center justify-between gap-2">
-                    <span className="text-slate-700 truncate" title={c.name}>{c.name}</span>
-                    <span className={`px-2 py-0.5 rounded-full border ${changeBadgeClass(lbl)}`}>
-                      {lbl} ({fmtDelta(c.delta)})
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {reviewStateError && <p className="mt-1 text-rose-700">{reviewStateError}</p>}
-
-          <button
-            type="button"
-            onClick={markAsReviewed}
-            disabled={reviewSaving || !analytics || analytics.length === 0}
-            className="sr-btn-secondary text-xs mt-2 disabled:opacity-60 disabled:cursor-not-allowed"
-            title="Guarda la analítica más reciente como tu punto de revisión"
-          >
-            {reviewSaving ? "Marcando..." : "Marcar como revisado"}
-          </button>
-        </div>
-
-        <div>
-          <p className="font-semibold text-slate-700">📈 Tendencia global</p>
-          <p className="mt-1 text-slate-700">
-            <span className="font-medium">{v2.totals.total}</span> eval ·{" "}
-            <span className="text-emerald-700 font-medium">{v2.totals.improve}</span> mejoran ·{" "}
-            <span className="text-rose-700 font-medium">{v2.totals.worsen}</span> empeoran ·{" "}
-            <span className="text-slate-600 font-medium">{v2.totals.stable}</span> estables
-          </p>
-        </div>
-
-        <p className="text-[10px] text-slate-500">
-          Documento de apoyo a la deliberación clínica. La decisión final corresponde al profesional sanitario responsable.
-        </p>
-      </div>
-    );
-  })()}
-</div>
-
         </div>
       </section>
 
@@ -1324,7 +975,7 @@ return (
             {!imagingError && imaging.length === 0 ? (
               <p className="text-sm text-slate-500">No hay imágenes registradas para este paciente.</p>
             ) : (
-              imaging.filter((img)=>!String(img.type||'').toUpperCase().startsWith('COSMETIC')).map((img) => {
+              imaging.map((img) => {
                 const sum = (img.summary || "").toString();
                 const diff = (img.differential || "").toString();
                 const patterns = Array.isArray(img.patterns) ? img.patterns : [];
@@ -1386,167 +1037,6 @@ return (
           </div>
         )}
       </section>
-<section className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 space-y-4">
-  <div className="flex items-center justify-between gap-4">
-    <h2 className="text-lg font-semibold">Imágenes quirúrgicas</h2>
-    <p className="text-xs text-slate-500">
-      Antes / Después / Seguimiento (solo lectura). La subida y comparativa avanzada están en Panel médico.
-    </p>
-  </div>
-
-  {(() => {
-    const cos = (imaging || []).filter((x) => isCosmeticType(x.type));
-    const pre = cos.filter((x) => String(x.type || "").toUpperCase() === "COSMETIC_PRE");
-    const post = cos.filter((x) => String(x.type || "").toUpperCase() === "COSMETIC_POST");
-    const follow = cos.filter((x) => String(x.type || "").toUpperCase() === "COSMETIC_FOLLOWUP");
-
-    const renderRow = (arr) => (
-      <div className="flex gap-2 overflow-x-auto pb-2">
-        {arr.map((img) => (
-          <a
-            key={img.id}
-            href={img.file_path}
-            target="_blank"
-            rel="noreferrer"
-            className="flex-shrink-0 w-[120px] rounded-lg border border-slate-200 hover:border-slate-300 bg-white"
-            title={`ID ${img.id} · ${cosmeticLabel(img.type)} · ${fmtShortDate(img.exam_date || img.created_at)}`}
-          >
-            <img
-              src={img.file_path}
-              alt={`Cosmetic ${img.id}`}
-              className="w-full h-[86px] object-cover rounded-t-lg"
-            />
-            <div className="px-2 py-1">
-              <p className="text-[10px] text-slate-600">ID {img.id} · {cosmeticLabel(img.type)}</p>
-              <p className="text-[10px] text-slate-500">{fmtShortDate(img.exam_date || img.created_at)}</p>
-            </div>
-          </a>
-        ))}
-      </div>
-    );
-
-    if (cos.length === 0) {
-      return <p className="text-sm text-slate-600">Aún no hay imágenes quirúrgicas para este paciente.</p>;
-    }
-
-    return (
-      <div className="space-y-4">
-        {pre.length > 0 && (
-          <div>
-            <p className="text-sm font-semibold text-slate-800 mb-1">Antes</p>
-            {renderRow(pre)}
-          </div>
-        )}
-        {post.length > 0 && (
-          <div>
-            <p className="text-sm font-semibold text-slate-800 mb-1">Después</p>
-            {renderRow(post)}
-          </div>
-        )}
-        {follow.length > 0 && (
-          <div>
-            <p className="text-sm font-semibold text-slate-800 mb-1">Seguimiento</p>
-            {renderRow(follow)}
-          </div>
-        )}
-      </div>
-    );
-  })()}
-
-
-<div className="border-t border-slate-200 pt-4">
-  <h3 className="text-base font-semibold">🔁 Comparativa quirúrgica y PDF</h3>
-  <p className="text-sm text-slate-600">
-    Consulta y genera comparativa/PDF desde el expediente del paciente (sin subir imágenes aquí).
-  </p>
-
-  {(() => {
-    const cos = (imaging || []).filter((x) => isCosmeticType(x.type));
-    const pre = cos.filter((x) => String(x.type || "").toUpperCase() === "COSMETIC_PRE");
-    const post = cos.filter((x) => {
-      const t = String(x.type || "").toUpperCase();
-      return t === "COSMETIC_POST" || t === "COSMETIC_FOLLOWUP";
-    });
-
-    if (cos.length === 0) {
-      return <p className="text-sm text-slate-600 mt-2">Añade imágenes quirúrgicas en Panel médico para poder comparar.</p>;
-    }
-
-    return (
-      <div className="mt-3 space-y-3">
-        <div className="grid sm:grid-cols-2 gap-3">
-          <div>
-            <label className="sr-label">Antes</label>
-            <select className="sr-input w-full text-sm" value={cosDetPreId} onChange={(e) => setCosDetPreId(e.target.value)}>
-              <option value="">Selecciona “Antes”…</option>
-              {pre.map((x) => (
-                <option key={x.id} value={x.id}>
-                  ID {x.id} · {fmtShortDate(x.exam_date || x.created_at)}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="sr-label">Después / Seguimiento</label>
-            <select className="sr-input w-full text-sm" value={cosDetPostId} onChange={(e) => setCosDetPostId(e.target.value)}>
-              <option value="">Selecciona “Después”…</option>
-              {post.map((x) => (
-                <option key={x.id} value={x.id}>
-                  ID {x.id} · {fmtShortDate(x.exam_date || x.created_at)} · {cosmeticLabel(x.type)}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        {cosDetCompareError && <p className="text-sm text-red-600">{cosDetCompareError}</p>}
-
-        <button
-          type="button"
-          onClick={handleCosDetCompare}
-          disabled={cosDetCompareLoading || !cosDetPreId || !cosDetPostId}
-          className="sr-btn-secondary disabled:opacity-60 disabled:cursor-not-allowed"
-        >
-          {cosDetCompareLoading ? "Comparando..." : "Comparar"}
-        </button>
-
-        {cosDetCompareResult && (
-          <div className="p-3 rounded-lg border border-slate-200 bg-slate-50/60">
-            <p className="text-xs text-slate-500 mb-1">Comparativa descriptiva (IA) — borrador</p>
-            <p className="text-sm text-slate-800 whitespace-pre-wrap">{cosDetCompareResult}</p>
-          </div>
-        )}
-
-        <div className="border-t border-slate-200 pt-3">
-          <h4 className="text-sm font-semibold">📄 PDF quirúrgico (Antes / Después)</h4>
-          <p className="text-xs text-slate-600 mt-1">Requiere comparativa generada.</p>
-
-          <label className="sr-label mt-2">Nota del cirujano (opcional)</label>
-          <textarea
-            className="sr-input w-full min-h-[70px]"
-            value={cosDetNote}
-            onChange={(e) => setCosDetNote(e.target.value)}
-            placeholder="Ej. Seguimiento a 6 semanas. Edema esperado. Revisión en 3 meses..."
-          />
-
-          {cosDetPdfError && <p className="text-sm text-red-600 mt-2">{cosDetPdfError}</p>}
-
-          <button
-            type="button"
-            onClick={handleCosDetPdf}
-            disabled={cosDetPdfLoading || !cosDetCompareResult}
-            className="sr-btn-secondary mt-2 disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            {cosDetPdfLoading ? "Generando PDF..." : "📄 Generar PDF"}
-          </button>
-        </div>
-      </div>
-    );
-  })()}
-</div>
-</section>
-
 
       <section className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 sm:p-6">
         <button type="button" onClick={() => toggleBlock("notas")} className="flex items-center justify-between w-full text-left">
