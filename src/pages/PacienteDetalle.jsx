@@ -673,11 +673,33 @@ useEffect(() => {
 
   {(() => {
     const v2 = buildResumenV2Frontend(compare, 2);
-    if (!compare || !v2.hasData) {
-      return <p className="text-xs text-slate-600 mt-2">Cargando comparativa…</p>;
-    }
 
-    return (
+      if (!compare) {
+        return <p className="text-xs text-slate-600 mt-2">Cargando comparativa…</p>;
+      }
+
+      // Si solo hay 0–1 analíticas, no hay comparativa real todavía
+      if (!analytics || analytics.length < 2) {
+        return (
+          <div className="mt-2 text-xs text-slate-700 space-y-2">
+            <p>
+              Aún no hay suficientes analíticas para calcular evolución. Añade al menos <strong>2</strong> analíticas.
+            </p>
+            <p className="text-[10px] text-slate-500">
+              El resumen V2.0 se basa en comparativa temporal (baseline vs actual).
+            </p>
+          </div>
+        );
+      }
+
+      if (!v2.hasData) {
+        return (
+          <p className="text-xs text-slate-600 mt-2">
+            Las analíticas no comparten suficientes marcadores comunes para generar una comparativa fiable.
+          </p>
+        );
+      }
+return (
       <div className="mt-2 space-y-3 text-xs text-slate-800">
         <div>
           <p className="font-semibold text-slate-700">🔴 Prioridades clínicas</p>
@@ -1179,7 +1201,7 @@ useEffect(() => {
             {!imagingError && imaging.length === 0 ? (
               <p className="text-sm text-slate-500">No hay imágenes registradas para este paciente.</p>
             ) : (
-              imaging.map((img) => {
+              imaging.filter((img)=>!String(img.type||'').toUpperCase().startsWith('COSMETIC')).map((img) => {
                 const sum = (img.summary || "").toString();
                 const diff = (img.differential || "").toString();
                 const patterns = Array.isArray(img.patterns) ? img.patterns : [];
