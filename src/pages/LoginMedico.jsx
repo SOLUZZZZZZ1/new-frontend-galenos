@@ -1,6 +1,6 @@
 // src/pages/LoginMedico.jsx — Acceso · Galenos.pro
 import React, { useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 
 // URL del backend de Galenos (Render)
 const API = import.meta.env.VITE_API_URL || "https://galenos-backend.onrender.com";
@@ -143,6 +143,13 @@ export default function LoginMedico() {
           >
             {loading ? "Entrando..." : "Entrar al Panel"}
           </button>
+
+
+          <div className="flex items-center justify-between">
+            <Link to="/forgot-password" className="text-xs text-sky-700 hover:underline">
+              He olvidado mi contraseña
+            </Link>
+          </div>
         </form>
 
         <p className="sr-small text-slate-500 text-xs">
