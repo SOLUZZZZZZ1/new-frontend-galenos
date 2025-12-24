@@ -752,6 +752,7 @@ useEffect(() => {
 
   const timelineLabel = (itemType) => {
     if (itemType === "imaging") return "imagen médica";
+    if (itemType === "imaging_cosmetic") return "imagen quirúrgica";
     if (itemType === "analytic") return "analítica";
     if (itemType === "note") return "nota clínica";
     if (itemType === "patient") return "alta de paciente";
