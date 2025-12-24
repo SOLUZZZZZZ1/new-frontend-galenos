@@ -280,6 +280,14 @@ export default function PacienteDetalle() {
   // Imágenes preview
   const [showImagePreview, setShowImagePreview] = useState({});
 
+  // Comparativa quirúrgica (Antes/Después) — SOLO TEXTO (SAFE)
+  const [cosPreId, setCosPreId] = useState("");
+  const [cosPostId, setCosPostId] = useState("");
+  const [cosContext, setCosContext] = useState("");
+  const [cosCompareLoading, setCosCompareLoading] = useState(false);
+  const [cosCompareError, setCosCompareError] = useState("");
+  const [cosCompareText, setCosCompareText] = useState("");
+
   // Comparativa automática
   const [compare, setCompare] = useState(null);
 const [reviewState, setReviewState] = useState(null);
@@ -464,6 +472,16 @@ useEffect(() => {
 }, [reviewState, analytics]);
 
   useEffect(() => {
+    // Autoselección segura de ANTES/DESPUÉS (solo si no hay selección previa)
+    const cos = (imaging || []).filter((x) => isCosmeticType(x.type));
+    const pre = cos.find((x) => String(x.type || "").toUpperCase() === "COSMETIC_PRE") || null;
+    const post = cos.find((x) => String(x.type || "").toUpperCase() === "COSMETIC_POST") || null;
+
+    if (!cosPreId && pre?.id) setCosPreId(String(pre.id));
+    if (!cosPostId && post?.id) setCosPostId(String(post.id));
+  }, [imaging]);
+
+  useEffect(() => {
     if (manualBaselineId == null) {
       const autoId = compare?.baseline?.analytic_id ?? null;
       if (autoId) setManualBaselineId(autoId);
@@ -552,6 +570,65 @@ useEffect(() => {
       setMarkersLoading((prev) => ({ ...prev, [aid]: false }));
     }
   }
+
+
+  // ========================
+  // Comparativa quirúrgica (Antes/Después) — SOLO TEXTO
+  // Backend: POST /imaging/cosmetic/compare (FormData: pre_image_id, post_image_id, context)
+  // ========================
+  async function handleGenerateCosmeticCompare(e) {
+    e?.preventDefault?.();
+    setCosCompareError("");
+    setCosCompareText("");
+
+    const preId = Number(cosPreId);
+    const postId = Number(cosPostId);
+
+    if (!preId || !postId) {
+      setCosCompareError("Selecciona una imagen ANTES y una DESPUÉS.");
+      return;
+    }
+    if (preId === postId) {
+      setCosCompareError("ANTES y DESPUÉS deben ser imágenes distintas.");
+      return;
+    }
+
+    try {
+      setCosCompareLoading(true);
+
+      const fd = new FormData();
+      fd.append("pre_image_id", String(preId));
+      fd.append("post_image_id", String(postId));
+      if ((cosContext || "").trim()) fd.append("context", (cosContext || "").trim());
+
+      const res = await fetch(`${API}/imaging/cosmetic/compare`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: fd,
+      });
+
+      const raw = await res.text();
+      if (!res.ok) {
+        let msg = "No se pudo generar la comparativa quirúrgica.";
+        try {
+          const data = JSON.parse(raw);
+          if (data?.detail) msg = data.detail;
+        } catch {}
+        throw new Error(msg);
+      }
+
+      const data = JSON.parse(raw || "{}");
+      const text = (data?.compare_text || "").toString().trim();
+      if (!text) throw new Error("La IA no devolvió un texto de comparativa válido.");
+
+      setCosCompareText(text);
+    } catch (err) {
+      setCosCompareError(err?.message || "Error generando la comparativa.");
+    } finally {
+      setCosCompareLoading(false);
+    }
+  }
+
 
   const manualComparison = useMemo(() => {
     if (!manualMode || !manualBaselineId) return null;
@@ -1282,6 +1359,121 @@ useEffect(() => {
         {pre.length > 0 && (<div><p className="text-sm font-semibold text-slate-800 mb-1">Antes</p>{renderRow(pre)}</div>)}
         {post.length > 0 && (<div><p className="text-sm font-semibold text-slate-800 mb-1">Después</p>{renderRow(post)}</div>)}
         {follow.length > 0 && (<div><p className="text-sm font-semibold text-slate-800 mb-1">Seguimiento</p>{renderRow(follow)}</div>)}
+      </div>
+    );
+  })()}
+</section>
+
+
+<section className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 space-y-4">
+  <div className="flex items-center justify-between gap-4">
+    <h2 className="text-lg font-semibold">Comparativa quirúrgica (texto)</h2>
+    <p className="text-xs text-slate-500">Antes / Después · Vista previa antes de generar PDF.</p>
+  </div>
+
+  {(() => {
+    const cos = (imaging || []).filter((x) => isCosmeticType(x.type));
+    const preList = cos.filter((x) => String(x.type || "").toUpperCase() === "COSMETIC_PRE");
+    const postList = cos.filter((x) => String(x.type || "").toUpperCase() === "COSMETIC_POST");
+
+    if (cos.length === 0) {
+      return <p className="text-sm text-slate-600">Aún no hay imágenes quirúrgicas para comparar.</p>;
+    }
+
+    return (
+      <div className="space-y-3">
+        <div className="grid md:grid-cols-2 gap-3">
+          <div>
+            <label className="sr-label">Imagen ANTES (COSMETIC_PRE)</label>
+            <select
+              className="sr-input w-full"
+              value={cosPreId}
+              onChange={(e) => setCosPreId(e.target.value)}
+            >
+              <option value="">— Selecciona —</option>
+              {preList.map((img) => (
+                <option key={img.id} value={String(img.id)}>
+                  ID {img.id} · {toMadrid(img.exam_date || img.created_at)}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="sr-label">Imagen DESPUÉS (COSMETIC_POST)</label>
+            <select
+              className="sr-input w-full"
+              value={cosPostId}
+              onChange={(e) => setCosPostId(e.target.value)}
+            >
+              <option value="">— Selecciona —</option>
+              {postList.map((img) => (
+                <option key={img.id} value={String(img.id)}>
+                  ID {img.id} · {toMadrid(img.exam_date || img.created_at)}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label className="sr-label">Contexto (opcional)</label>
+          <textarea
+            className="sr-input w-full min-h-[70px]"
+            value={cosContext}
+            onChange={(e) => setCosContext(e.target.value)}
+            placeholder="Ej.: tipo de procedimiento, zona, días post-op, iluminación/ángulo, etc."
+          />
+        </div>
+
+        {cosCompareError && <p className="text-sm text-rose-700">{cosCompareError}</p>}
+
+        <button
+          type="button"
+          onClick={handleGenerateCosmeticCompare}
+          disabled={cosCompareLoading}
+          className="sr-btn-primary text-xs sm:text-sm disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          {cosCompareLoading ? "Generando..." : "Generar comparativa (texto)"}
+        </button>
+
+        {cosCompareText && (
+          <div className="mt-2 border border-slate-200 rounded-lg bg-slate-50/60 p-3 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-sm font-semibold text-slate-900">Resultado (orientativo)</p>
+              <span className="text-[10px] px-2 py-0.5 rounded-full border border-slate-200 bg-white text-slate-600">IA</span>
+            </div>
+
+            {(() => {
+              const clip = clipText(cosCompareText, 520);
+              const k = "cos_compare";
+              return (
+                <>
+                  <p className="text-sm whitespace-pre-line text-slate-800">
+                    {expandedText[k] ? cosCompareText : clip.short}
+                  </p>
+                  {clip.clipped && (
+                    <button
+                      type="button"
+                      onClick={() => toggleExpanded(k)}
+                      className="text-xs text-sky-700 hover:underline"
+                    >
+                      {expandedText[k] ? "Ver menos" : "Ver más"}
+                    </button>
+                  )}
+                </>
+              );
+            })()}
+
+            <p className="text-[11px] text-slate-500">
+              Documento de apoyo descriptivo. No constituye diagnóstico ni garantía de resultado. La decisión final corresponde al médico responsable.
+            </p>
+
+            <p className="text-[11px] text-slate-600">
+              Cuando confirmes que este texto está OK, activaremos el botón <b>“Generar PDF quirúrgico”</b> (siguiente paso).
+            </p>
+          </div>
+        )}
       </div>
     );
   })()}
