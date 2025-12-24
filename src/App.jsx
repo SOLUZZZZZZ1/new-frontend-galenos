@@ -4,6 +4,8 @@ import { Routes, Route, Navigate, useLocation, Link } from "react-router-dom";
 import NavbarGalenos from "./components/NavbarGalenos.jsx";
 import InicioGalenos from "./pages/InicioGalenos.jsx";
 import LoginMedico from "./pages/LoginMedico.jsx";
+import ForgotPassword from "./pages/ForgotPassword.jsx";
+import ResetPassword from "./pages/ResetPassword.jsx";
 import PanelMedico from "./pages/PanelMedico.jsx";
 import RegistroMedico from "./pages/RegistroMedico.jsx";
 import RegistroMedicoLibre from "./pages/RegistroMedicoLibre.jsx";
@@ -17,9 +19,6 @@ import PerfilMedico from "./pages/PerfilMedico.jsx";
 import DeGuardiaPage from "./pages/DeGuardiaPage.jsx";
 import ActualidadMedica from "./pages/ActualidadMedica.jsx";
 import ComunidadPage from "./pages/ComunidadPage.jsx";
-import ForgotPassword from "./pages/ForgotPassword.jsx";
-import ResetPassword from "./pages/ResetPassword.jsx";
-
 
 // Páginas públicas SEO
 import QueEsGalenos from "./pages/QueEsGalenos.jsx";
@@ -67,11 +66,10 @@ function App() {
 
           {/* Login médico */}
           <Route path="/login" element={<LoginMedico />} />
-         
+
           {/* Recuperación de contraseña (público) */}
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
-
 
           {/* Registro médico desde invitación (modo antiguo, opcional) */}
           <Route path="/registro" element={<RegistroMedico />} />
