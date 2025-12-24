@@ -152,9 +152,7 @@ export default function LoginMedico() {
           </div>
         </form>
 
-        <p className="sr-small text-slate-500 text-xs">
-          
-        </p>
+        
       </section>
     </main>
   );
