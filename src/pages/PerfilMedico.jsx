@@ -1,6 +1,6 @@
 // src/pages/PerfilMedico.jsx — Perfil médico (editable) con alias clínico bloqueado · Galenos.pro
 import React, { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 
 const API = import.meta.env.VITE_API_URL || "https://galenos-backend.onrender.com";
 
@@ -544,7 +544,11 @@ export default function PerfilMedico() {
           </form>
 
           <p className="text-xs text-slate-500">
-            Si no recuerdas tu contraseña, añadiremos “He olvidado mi contraseña” en la pantalla de login cuando quieras.
+            Si no recuerdas tu contraseña, usa{" "}
+            <Link to="/forgot-password" className="text-sky-700 hover:underline">
+              He olvidado mi contraseña
+            </Link>
+            .
           </p>
         </section>
 

@@ -153,8 +153,7 @@ export default function LoginMedico() {
         </form>
 
         <p className="sr-small text-slate-500 text-xs">
-          Si aún no tienes acceso, esta versión MVP está pensada para demos internas.
-          Más adelante se habilitará el alta verificada de médicos.
+          
         </p>
       </section>
     </main>
