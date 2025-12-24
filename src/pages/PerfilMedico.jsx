@@ -37,6 +37,17 @@ export default function PerfilMedico() {
   const [saveError, setSaveError] = useState("");
   const [saveInfo, setSaveInfo] = useState("");
 
+  // ============================
+  // Cambio de contraseña
+  // ============================
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+
+  const [pwSaving, setPwSaving] = useState(false);
+  const [pwError, setPwError] = useState("");
+  const [pwInfo, setPwInfo] = useState("");
+
   const aliasLocked = useMemo(() => {
     return Boolean(profile?.guard_alias_locked);
   }, [profile]);
@@ -350,6 +361,82 @@ export default function PerfilMedico() {
     }
   }
 
+
+  // ========================================================
+  // CHANGE PASSWORD (ilimitado)
+  // ========================================================
+  async function handleChangePassword(e) {
+    e.preventDefault();
+    setPwError("");
+    setPwInfo("");
+
+    if (!token) {
+      setPwError("No hay sesión activa. Inicia sesión de nuevo.");
+      return;
+    }
+
+    const current = currentPassword;
+    const next = newPassword;
+
+    if (!current || current.length < 6) {
+      setPwError("Introduce tu contraseña actual.");
+      return;
+    }
+    if (!next || next.length < 10) {
+      setPwError("La nueva contraseña debe tener al menos 10 caracteres.");
+      return;
+    }
+    if (next !== confirmPassword) {
+      setPwError("La confirmación no coincide con la nueva contraseña.");
+      return;
+    }
+    if (next === current) {
+      setPwError("La nueva contraseña debe ser distinta de la actual.");
+      return;
+    }
+
+    try {
+      setPwSaving(true);
+
+      // Endpoint de cambio de contraseña (autenticado)
+      // Nota: si en tu backend el endpoint se llama distinto, cambia SOLO esta URL.
+      const res = await fetch(`${API}/auth/change-password`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          current_password: current,
+          new_password: next,
+        }),
+      });
+
+      const raw = await res.text();
+      console.log("👉 [Perfil] POST /auth/change-password (raw):", raw);
+
+      if (!res.ok) {
+        let msg = "No se pudo cambiar la contraseña.";
+        try {
+          const errData = JSON.parse(raw);
+          if (errData.detail) msg = errData.detail;
+        } catch {}
+        setPwError(msg);
+        return;
+      }
+
+      setPwInfo("Contraseña actualizada correctamente.");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (err) {
+      console.error("❌ Error cambiando contraseña:", err);
+      setPwError("No se pudo conectar con el servidor.");
+    } finally {
+      setPwSaving(false);
+    }
+  }
+
   // ========================================================
   // RENDER
   // ========================================================
@@ -394,6 +481,70 @@ export default function PerfilMedico() {
           <p className="text-xs text-slate-500">
             Por ahora el correo se gestiona como dato de cuenta. Si necesitas cambiarlo, lo
             añadiremos en “Configuración de cuenta” (afecta también a Stripe).
+          </p>
+        </section>
+
+
+        <section className="bg-white p-6 rounded-xl border space-y-4">
+          <h2 className="text-lg font-semibold">Seguridad</h2>
+          <p className="text-sm text-slate-600">
+            Puedes cambiar tu contraseña <b>las veces que quieras</b>. Te recomendamos usar una contraseña larga y única.
+          </p>
+
+          <form onSubmit={handleChangePassword} className="space-y-3">
+            <div>
+              <label className="sr-label">Contraseña actual</label>
+              <input
+                className="sr-input w-full"
+                type="password"
+                autoComplete="current-password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                placeholder="Tu contraseña actual"
+              />
+            </div>
+
+            <div>
+              <label className="sr-label">Nueva contraseña</label>
+              <input
+                className="sr-input w-full"
+                type="password"
+                autoComplete="new-password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Mínimo 10 caracteres"
+              />
+              <p className="text-xs text-slate-500 mt-1">
+                Consejo: 3–4 palabras + números o símbolos (sin reutilizar).
+              </p>
+            </div>
+
+            <div>
+              <label className="sr-label">Repite la nueva contraseña</label>
+              <input
+                className="sr-input w-full"
+                type="password"
+                autoComplete="new-password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Repite la nueva contraseña"
+              />
+            </div>
+
+            {pwError && <p className="text-red-600 text-sm">{pwError}</p>}
+            {pwInfo && <p className="text-emerald-700 text-sm">{pwInfo}</p>}
+
+            <button
+              type="submit"
+              disabled={pwSaving}
+              className="sr-btn-primary disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {pwSaving ? "Actualizando..." : "Cambiar contraseña"}
+            </button>
+          </form>
+
+          <p className="text-xs text-slate-500">
+            Si no recuerdas tu contraseña, añadiremos “He olvidado mi contraseña” en la pantalla de login cuando quieras.
           </p>
         </section>
 
