@@ -287,6 +287,11 @@ export default function PacienteDetalle() {
   const [cosCompareLoading, setCosCompareLoading] = useState(false);
   const [cosCompareError, setCosCompareError] = useState("");
   const [cosCompareText, setCosCompareText] = useState("");
+  // Paso 2 (manual): generar PDF quirúrgico SOLO cuando el texto esté revisado
+  const [cosNote, setCosNote] = useState("");
+  const [cosPdfLoading, setCosPdfLoading] = useState(false);
+  const [cosPdfError, setCosPdfError] = useState("");
+
 
   // Comparativa automática
   const [compare, setCompare] = useState(null);
@@ -628,6 +633,70 @@ useEffect(() => {
       setCosCompareLoading(false);
     }
   }
+
+  // ========================================================
+  // Paso 2: Generar PDF quirúrgico (V1) — usa el compare_text ya revisado
+  // Backend: POST /pdf/cosmetic-compare (JSON: pre_image_id, post_image_id, compare_text, note)
+  // ========================================================
+  async function handleGenerateCosmeticPdf() {
+    setCosPdfError("");
+
+    const preId = Number(cosPreId);
+    const postId = Number(cosPostId);
+    const compareText = (cosCompareText || "").toString().trim();
+
+    if (!preId || !postId) {
+      setCosPdfError("Selecciona una imagen ANTES y una DESPUÉS.");
+      return;
+    }
+    if (!compareText) {
+      setCosPdfError("Primero genera y revisa el texto de comparativa.");
+      return;
+    }
+
+    try {
+      setCosPdfLoading(true);
+
+      const res = await fetch(`${API}/pdf/cosmetic-compare`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          pre_image_id: preId,
+          post_image_id: postId,
+          compare_text: compareText,
+          note: (cosNote || "").trim() || null,
+        }),
+      });
+
+      if (!res.ok) {
+        const raw = await res.text();
+        let msg = "No se pudo generar el PDF quirúrgico.";
+        try {
+          const data = JSON.parse(raw);
+          if (data?.detail) msg = data.detail;
+        } catch {}
+        throw new Error(msg);
+      }
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Galenos_Comparativa_${preId}_${postId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      setCosPdfError(err?.message || "Error generando el PDF.");
+    } finally {
+      setCosPdfLoading(false);
+    }
+  }
+
 
 
   const manualComparison = useMemo(() => {
@@ -1469,9 +1538,37 @@ useEffect(() => {
               Documento de apoyo descriptivo. No constituye diagnóstico ni garantía de resultado. La decisión final corresponde al médico responsable.
             </p>
 
-            <p className="text-[11px] text-slate-600">
-              Cuando confirmes que este texto está OK, activaremos el botón <b>“Generar PDF quirúrgico”</b> (siguiente paso).
-            </p>
+            <div className="border-t border-slate-200 pt-3 space-y-2">
+              <p className="text-[11px] text-slate-600">
+                Cuando confirmes que el texto está OK, pulsa <b>“Generar PDF quirúrgico”</b>. El PDF usará exactamente este texto (sin recalcular IA).
+              </p>
+
+              <div>
+                <label className="sr-label">Nota del cirujano (opcional, se incluye en el PDF)</label>
+                <textarea
+                  className="sr-input w-full min-h-[70px]"
+                  value={cosNote}
+                  onChange={(e) => setCosNote(e.target.value)}
+                  placeholder="Ej.: técnica, incidencias, observaciones clínicas..."
+                />
+              </div>
+
+              {cosPdfError && <p className="text-sm text-rose-700">{cosPdfError}</p>}
+
+              <button
+                type="button"
+                onClick={handleGenerateCosmeticPdf}
+                disabled={cosPdfLoading || !cosCompareText}
+                className="sr-btn-primary text-xs disabled:opacity-60 disabled:cursor-not-allowed"
+                title={!cosCompareText ? "Primero genera y revisa el texto" : "Generar PDF quirúrgico (V1)"}
+              >
+                {cosPdfLoading ? "Generando PDF..." : "Generar PDF quirúrgico"}
+              </button>
+
+              <p className="text-[10px] text-slate-500">
+                Paso 2 (manual): revisa el texto → genera PDF. Así evitamos PDFs “a ciegas”.
+              </p>
+            </div>
           </div>
         )}
       </div>
