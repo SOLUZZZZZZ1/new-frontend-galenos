@@ -404,6 +404,10 @@ useEffect(() => {
   const [imagenPatterns, setImagenPatterns] = useState([]);
   const [imagenFilePath, setImagenFilePath] = useState("");
 
+  // Orientación visual (overlay) — automático + toggle
+  const [showImgOverlay, setShowImgOverlay] = useState(true);
+  const [activeOverlays, setActiveOverlays] = useState([]);
+
   // Chat radiológico
   const [imgChatQuestion, setImgChatQuestion] = useState("");
   const [imgChatAnswer, setImgChatAnswer] = useState("");
@@ -626,6 +630,7 @@ if (data.duplicate === true) {
     setImagenDifferential("");
     setImagenPatterns([]);
     setImagenFilePath("");
+    setActiveOverlays([]);
     setImgChatAnswer("");
     setImgChatError("");
     setDuplicateImagen(false);
@@ -713,6 +718,16 @@ if (data.duplicate === true) {
 
       if (data.file_path) {
         setImagenFilePath(data.file_path);
+      }
+
+      // Overlays (auto) — se calculan desde texto/patrones del análisis
+      try {
+        const pats = Array.isArray(data.patterns)
+          ? data.patterns.map((p) => p.pattern_text || String(p))
+          : [];
+        setActiveOverlays(inferOverlaysLocal({ imgType, summary: data.summary || "", patterns: pats }));
+      } catch {
+        setActiveOverlays([]);
       }
     } catch (err) {
       console.error("❌ Error imagen médica:", err);
@@ -1057,6 +1072,56 @@ async function handleGenerateCosmeticPdf() {
       setImgChatLoading(false);
     }
   }
+
+
+  // ========================
+  // Overlay: inferencia simple por texto (SAFE)
+  // ========================
+  function inferOverlaysLocal({ imgType, summary, patterns }) {
+    const hay = `${imgType || ""} ${summary || ""} ${(patterns || []).join(" ")}`.toLowerCase();
+
+    // VASCULAR (eco-Doppler / carótidas / arterias)
+    if (
+      hay.includes("carót") ||
+      hay.includes("carot") ||
+      hay.includes("arterial") ||
+      hay.includes("vascular") ||
+      hay.includes("doppler") ||
+      hay.includes("troncos supraa") ||
+      hay.includes("supraaórtic") ||
+      hay.includes("supraaortic") ||
+      hay.includes("flujo")
+    ) {
+      return ["VESSEL_AXIS", "VESSEL_GUIDE"];
+    }
+
+    // MÚSCULO / TENDÓN (preparado para siguiente paso)
+    if (
+      hay.includes("múscul") ||
+      hay.includes("muscul") ||
+      hay.includes("fibr") ||
+      hay.includes("estriacion") ||
+      hay.includes("estriación") ||
+      hay.includes("tendón") ||
+      hay.includes("tendon") ||
+      hay.includes("aponeurosis")
+    ) {
+      return ["FIBER_LINES"];
+    }
+
+    return [];
+  }
+
+  function VascularOverlaySvg() {
+    return (
+      <svg viewBox="0 0 100 100" className="absolute inset-0 pointer-events-none" aria-hidden="true">
+        <path d="M8 52 Q50 48 92 52" stroke="rgba(255,255,255,0.28)" strokeWidth="1.2" fill="none" />
+        <path d="M8 47 Q50 43 92 47" stroke="rgba(255,255,255,0.16)" strokeWidth="0.8" fill="none" />
+        <path d="M8 57 Q50 53 92 57" stroke="rgba(255,255,255,0.16)" strokeWidth="0.8" fill="none" />
+      </svg>
+    );
+  }
+
 
   // ========================
   // RENDER
@@ -1494,14 +1559,36 @@ async function handleGenerateCosmeticPdf() {
 
             {imagenFilePath && (
               <div>
-                <h3 className="text-sm font-semibold mb-1">
-                  Imagen analizada
-                </h3>
-                <img
-                  src={imagenFilePath}
-                  alt="Estudio de imagen médica"
-                  className="mt-2 max-w-xs md:max-w-sm w-full rounded-lg border border-slate-200"
-                />
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="text-sm font-semibold mb-1">Imagen analizada</h3>
+
+                  <label className="flex items-center gap-2 text-xs text-slate-600">
+                    <input
+                      type="checkbox"
+                      checked={showImgOverlay}
+                      onChange={() => setShowImgOverlay((v) => !v)}
+                    />
+                    Mostrar orientación visual
+                  </label>
+                </div>
+
+                <div className="relative inline-block mt-2">
+                  <img
+                    src={imagenFilePath}
+                    alt="Estudio de imagen médica"
+                    className="max-w-xs md:max-w-sm w-full rounded-lg border border-slate-200"
+                  />
+
+                  {showImgOverlay &&
+                    Array.isArray(activeOverlays) &&
+                    (activeOverlays.includes("VESSEL_AXIS") || activeOverlays.includes("VESSEL_GUIDE")) && (
+                      <VascularOverlaySvg />
+                    )}
+                </div>
+
+                <p className="text-[10px] text-slate-500 mt-2">
+                  Orientación visual ilustrativa. No delimita ni valora patología.
+                </p>
               </div>
             )}
 
