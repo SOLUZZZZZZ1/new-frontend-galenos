@@ -1113,14 +1113,43 @@ async function handleGenerateCosmeticPdf() {
   }
 
   function VascularOverlaySvg() {
-    return (
-      <svg viewBox="0 0 100 100" className="absolute inset-0 pointer-events-none" aria-hidden="true">
-        <path d="M8 52 Q50 48 92 52" stroke="rgba(255,255,255,0.28)" strokeWidth="1.2" fill="none" />
-        <path d="M8 47 Q50 43 92 47" stroke="rgba(255,255,255,0.16)" strokeWidth="0.8" fill="none" />
-        <path d="M8 57 Q50 53 92 57" stroke="rgba(255,255,255,0.16)" strokeWidth="0.8" fill="none" />
-      </svg>
-    );
-  }
+  return (
+    <svg
+      viewBox="0 0 100 100"
+      className="absolute inset-0 pointer-events-none"
+      aria-hidden="true"
+    >
+      {/* Eje vascular (curvatura más natural) */}
+      <path
+        d="M8 56
+           Q35 49 60 51
+           Q80 53 92 55"
+        stroke="rgba(255,255,255,0.28)"
+        strokeWidth="1.2"
+        fill="none"
+      />
+
+      {/* Guías orientativas (paredes sugeridas) */}
+      <path
+        d="M8 51
+           Q35 44 60 46
+           Q80 48 92 50"
+        stroke="rgba(255,255,255,0.16)"
+        strokeWidth="0.8"
+        fill="none"
+      />
+      <path
+        d="M8 61
+           Q35 54 60 56
+           Q80 58 92 60"
+        stroke="rgba(255,255,255,0.16)"
+        strokeWidth="0.8"
+        fill="none"
+      />
+    </svg>
+  );
+}
+
 
 
   // ========================
