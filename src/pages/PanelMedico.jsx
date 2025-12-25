@@ -136,7 +136,13 @@ export default function PanelMedico() {
           "No se ha podido abrir la gestión de suscripción. Si aún no has activado PRO, primero completa el pago.";
         try {
           const errData = JSON.parse(raw);
-          if (errData.detail) msg = errData.detail;
+          if (errData.detail) {
+            if (Array.isArray(errData.detail)) {
+              msg = errData.detail.map((d) => d?.msg || d?.type || "Error").join(" · ");
+            } else {
+              msg = errData.detail;
+            }
+          }
         } catch {}
         if (msg === "No hay cliente Stripe asociado") {
           msg = "Aún no hay una suscripción PRO activa para gestionar. Si quieres cancelar o cambiar tarjeta, primero activa Galenos PRO.";
@@ -196,7 +202,13 @@ export default function PanelMedico() {
         let msg = "No se han podido cargar los pacientes.";
         try {
           const errData = JSON.parse(raw);
-          if (errData.detail) msg = errData.detail;
+          if (errData.detail) {
+            if (Array.isArray(errData.detail)) {
+              msg = errData.detail.map((d) => d?.msg || d?.type || "Error").join(" · ");
+            } else {
+              msg = errData.detail;
+            }
+          }
           if (errData.detail === "PRO_REQUIRED_TRIAL_EXPIRED") {
             setTrialExpired(true);
             setProGateMsg("Tu prueba ha finalizado. Activa PRO para seguir creando pacientes y subiendo analíticas/imágenes.");
@@ -328,7 +340,13 @@ useEffect(() => {
         let msg = "No se ha podido crear el paciente.";
         try {
           const errData = JSON.parse(raw);
-          if (errData.detail) msg = errData.detail;
+          if (errData.detail) {
+            if (Array.isArray(errData.detail)) {
+              msg = errData.detail.map((d) => d?.msg || d?.type || "Error").join(" · ");
+            } else {
+              msg = errData.detail;
+            }
+          }
           if (errData.detail === "PRO_REQUIRED_TRIAL_EXPIRED") {
             setTrialExpired(true);
             setProGateMsg("Tu prueba ha finalizado. Activa PRO para seguir creando pacientes y subiendo analíticas/imágenes.");
@@ -480,7 +498,13 @@ const [cosNote, setCosNote] = useState("");
         let msg = "No se ha podido analizar y guardar la analítica.";
         try {
           const errData = JSON.parse(raw);
-          if (errData.detail) msg = errData.detail;
+          if (errData.detail) {
+            if (Array.isArray(errData.detail)) {
+              msg = errData.detail.map((d) => d?.msg || d?.type || "Error").join(" · ");
+            } else {
+              msg = errData.detail;
+            }
+          }
           if (errData.detail === "PRO_REQUIRED_TRIAL_EXPIRED") {
             setTrialExpired(true);
             setProGateMsg("Tu prueba ha finalizado. Activa PRO para seguir creando pacientes y subiendo analíticas/imágenes.");
@@ -562,7 +586,13 @@ if (data.duplicate === true) {
           "No se ha podido generar una respuesta de IA para la analítica.";
         try {
           const errData = JSON.parse(raw);
-          if (errData.detail) msg = errData.detail;
+          if (errData.detail) {
+            if (Array.isArray(errData.detail)) {
+              msg = errData.detail.map((d) => d?.msg || d?.type || "Error").join(" · ");
+            } else {
+              msg = errData.detail;
+            }
+          }
         } catch {}
         setChatError(msg);
         return;
@@ -642,7 +672,13 @@ if (data.duplicate === true) {
         let msg = "No se ha podido analizar la imagen médica.";
         try {
           const errData = JSON.parse(raw);
-          if (errData.detail) msg = errData.detail;
+          if (errData.detail) {
+            if (Array.isArray(errData.detail)) {
+              msg = errData.detail.map((d) => d?.msg || d?.type || "Error").join(" · ");
+            } else {
+              msg = errData.detail;
+            }
+          }
         } catch {}
         setImagenError(msg);
         return;
@@ -736,7 +772,13 @@ async function handleUploadCosmetic(e) {
       let msg = "No se pudo guardar la imagen quirúrgica.";
       try {
         const errData = JSON.parse(raw);
-        if (errData.detail) msg = errData.detail;
+        if (errData.detail) {
+            if (Array.isArray(errData.detail)) {
+              msg = errData.detail.map((d) => d?.msg || d?.type || "Error").join(" · ");
+            } else {
+              msg = errData.detail;
+            }
+          }
       } catch {}
       setCosmeticError(msg);
       return;
@@ -789,7 +831,13 @@ async function handleAnalyzeCosmetic() {
       let msg = "No se pudo analizar la imagen quirúrgica.";
       try {
         const errData = JSON.parse(raw);
-        if (errData.detail) msg = errData.detail;
+        if (errData.detail) {
+            if (Array.isArray(errData.detail)) {
+              msg = errData.detail.map((d) => d?.msg || d?.type || "Error").join(" · ");
+            } else {
+              msg = errData.detail;
+            }
+          }
       } catch {}
       setCosmeticAiError(msg);
       return;
@@ -839,7 +887,13 @@ async function handleCompareCosmetic() {
       let msg = "No se pudo comparar Antes/Después.";
       try {
         const errData = JSON.parse(raw);
-        if (errData.detail) msg = errData.detail;
+        if (errData.detail) {
+            if (Array.isArray(errData.detail)) {
+              msg = errData.detail.map((d) => d?.msg || d?.type || "Error").join(" · ");
+            } else {
+              msg = errData.detail;
+            }
+          }
       } catch {}
       setCosCompareError(msg);
       return;
@@ -897,7 +951,13 @@ async function handleGenerateCosmeticPdf() {
       let msg = "No se pudo generar el PDF.";
       try {
         const errData = JSON.parse(raw);
-        if (errData.detail) msg = errData.detail;
+        if (errData.detail) {
+            if (Array.isArray(errData.detail)) {
+              msg = errData.detail.map((d) => d?.msg || d?.type || "Error").join(" · ");
+            } else {
+              msg = errData.detail;
+            }
+          }
       } catch {}
       setCosPdfError(msg);
       return;
@@ -936,10 +996,16 @@ async function handleGenerateCosmeticPdf() {
       return;
     }
 
+    const imagingId = lastImagenId;
+
+    if (!imagingId) {
+      setImgChatError("No se ha detectado el ID de la imagen. Vuelve a analizar la imagen y prueba de nuevo.");
+      return;
+    }
+
+    // Backend nuevo: /imaging/chat requiere imaging_id (o image_id) + question
     const payload = {
-      patient_alias: null,
-      summary: imagenSummary || "",
-      patterns: imagenPatterns || [],
+      imaging_id: imagingId,
       question: imgChatQuestion.trim(),
     };
 
@@ -962,7 +1028,13 @@ async function handleGenerateCosmeticPdf() {
           "No se ha podido generar una respuesta de IA para la imagen médica.";
         try {
           const errData = JSON.parse(raw);
-          if (errData.detail) msg = errData.detail;
+          if (errData.detail) {
+            if (Array.isArray(errData.detail)) {
+              msg = errData.detail.map((d) => d?.msg || d?.type || "Error").join(" · ");
+            } else {
+              msg = errData.detail;
+            }
+          }
         } catch {}
         setImgChatError(msg);
         return;
