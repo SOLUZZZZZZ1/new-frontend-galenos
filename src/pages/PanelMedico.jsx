@@ -1137,6 +1137,20 @@ async function handleGenerateCosmeticPdf() {
 
 
 
+
+  // ========================
+  // IMG SRC resolver (SAFE)
+  // - El backend debería devolver URL presigned (http/https) o data:
+  // - Si llega algo tipo "preview.jpg" o una key sin URL, NO lo renderizamos para evitar roturas.
+  // ========================
+  function resolveImageSrc(maybe) {
+    const v = (maybe || "").toString().trim();
+    if (!v) return "";
+    if (v.startsWith("data:")) return v;
+    if (v.startsWith("http://") || v.startsWith("https://")) return v;
+    return "";
+  }
+
   // ========================
   // RENDER
   // ========================
@@ -1587,11 +1601,17 @@ async function handleGenerateCosmeticPdf() {
                 </div>
 
                 <div className="relative inline-block mt-2">
+                  {resolveImageSrc(imagenFilePath) ? (
                   <img
-                    src={imagenFilePath}
+                    src={resolveImageSrc(imagenFilePath)}
                     alt="Estudio de imagen médica"
                     className="max-w-xs md:max-w-sm w-full rounded-lg border border-slate-200"
                   />
+                ) : (
+                  <p className="text-xs text-amber-700 mt-2">
+                    Imagen no disponible para previsualización (ruta no válida). Vuelve a analizar o recarga.
+                  </p>
+                )}
 
                   {showImgOverlay &&
                     Array.isArray(activeOverlays) &&
