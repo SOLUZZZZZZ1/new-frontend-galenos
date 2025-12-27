@@ -1116,11 +1116,9 @@ async function handleGenerateCosmeticPdf() {
   }
 
   function VascularOverlaySvg() {
-    // Overlay didáctico (bilingüe) — Vascular (eco-Doppler)
-    // Nota: guía orientativa, NO diagnóstico ni delimitación de patología.
     return (
-      <svg viewBox="0 0 100 100" className="absolute inset-0 pointer-events-none z-20" aria-hidden="true">
-        {/* Panel lateral informativo */}
+      <g>
+{/* Panel lateral informativo */}
         <rect x="1.5" y="6" width="26" height="42" rx="3" ry="3" fill="rgba(0,0,0,0.22)" />
         <text x="4.2" y="16" fontSize="3.4" fill="rgba(255,255,255,0.95)">Vaso / Vessel</text>
         <text x="4.2" y="25" fontSize="3.4" fill="rgba(255,255,255,0.92)">Eje / Axis</text>
@@ -1143,26 +1141,83 @@ async function handleGenerateCosmeticPdf() {
         <text x="8" y="96" fontSize="3.0" fill="rgba(255,255,255,0.62)">
           Guía didáctica orientativa / Educational guide
         </text>
-      </svg>
+      </g>
     );
   }
 
 
-  function MuscleOverlaySvg() {
-    const atlas = overlayMode === "msk-atlas";
 
-    if (!atlas) {
-      return (
-        <svg viewBox="0 0 100 100" className="absolute inset-0 pointer-events-none z-20" aria-hidden="true">
-          <path d="M8 38 Q50 36 92 38" stroke="rgba(255,255,200,0.18)" strokeWidth="0.9" fill="none" />
+  
+function MuscleOverlaySvg() {
+    return (
+      <g>
+<path d="M8 38 Q50 36 92 38" stroke="rgba(255,255,200,0.18)" strokeWidth="0.9" fill="none" />
           <path d="M8 43 Q50 41 92 43" stroke="rgba(255,255,200,0.18)" strokeWidth="0.9" fill="none" />
           <path d="M8 48 Q50 46 92 48" stroke="rgba(255,255,200,0.18)" strokeWidth="0.9" fill="none" />
           <path d="M8 53 Q50 51 92 53" stroke="rgba(255,255,200,0.18)" strokeWidth="0.9" fill="none" />
           <path d="M8 58 Q50 56 92 58" stroke="rgba(255,255,200,0.18)" strokeWidth="0.9" fill="none" />
           <path d="M8 63 Q50 61 92 63" stroke="rgba(255,255,200,0.18)" strokeWidth="0.9" fill="none" />
-        </svg>
-      );
-    }
+      </g>
+    );
+  }
+
+
+    // MSK – Atlas (Didáctico): capas + flechas + zona muscular + fibras
+    return (
+      <svg viewBox="0 0 100 100" className="absolute inset-0 pointer-events-none z-20" aria-hidden="true">
+        {/* Panel lateral de capas (izquierda) */}
+        <rect x="2" y="6" width="28" height="88" rx="3" ry="3" fill="rgba(0,0,0,0.28)" />
+        <line x1="4" y1="24" x2="28" y2="24" stroke="rgba(255,255,255,0.28)" strokeWidth="0.6" />
+        <line x1="4" y1="42" x2="28" y2="42" stroke="rgba(255,255,255,0.28)" strokeWidth="0.6" />
+        <line x1="4" y1="50" x2="28" y2="50" stroke="rgba(255,255,255,0.28)" strokeWidth="0.6" />
+
+        <text x="4.5" y="16" fontSize="3.4" fill="rgba(255,255,255,0.96)">Piel / Skin</text>
+        <text x="4.5" y="34" fontSize="3.4" fill="rgba(255,255,255,0.96)">Subcutáneo / Subcutaneous</text>
+        <text x="4.5" y="47.5" fontSize="3.4" fill="rgba(255,255,255,0.96)">Fascia / Fascia</text>
+        <text x="4.5" y="63.5" fontSize="3.4" fill="rgba(255,255,255,0.96)">Músculo / Muscle</text>
+
+        {/* Flechas hacia capas (didáctico, orientativo) */}
+        <g>
+          <path d="M30 18 C33 18 35 18 37 18" stroke="rgba(255,255,255,0.75)" strokeWidth="0.9" fill="none" />
+          <path d="M37 18 l2 -1.3 l0 2.6 z" fill="rgba(255,255,255,0.75)" />
+
+          <path d="M30 34 C33 34 35 34 37 34" stroke="rgba(255,255,255,0.55)" strokeWidth="0.9" fill="none" />
+          <path d="M37 34 l2 -1.3 l0 2.6 z" fill="rgba(255,255,255,0.55)" />
+
+          <path d="M30 48 C33 48 35 48 37 48" stroke="rgba(255,255,255,0.55)" strokeWidth="0.9" fill="none" />
+          <path d="M37 48 l2 -1.3 l0 2.6 z" fill="rgba(255,255,255,0.55)" />
+
+          <path d="M30 62 C33 62 35 62 37 62" stroke="rgba(255,255,255,0.75)" strokeWidth="0.9" fill="none" />
+          <path d="M37 62 l2 -1.3 l0 2.6 z" fill="rgba(255,255,255,0.75)" />
+        </g>
+
+        {/* Zona muscular (orientativa) */}
+        <rect x="32" y="54" width="66" height="38" fill="rgba(255,255,255,0.10)" />
+
+        <defs>
+          <clipPath id="muscleZoneAtlas">
+            <rect x="32" y="54" width="66" height="38" />
+          </clipPath>
+        </defs>
+
+        {/* Líneas fibrilares dentro de la zona */}
+        <g clipPath="url(#muscleZoneAtlas)">
+          <path d="M32 58 Q65 56 98 58" stroke="rgba(255,255,200,0.26)" strokeWidth="1.0" fill="none" />
+          <path d="M32 63 Q65 61 98 63" stroke="rgba(255,255,200,0.26)" strokeWidth="1.0" fill="none" />
+          <path d="M32 68 Q65 66 98 68" stroke="rgba(255,255,200,0.26)" strokeWidth="1.0" fill="none" />
+          <path d="M32 73 Q65 71 98 73" stroke="rgba(255,255,200,0.26)" strokeWidth="1.0" fill="none" />
+          <path d="M32 78 Q65 76 98 78" stroke="rgba(255,255,200,0.26)" strokeWidth="1.0" fill="none" />
+          <path d="M32 83 Q65 81 98 83" stroke="rgba(255,255,200,0.26)" strokeWidth="1.0" fill="none" />
+          <path d="M32 88 Q65 86 98 88" stroke="rgba(255,255,200,0.26)" strokeWidth="1.0" fill="none" />
+        </g>
+
+        <text x="32" y="96" fontSize="3.0" fill="rgba(255,255,255,0.70)">
+          Guía didáctica orientativa / Educational guide
+        </text>
+      </svg>
+    );
+  }
+
 
     return (
       <svg viewBox="0 0 100 100" className="absolute inset-0 pointer-events-none z-20" aria-hidden="true">
@@ -1207,6 +1262,46 @@ async function handleGenerateCosmeticPdf() {
 
 
 
+
+
+  // ========================
+  // Visor SVG (imagen + overlay en el MISMO canvas)
+  // - Evita desalineación por object-fit/letterboxing (object-contain)
+  // - Las etiquetas/flechas SIEMPRE coinciden con la imagen mostrada
+  // ========================
+  function ImagingSvgCanvas({ src, mode }) {
+    if (!src) return null;
+
+    // mode: "vascular" | "msk-orient" | "msk-atlas" | "auto" | "off"
+    const showVascular =
+      mode !== "off" &&
+      (mode === "vascular" ||
+        (mode === "auto" &&
+          Array.isArray(activeOverlays) &&
+          (activeOverlays.includes("VESSEL_AXIS") || activeOverlays.includes("VESSEL_GUIDE"))));
+
+    const showMsk =
+      mode !== "off" &&
+      ((mode === "msk-orient" || mode === "msk-atlas") ||
+        (mode === "auto" &&
+          Array.isArray(activeOverlays) &&
+          activeOverlays.includes("FIBER_LINES")));
+
+    return (
+      <svg
+        viewBox="0 0 100 100"
+        preserveAspectRatio="xMidYMid meet"
+        className="w-full h-auto rounded-lg border border-slate-200 bg-black/5"
+      >
+        {/* Imagen raster dentro del SVG */}
+        <image href={src} x="0" y="0" width="100" height="100" preserveAspectRatio="xMidYMid meet" />
+
+        {/* Overlays encima */}
+        {showImgOverlay && showVascular ? <VascularOverlaySvg /> : null}
+        {showImgOverlay && showMsk ? <MuscleOverlaySvg /> : null}
+      </svg>
+    );
+  }
 
   // ========================
   // RENDER
@@ -1724,20 +1819,8 @@ async function handleGenerateCosmeticPdf() {
                         </div>
                       </div>
 
-                      <div className="relative w-full">
-                        <img src={imagenFilePath} alt="Estudio de imagen médica ampliado" className="relative z-10 w-full max-h-[75vh] object-contain rounded-lg border border-slate-200" />
-
-                        {showImgOverlay && overlayMode !== "off" && (
-                          <>
-                            {(overlayMode === "vascular" || (overlayMode === "auto" && Array.isArray(activeOverlays) && (activeOverlays.includes("VESSEL_AXIS") || activeOverlays.includes("VESSEL_GUIDE")))) ? (
-                              <VascularOverlaySvg />
-                            ) : null}
-
-                            {((overlayMode === "msk-orient" || overlayMode === "msk-atlas") || (overlayMode === "auto" && Array.isArray(activeOverlays) && activeOverlays.includes("FIBER_LINES"))) ? (
-                              <MuscleOverlaySvg />
-                            ) : null}
-                          </>
-                        )}
+                      <div className="w-full">
+                        <ImagingSvgCanvas src={imagenFilePath} mode={overlayMode} />
                       </div>
 
                       <p className="text-[10px] text-slate-600 mt-2">
