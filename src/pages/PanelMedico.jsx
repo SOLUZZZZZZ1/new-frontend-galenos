@@ -407,6 +407,7 @@ useEffect(() => {
   // Orientación visual (overlay) — automático + toggle
   const [showImgOverlay, setShowImgOverlay] = useState(true);
   const [activeOverlays, setActiveOverlays] = useState([]);
+  const [overlayMode, setOverlayMode] = useState("auto"); // auto | vascular | muscle | off
 
   // Chat radiológico
   const [imgChatQuestion, setImgChatQuestion] = useState("");
@@ -631,6 +632,7 @@ if (data.duplicate === true) {
     setImagenPatterns([]);
     setImagenFilePath("");
     setActiveOverlays([]);
+    setOverlayMode("auto");
     setImgChatAnswer("");
     setImgChatError("");
     setDuplicateImagen(false);
@@ -1618,6 +1620,21 @@ async function handleGenerateCosmeticPdf() {
                     />
                     Mostrar orientación visual
                   </label>
+
+                  <div className="flex items-center gap-2 text-xs text-slate-600">
+                    <span className="hidden sm:inline">Modo:</span>
+                    <select
+                      className="sr-input text-xs py-1"
+                      value={overlayMode}
+                      onChange={(e) => setOverlayMode(e.target.value)}
+                    >
+                      <option value="auto">Auto</option>
+                      <option value="muscle">Músculo / MSK</option>
+                      <option value="vascular">Vascular</option>
+                      <option value="off">Sin overlay</option>
+                    </select>
+                  </div>
+
                 </div>
 
                 <div className="relative inline-block mt-2">
@@ -1627,17 +1644,17 @@ async function handleGenerateCosmeticPdf() {
                     className="max-w-xs md:max-w-sm w-full rounded-lg border border-slate-200"
                   />
 
-                  {showImgOverlay &&
-                    Array.isArray(activeOverlays) &&
-                    (activeOverlays.includes("VESSEL_AXIS") || activeOverlays.includes("VESSEL_GUIDE")) && (
+                  {showImgOverlay && overlayMode !== "off" && (
+                    (overlayMode === "vascular" || (overlayMode === "auto" && Array.isArray(activeOverlays) && (activeOverlays.includes("VESSEL_AXIS") || activeOverlays.includes("VESSEL_GUIDE")))) ? (
                       <VascularOverlaySvg />
-                    )}
+                    ) : null
+                  )}
 
-                  {showImgOverlay &&
-                    Array.isArray(activeOverlays) &&
-                    activeOverlays.includes("FIBER_LINES") && (
+                  {showImgOverlay && overlayMode !== "off" && (
+                    (overlayMode === "muscle" || (overlayMode === "auto" && Array.isArray(activeOverlays) && activeOverlays.includes("FIBER_LINES"))) ? (
                       <MuscleOverlaySvg />
-                    )}
+                    ) : null
+                  )}
 
                 </div>
 
