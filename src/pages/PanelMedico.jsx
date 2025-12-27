@@ -1123,33 +1123,53 @@ async function handleGenerateCosmeticPdf() {
   }
 
   function MuscleOverlaySvg() {
+    // Overlay didáctico (bilingüe) — MSK / músculo
+    // Nota: guía orientativa por capas, NO segmentación anatómica exacta.
     return (
       <svg viewBox="0 0 100 100" className="absolute inset-0 pointer-events-none" aria-hidden="true">
-        <path d="M8 38 Q50 36 92 38" stroke="rgba(255,255,200,0.18)" strokeWidth="0.9" fill="none" />
-        <path d="M8 43 Q50 41 92 43" stroke="rgba(255,255,200,0.18)" strokeWidth="0.9" fill="none" />
-        <path d="M8 48 Q50 46 92 48" stroke="rgba(255,255,200,0.18)" strokeWidth="0.9" fill="none" />
-        <path d="M8 53 Q50 51 92 53" stroke="rgba(255,255,200,0.18)" strokeWidth="0.9" fill="none" />
-        <path d="M8 58 Q50 56 92 58" stroke="rgba(255,255,200,0.18)" strokeWidth="0.9" fill="none" />
-        <path d="M8 63 Q50 61 92 63" stroke="rgba(255,255,200,0.18)" strokeWidth="0.9" fill="none" />
+        {/* Panel lateral de capas */}
+        <rect x="1.5" y="6" width="22" height="88" rx="3" ry="3" fill="rgba(0,0,0,0.18)" />
+
+        {/* Separadores por capas (orientativos) */}
+        <line x1="3.5" y1="24" x2="22" y2="24" stroke="rgba(255,255,255,0.22)" strokeWidth="0.6" />
+        <line x1="3.5" y1="42" x2="22" y2="42" stroke="rgba(255,255,255,0.22)" strokeWidth="0.6" />
+        <line x1="3.5" y1="50" x2="22" y2="50" stroke="rgba(255,255,255,0.22)" strokeWidth="0.6" />
+
+        {/* Etiquetas bilingües */}
+        <text x="4.5" y="16" fontSize="3.3" fill="rgba(255,255,255,0.92)">Piel / Skin</text>
+        <text x="4.5" y="34" fontSize="3.3" fill="rgba(255,255,255,0.92)">Subcutáneo / Subcutaneous</text>
+        <text x="4.5" y="47.5" fontSize="3.3" fill="rgba(255,255,255,0.92)">Fascia / Fascia</text>
+        <text x="4.5" y="63.5" fontSize="3.3" fill="rgba(255,255,255,0.92)">Músculo / Muscle</text>
+
+        {/* Zona muscular (orientativa) */}
+        <rect x="24" y="52" width="74" height="40" fill="rgba(255,255,255,0.06)" />
+
+        {/* Líneas fibrilares (solo dentro de zona muscular) */}
+        <defs>
+          <clipPath id="muscleZone">
+            <rect x="24" y="52" width="74" height="40" />
+          </clipPath>
+        </defs>
+
+        <g clipPath="url(#muscleZone)">
+          <path d="M24 56 Q61 54 98 56" stroke="rgba(255,255,200,0.20)" strokeWidth="0.9" fill="none" />
+          <path d="M24 61 Q61 59 98 61" stroke="rgba(255,255,200,0.20)" strokeWidth="0.9" fill="none" />
+          <path d="M24 66 Q61 64 98 66" stroke="rgba(255,255,200,0.20)" strokeWidth="0.9" fill="none" />
+          <path d="M24 71 Q61 69 98 71" stroke="rgba(255,255,200,0.20)" strokeWidth="0.9" fill="none" />
+          <path d="M24 76 Q61 74 98 76" stroke="rgba(255,255,200,0.20)" strokeWidth="0.9" fill="none" />
+          <path d="M24 81 Q61 79 98 81" stroke="rgba(255,255,200,0.20)" strokeWidth="0.9" fill="none" />
+          <path d="M24 86 Q61 84 98 86" stroke="rgba(255,255,200,0.20)" strokeWidth="0.9" fill="none" />
+        </g>
+
+        <text x="24" y="96" fontSize="3.0" fill="rgba(255,255,255,0.60)">
+          Guía didáctica orientativa / Educational guide
+        </text>
       </svg>
     );
   }
 
 
 
-
-  // ========================
-  // IMG SRC resolver (SAFE)
-  // - El backend debería devolver URL presigned (http/https) o data:
-  // - Si llega algo tipo "preview.jpg" o una key sin URL, NO lo renderizamos para evitar roturas.
-  // ========================
-  function resolveImageSrc(maybe) {
-    const v = (maybe || "").toString().trim();
-    if (!v) return "";
-    if (v.startsWith("data:")) return v;
-    if (v.startsWith("http://") || v.startsWith("https://")) return v;
-    return "";
-  }
 
   // ========================
   // RENDER
@@ -1601,17 +1621,11 @@ async function handleGenerateCosmeticPdf() {
                 </div>
 
                 <div className="relative inline-block mt-2">
-                  {resolveImageSrc(imagenFilePath) ? (
                   <img
-                    src={resolveImageSrc(imagenFilePath)}
+                    src={imagenFilePath}
                     alt="Estudio de imagen médica"
                     className="max-w-xs md:max-w-sm w-full rounded-lg border border-slate-200"
                   />
-                ) : (
-                  <p className="text-xs text-amber-700 mt-2">
-                    Imagen no disponible para previsualización (ruta no válida). Vuelve a analizar o recarga.
-                  </p>
-                )}
 
                   {showImgOverlay &&
                     Array.isArray(activeOverlays) &&
@@ -1628,7 +1642,7 @@ async function handleGenerateCosmeticPdf() {
                 </div>
 
                 <p className="text-[10px] text-slate-500 mt-2">
-                  Orientación visual ilustrativa. No delimita ni valora patología.
+                  Orientación visual ilustrativa. No delimita ni valora patología. (En MSK: guía didáctica por capas, no segmentación exacta.)
                 </p>
               </div>
             )}
