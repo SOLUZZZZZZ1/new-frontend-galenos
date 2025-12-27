@@ -407,7 +407,8 @@ useEffect(() => {
   // Orientación visual (overlay) — automático + toggle
   const [showImgOverlay, setShowImgOverlay] = useState(true);
   const [activeOverlays, setActiveOverlays] = useState([]);
-  const [overlayMode, setOverlayMode] = useState("auto"); // auto | vascular | muscle | off
+  const [overlayMode, setOverlayMode] = useState("auto"); // auto | msk-orient | msk-atlas | vascular | off
+  const [imgModalOpen, setImgModalOpen] = useState(false);
 
   // Chat radiológico
   const [imgChatQuestion, setImgChatQuestion] = useState("");
@@ -1125,50 +1126,61 @@ async function handleGenerateCosmeticPdf() {
   }
 
   function MuscleOverlaySvg() {
-    // Overlay didáctico (bilingüe) — MSK / músculo
-    // Nota: guía orientativa por capas, NO segmentación anatómica exacta.
+    const atlas = overlayMode === "msk-atlas";
+
+    if (!atlas) {
+      return (
+        <svg viewBox="0 0 100 100" className="absolute inset-0 pointer-events-none" aria-hidden="true">
+          <path d="M8 38 Q50 36 92 38" stroke="rgba(255,255,200,0.18)" strokeWidth="0.9" fill="none" />
+          <path d="M8 43 Q50 41 92 43" stroke="rgba(255,255,200,0.18)" strokeWidth="0.9" fill="none" />
+          <path d="M8 48 Q50 46 92 48" stroke="rgba(255,255,200,0.18)" strokeWidth="0.9" fill="none" />
+          <path d="M8 53 Q50 51 92 53" stroke="rgba(255,255,200,0.18)" strokeWidth="0.9" fill="none" />
+          <path d="M8 58 Q50 56 92 58" stroke="rgba(255,255,200,0.18)" strokeWidth="0.9" fill="none" />
+          <path d="M8 63 Q50 61 92 63" stroke="rgba(255,255,200,0.18)" strokeWidth="0.9" fill="none" />
+        </svg>
+      );
+    }
+
     return (
       <svg viewBox="0 0 100 100" className="absolute inset-0 pointer-events-none" aria-hidden="true">
-        {/* Panel lateral de capas */}
-        <rect x="1.5" y="6" width="22" height="88" rx="3" ry="3" fill="rgba(0,0,0,0.18)" />
+        <rect x="1.5" y="6" width="26" height="88" rx="3" ry="3" fill="rgba(0,0,0,0.22)" />
+        <line x1="3.5" y1="24" x2="26" y2="24" stroke="rgba(255,255,255,0.25)" strokeWidth="0.6" />
+        <line x1="3.5" y1="42" x2="26" y2="42" stroke="rgba(255,255,255,0.25)" strokeWidth="0.6" />
+        <line x1="3.5" y1="50" x2="26" y2="50" stroke="rgba(255,255,255,0.25)" strokeWidth="0.6" />
 
-        {/* Separadores por capas (orientativos) */}
-        <line x1="3.5" y1="24" x2="22" y2="24" stroke="rgba(255,255,255,0.22)" strokeWidth="0.6" />
-        <line x1="3.5" y1="42" x2="22" y2="42" stroke="rgba(255,255,255,0.22)" strokeWidth="0.6" />
-        <line x1="3.5" y1="50" x2="22" y2="50" stroke="rgba(255,255,255,0.22)" strokeWidth="0.6" />
+        <text x="4.2" y="16" fontSize="3.4" fill="rgba(255,255,255,0.95)">Piel / Skin</text>
+        <text x="4.2" y="34" fontSize="3.4" fill="rgba(255,255,255,0.95)">Subcutáneo / Subcutaneous</text>
+        <text x="4.2" y="47.5" fontSize="3.4" fill="rgba(255,255,255,0.95)">Fascia / Fascia</text>
+        <text x="4.2" y="63.5" fontSize="3.4" fill="rgba(255,255,255,0.95)">Músculo / Muscle</text>
 
-        {/* Etiquetas bilingües */}
-        <text x="4.5" y="16" fontSize="3.3" fill="rgba(255,255,255,0.92)">Piel / Skin</text>
-        <text x="4.5" y="34" fontSize="3.3" fill="rgba(255,255,255,0.92)">Subcutáneo / Subcutaneous</text>
-        <text x="4.5" y="47.5" fontSize="3.3" fill="rgba(255,255,255,0.92)">Fascia / Fascia</text>
-        <text x="4.5" y="63.5" fontSize="3.3" fill="rgba(255,255,255,0.92)">Músculo / Muscle</text>
+        <path d="M27 58 C30 58 32 58 34 58" stroke="rgba(255,255,255,0.55)" strokeWidth="0.8" fill="none" />
+        <path d="M34 58 l2 -1.3 l0 2.6 z" fill="rgba(255,255,255,0.55)" />
 
-        {/* Zona muscular (orientativa) */}
-        <rect x="24" y="52" width="74" height="40" fill="rgba(255,255,255,0.06)" />
+        <rect x="30" y="54" width="68" height="38" fill="rgba(255,255,255,0.06)" />
 
-        {/* Líneas fibrilares (solo dentro de zona muscular) */}
         <defs>
-          <clipPath id="muscleZone">
-            <rect x="24" y="52" width="74" height="40" />
+          <clipPath id="muscleZoneAtlas">
+            <rect x="30" y="54" width="68" height="38" />
           </clipPath>
         </defs>
 
-        <g clipPath="url(#muscleZone)">
-          <path d="M24 56 Q61 54 98 56" stroke="rgba(255,255,200,0.20)" strokeWidth="0.9" fill="none" />
-          <path d="M24 61 Q61 59 98 61" stroke="rgba(255,255,200,0.20)" strokeWidth="0.9" fill="none" />
-          <path d="M24 66 Q61 64 98 66" stroke="rgba(255,255,200,0.20)" strokeWidth="0.9" fill="none" />
-          <path d="M24 71 Q61 69 98 71" stroke="rgba(255,255,200,0.20)" strokeWidth="0.9" fill="none" />
-          <path d="M24 76 Q61 74 98 76" stroke="rgba(255,255,200,0.20)" strokeWidth="0.9" fill="none" />
-          <path d="M24 81 Q61 79 98 81" stroke="rgba(255,255,200,0.20)" strokeWidth="0.9" fill="none" />
-          <path d="M24 86 Q61 84 98 86" stroke="rgba(255,255,200,0.20)" strokeWidth="0.9" fill="none" />
+        <g clipPath="url(#muscleZoneAtlas)">
+          <path d="M30 58 Q64 56 98 58" stroke="rgba(255,255,200,0.22)" strokeWidth="0.9" fill="none" />
+          <path d="M30 63 Q64 61 98 63" stroke="rgba(255,255,200,0.22)" strokeWidth="0.9" fill="none" />
+          <path d="M30 68 Q64 66 98 68" stroke="rgba(255,255,200,0.22)" strokeWidth="0.9" fill="none" />
+          <path d="M30 73 Q64 71 98 73" stroke="rgba(255,255,200,0.22)" strokeWidth="0.9" fill="none" />
+          <path d="M30 78 Q64 76 98 78" stroke="rgba(255,255,200,0.22)" strokeWidth="0.9" fill="none" />
+          <path d="M30 83 Q64 81 98 83" stroke="rgba(255,255,200,0.22)" strokeWidth="0.9" fill="none" />
+          <path d="M30 88 Q64 86 98 88" stroke="rgba(255,255,200,0.22)" strokeWidth="0.9" fill="none" />
         </g>
 
-        <text x="24" y="96" fontSize="3.0" fill="rgba(255,255,255,0.60)">
+        <text x="30" y="96" fontSize="3.0" fill="rgba(255,255,255,0.62)">
           Guía didáctica orientativa / Educational guide
         </text>
       </svg>
     );
   }
+
 
 
 
@@ -1629,7 +1641,8 @@ async function handleGenerateCosmeticPdf() {
                       onChange={(e) => setOverlayMode(e.target.value)}
                     >
                       <option value="auto">Auto</option>
-                      <option value="muscle">Músculo / MSK</option>
+                      <option value="msk-orient">MSK – Orientación</option>
+                      <option value="msk-atlas">MSK – Atlas (Didáctico)</option>
                       <option value="vascular">Vascular</option>
                       <option value="off">Sin overlay</option>
                     </select>
@@ -1637,7 +1650,7 @@ async function handleGenerateCosmeticPdf() {
 
                 </div>
 
-                <div className="relative inline-block mt-2">
+                <div className="relative inline-block mt-2 cursor-zoom-in" onClick={() => setImgModalOpen(true)}>
                   <img
                     src={imagenFilePath}
                     alt="Estudio de imagen médica"
@@ -1651,7 +1664,7 @@ async function handleGenerateCosmeticPdf() {
                   )}
 
                   {showImgOverlay && overlayMode !== "off" && (
-                    (overlayMode === "muscle" || (overlayMode === "auto" && Array.isArray(activeOverlays) && activeOverlays.includes("FIBER_LINES"))) ? (
+                    ((overlayMode === "msk-orient" || overlayMode === "msk-atlas") || (overlayMode === "auto" && Array.isArray(activeOverlays) && activeOverlays.includes("FIBER_LINES"))) ? (
                       <MuscleOverlaySvg />
                     ) : null
                   )}
@@ -1661,6 +1674,57 @@ async function handleGenerateCosmeticPdf() {
                 <p className="text-[10px] text-slate-500 mt-2">
                   Orientación visual ilustrativa. No delimita ni valora patología. (En MSK: guía didáctica por capas, no segmentación exacta.)
                 </p>
+
+                {imgModalOpen && (
+                  <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-3" onClick={() => setImgModalOpen(false)}>
+                    <div className="bg-white rounded-xl max-w-5xl w-full p-3 sm:p-4 relative" onClick={(e) => e.stopPropagation()}>
+                      <button type="button" onClick={() => setImgModalOpen(false)} className="absolute top-2 right-2 sr-btn-secondary text-xs" aria-label="Cerrar">✕</button>
+
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
+                        <p className="text-sm font-semibold text-slate-900">Visor ampliado</p>
+                        <div className="flex items-center gap-3">
+                          <label className="flex items-center gap-2 text-xs text-slate-700">
+                            <input type="checkbox" checked={showImgOverlay} onChange={() => setShowImgOverlay((v) => !v)} />
+                            Mostrar orientación visual
+                          </label>
+
+                          <div className="flex items-center gap-2 text-xs text-slate-700">
+                            <span className="hidden sm:inline">Modo:</span>
+                            <select className="sr-input text-xs py-1" value={overlayMode} onChange={(e) => setOverlayMode(e.target.value)}>
+                              <option value="auto">Auto</option>
+                              <option value="msk-orient">MSK – Orientación</option>
+                              <option value="msk-atlas">MSK – Atlas (Didáctico)</option>
+                              <option value="vascular">Vascular</option>
+                              <option value="off">Sin overlay</option>
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="relative w-full">
+                        <img src={imagenFilePath} alt="Estudio de imagen médica ampliado" className="w-full max-h-[75vh] object-contain rounded-lg border border-slate-200" />
+
+                        {showImgOverlay && overlayMode !== "off" && (
+                          <>
+                            {(overlayMode === "vascular" || (overlayMode === "auto" && Array.isArray(activeOverlays) && (activeOverlays.includes("VESSEL_AXIS") || activeOverlays.includes("VESSEL_GUIDE")))) ? (
+                              <VascularOverlaySvg />
+                            ) : null}
+
+                            {((overlayMode === "msk-orient" || overlayMode === "msk-atlas") || (overlayMode === "auto" && Array.isArray(activeOverlays) && activeOverlays.includes("FIBER_LINES"))) ? (
+                              <MuscleOverlaySvg />
+                            ) : null}
+                          </>
+                        )}
+                      </div>
+
+                      <p className="text-[10px] text-slate-600 mt-2">
+                        Guía didáctica/visual orientativa. No delimita ni valora patología. La interpretación final corresponde al profesional sanitario responsable.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+
               </div>
             )}
 
