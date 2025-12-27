@@ -1116,21 +1116,44 @@ async function handleGenerateCosmeticPdf() {
   }
 
   function VascularOverlaySvg() {
+    // Overlay didáctico (bilingüe) — Vascular (eco-Doppler)
+    // Nota: guía orientativa, NO diagnóstico ni delimitación de patología.
     return (
-      <svg viewBox="0 0 100 100" className="absolute inset-0 pointer-events-none" aria-hidden="true">
-        <path d="M8 52 Q50 48 92 52" stroke="rgba(255,255,255,0.28)" strokeWidth="1.2" fill="none" />
-        <path d="M8 47 Q50 43 92 47" stroke="rgba(255,255,255,0.16)" strokeWidth="0.8" fill="none" />
-        <path d="M8 57 Q50 53 92 57" stroke="rgba(255,255,255,0.16)" strokeWidth="0.8" fill="none" />
+      <svg viewBox="0 0 100 100" className="absolute inset-0 pointer-events-none z-20" aria-hidden="true">
+        {/* Panel lateral informativo */}
+        <rect x="1.5" y="6" width="26" height="42" rx="3" ry="3" fill="rgba(0,0,0,0.22)" />
+        <text x="4.2" y="16" fontSize="3.4" fill="rgba(255,255,255,0.95)">Vaso / Vessel</text>
+        <text x="4.2" y="25" fontSize="3.4" fill="rgba(255,255,255,0.92)">Eje / Axis</text>
+        <text x="4.2" y="34" fontSize="3.4" fill="rgba(255,255,255,0.92)">Trayecto / Course</text>
+
+        {/* Flecha hacia el eje vascular */}
+        <path d="M27 32 C30 32 32 32 34 32" stroke="rgba(255,255,255,0.55)" strokeWidth="0.8" fill="none" />
+        <path d="M34 32 l2 -1.3 l0 2.6 z" fill="rgba(255,255,255,0.55)" />
+
+        {/* Banda suave sobre el trayecto (orientativa) */}
+        <path d="M8 52 Q50 48 92 52" stroke="rgba(255,255,255,0.10)" strokeWidth="7" fill="none" strokeLinecap="round" />
+
+        {/* Eje vascular (curvatura natural) */}
+        <path d="M8 56 Q35 49 60 51 Q80 53 92 55" stroke="rgba(255,255,255,0.30)" strokeWidth="1.2" fill="none" />
+
+        {/* Guías paralelas (orientativas) */}
+        <path d="M8 51 Q35 44 60 46 Q80 48 92 50" stroke="rgba(255,255,255,0.18)" strokeWidth="0.9" fill="none" />
+        <path d="M8 61 Q35 54 60 56 Q80 58 92 60" stroke="rgba(255,255,255,0.18)" strokeWidth="0.9" fill="none" />
+
+        <text x="8" y="96" fontSize="3.0" fill="rgba(255,255,255,0.62)">
+          Guía didáctica orientativa / Educational guide
+        </text>
       </svg>
     );
   }
+
 
   function MuscleOverlaySvg() {
     const atlas = overlayMode === "msk-atlas";
 
     if (!atlas) {
       return (
-        <svg viewBox="0 0 100 100" className="absolute inset-0 pointer-events-none" aria-hidden="true">
+        <svg viewBox="0 0 100 100" className="absolute inset-0 pointer-events-none z-20" aria-hidden="true">
           <path d="M8 38 Q50 36 92 38" stroke="rgba(255,255,200,0.18)" strokeWidth="0.9" fill="none" />
           <path d="M8 43 Q50 41 92 43" stroke="rgba(255,255,200,0.18)" strokeWidth="0.9" fill="none" />
           <path d="M8 48 Q50 46 92 48" stroke="rgba(255,255,200,0.18)" strokeWidth="0.9" fill="none" />
@@ -1142,7 +1165,7 @@ async function handleGenerateCosmeticPdf() {
     }
 
     return (
-      <svg viewBox="0 0 100 100" className="absolute inset-0 pointer-events-none" aria-hidden="true">
+      <svg viewBox="0 0 100 100" className="absolute inset-0 pointer-events-none z-20" aria-hidden="true">
         <rect x="1.5" y="6" width="26" height="88" rx="3" ry="3" fill="rgba(0,0,0,0.22)" />
         <line x1="3.5" y1="24" x2="26" y2="24" stroke="rgba(255,255,255,0.25)" strokeWidth="0.6" />
         <line x1="3.5" y1="42" x2="26" y2="42" stroke="rgba(255,255,255,0.25)" strokeWidth="0.6" />
@@ -1643,7 +1666,7 @@ async function handleGenerateCosmeticPdf() {
                       <option value="auto">Auto</option>
                       <option value="msk-orient">MSK – Orientación</option>
                       <option value="msk-atlas">MSK – Atlas (Didáctico)</option>
-                      <option value="vascular">Vascular</option>
+                      <option value="vascular">Vascular – Atlas (Didáctico)</option>
                       <option value="off">Sin overlay</option>
                     </select>
                   </div>
@@ -1654,7 +1677,7 @@ async function handleGenerateCosmeticPdf() {
                   <img
                     src={imagenFilePath}
                     alt="Estudio de imagen médica"
-                    className="max-w-xs md:max-w-sm w-full rounded-lg border border-slate-200"
+                    className="relative z-10 max-w-xs md:max-w-sm w-full rounded-lg border border-slate-200"
                   />
 
                   {showImgOverlay && overlayMode !== "off" && (
@@ -1694,7 +1717,7 @@ async function handleGenerateCosmeticPdf() {
                               <option value="auto">Auto</option>
                               <option value="msk-orient">MSK – Orientación</option>
                               <option value="msk-atlas">MSK – Atlas (Didáctico)</option>
-                              <option value="vascular">Vascular</option>
+                              <option value="vascular">Vascular – Atlas (Didáctico)</option>
                               <option value="off">Sin overlay</option>
                             </select>
                           </div>
@@ -1702,7 +1725,7 @@ async function handleGenerateCosmeticPdf() {
                       </div>
 
                       <div className="relative w-full">
-                        <img src={imagenFilePath} alt="Estudio de imagen médica ampliado" className="w-full max-h-[75vh] object-contain rounded-lg border border-slate-200" />
+                        <img src={imagenFilePath} alt="Estudio de imagen médica ampliado" className="relative z-10 w-full max-h-[75vh] object-contain rounded-lg border border-slate-200" />
 
                         {showImgOverlay && overlayMode !== "off" && (
                           <>
