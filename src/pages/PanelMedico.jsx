@@ -419,6 +419,8 @@ useEffect(() => {
   // Detección de duplicados (imágenes)
   const [lastImagenId, setLastImagenId] = useState(null);
   const [duplicateImagen, setDuplicateImagen] = useState(false);
+  const [imgUiFamily, setImgUiFamily] = useState("");
+  const [imgUiConfidence, setImgUiConfidence] = useState(0);
 
 // ========================
 // ESTADO IMÁGENES QUIRÚRGICAS (ANTES / DESPUÉS) — sin IA automática
@@ -632,6 +634,8 @@ if (data.duplicate === true) {
     setImagenDifferential("");
     setImagenPatterns([]);
     setImagenFilePath("");
+    setImgUiFamily("");
+    setImgUiConfidence(0);
     setActiveOverlays([]);
     setOverlayMode("auto");
     setImgChatAnswer("");
@@ -710,6 +714,8 @@ if (data.duplicate === true) {
       setLastImagenId(data.id || null);
 
       setImagenSummary(data.summary || "");
+      setImgUiFamily(String(data.ui_family || ""));
+      setImgUiConfidence(Number(data.ui_confidence || 0));
       setImagenDifferential(data.differential || "");
       if (Array.isArray(data.patterns)) {
         setImagenPatterns(
@@ -1081,6 +1087,10 @@ async function handleGenerateCosmeticPdf() {
   // Overlay: inferencia simple por texto (SAFE)
   // ========================
   function inferOverlaysLocal({ imgType, summary, patterns }) {
+    // Preferencia: clasificación visual desde backend (no depende del texto)
+    const fam = (imgUiFamily || "").toString().toUpperCase();
+    if (fam === "VASCULAR") return ["VESSEL_AXIS", "VESSEL_GUIDE"];
+    if (fam === "MSK") return ["FIBER_LINES"];
     const hay = `${imgType || ""} ${summary || ""} ${(patterns || []).join(" ")}`.toLowerCase();
 
     // VASCULAR (eco-Doppler / carótidas / arterias)
