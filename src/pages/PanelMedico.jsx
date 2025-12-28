@@ -2,6 +2,8 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
+import MuscleAtlasCanvas from "../components/MuscleAtlasCanvas.jsx";
+
 // URL del backend de Galenos (Render)
 const API =
   import.meta.env.VITE_API_URL || "https://galenos-backend.onrender.com";
@@ -1660,26 +1662,32 @@ async function handleGenerateCosmeticPdf() {
 
                 </div>
 
-                <div className="relative inline-block mt-2 cursor-zoom-in" onClick={() => setImgModalOpen(true)}>
-                  <img
-                    src={imagenFilePath}
-                    alt="Estudio de imagen médica"
-                    className="relative z-10 max-w-xs md:max-w-sm w-full rounded-lg border border-slate-200"
-                  />
+                <div className="mt-2 cursor-zoom-in" onClick={() => setImgModalOpen(true)} title="Click para ampliar">
+                  {overlayMode === "msk-atlas" ? (
+                    <MuscleAtlasCanvas src={imagenFilePath} />
+                  ) : (
+                    <div className="relative inline-block">
+                      <img
+                        src={imagenFilePath}
+                        alt="Estudio de imagen médica"
+                        className="relative z-10 max-w-xs md:max-w-sm w-full rounded-lg border border-slate-200"
+                      />
 
-                  {showImgOverlay && overlayMode !== "off" && (
-                    (overlayMode === "vascular" || (overlayMode === "auto" && Array.isArray(activeOverlays) && (activeOverlays.includes("VESSEL_AXIS") || activeOverlays.includes("VESSEL_GUIDE")))) ? (
-                      <VascularOverlaySvg />
-                    ) : null
+                      {showImgOverlay && overlayMode !== "off" && (
+                        (overlayMode === "vascular" || (overlayMode === "auto" && Array.isArray(activeOverlays) && (activeOverlays.includes("VESSEL_AXIS") || activeOverlays.includes("VESSEL_GUIDE")))) ? (
+                          <VascularOverlaySvg />
+                        ) : null
+                      )}
+
+                      {showImgOverlay && overlayMode !== "off" && (
+                        ((overlayMode === "msk-orient" || overlayMode === "msk-atlas") || (overlayMode === "auto" && Array.isArray(activeOverlays) && activeOverlays.includes("FIBER_LINES"))) ? (
+                          <MuscleOverlaySvg />
+                        ) : null
+                      )}
+                    </div>
                   )}
-
-                  {showImgOverlay && overlayMode !== "off" && (
-                    ((overlayMode === "msk-orient" || overlayMode === "msk-atlas") || (overlayMode === "auto" && Array.isArray(activeOverlays) && activeOverlays.includes("FIBER_LINES"))) ? (
-                      <MuscleOverlaySvg />
-                    ) : null
-                  )}
-
                 </div>
+</div>
 
                 <p className="text-[10px] text-slate-500 mt-2">
                   Orientación visual ilustrativa. No delimita ni valora patología. (En MSK: guía didáctica por capas, no segmentación exacta.)
@@ -1711,19 +1719,37 @@ async function handleGenerateCosmeticPdf() {
                         </div>
                       </div>
 
-                      <div className="relative w-full">
-                        <img src={imagenFilePath} alt="Estudio de imagen médica ampliado" className="relative z-10 w-full max-h-[75vh] object-contain rounded-lg border border-slate-200" />
+                      <div className="w-full">
+                        {overlayMode === "msk-atlas" ? (
+                          <MuscleAtlasCanvas src={imagenFilePath} />
+                        ) : (
+                          <div className="relative w-full">
+                            <img
+                              src={imagenFilePath}
+                              alt="Estudio de imagen médica ampliado"
+                              className="relative z-10 w-full max-h-[75vh] object-contain rounded-lg border border-slate-200"
+                            />
 
-                        {showImgOverlay && overlayMode !== "off" && (
-                          <>
-                            {(overlayMode === "vascular" || (overlayMode === "auto" && Array.isArray(activeOverlays) && (activeOverlays.includes("VESSEL_AXIS") || activeOverlays.includes("VESSEL_GUIDE")))) ? (
-                              <VascularOverlaySvg />
-                            ) : null}
+                            {showImgOverlay && overlayMode !== "off" && (
+                              <>
+                                {(overlayMode === "vascular" ||
+                                  (overlayMode === "auto" &&
+                                    Array.isArray(activeOverlays) &&
+                                    (activeOverlays.includes("VESSEL_AXIS") ||
+                                      activeOverlays.includes("VESSEL_GUIDE")))) ? (
+                                  <VascularOverlaySvg />
+                                ) : null}
 
-                            {((overlayMode === "msk-orient" || overlayMode === "msk-atlas") || (overlayMode === "auto" && Array.isArray(activeOverlays) && activeOverlays.includes("FIBER_LINES"))) ? (
-                              <MuscleOverlaySvg />
-                            ) : null}
-                          </>
+                                {((overlayMode === "msk-orient" ||
+                                  overlayMode === "msk-atlas") ||
+                                  (overlayMode === "auto" &&
+                                    Array.isArray(activeOverlays) &&
+                                    activeOverlays.includes("FIBER_LINES"))) ? (
+                                  <MuscleOverlaySvg />
+                                ) : null}
+                              </>
+                            )}
+                          </div>
                         )}
                       </div>
 
