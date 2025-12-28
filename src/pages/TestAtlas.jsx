@@ -12,3 +12,7 @@ export default function TestAtlas() {
     </div>
   );
 }
+
+<MuscleAtlasCanvas
+  src="https://s3.eu-central-003.backblazeb2.com/galenos-storage/prod/users/1/imaging/42/preview.jpg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=00359e01d7672d80000000001%2F20251228%2Feu-central-003%2Fs3%2Faws4_request&X-Amz-Date=20251228T110129Z&X-Amz-Expires=3600&X-Amz-SignedHeaders=host&X-Amz-Signature=867a2d9740b783923183144400a67a490af786674896eb7abc3d71080452bfde"
+/>
