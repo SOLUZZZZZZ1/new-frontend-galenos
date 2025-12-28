@@ -1,31 +1,61 @@
 // src/pages/AtlasMskSandbox.jsx
 // Sandbox seguro para validar el MSK Atlas sin tocar PanelMedico.jsx
-// Objetivo: que compile siempre y sirva como laboratorio visual aislado.
+// V2: soporte de subida local (URL.createObjectURL) + BASE_URL para assets de /public
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
 // Ajusta la ruta si tu componente está en otra carpeta:
-// - recomendado: src/components/MuscleAtlasCanvas.jsx
 import MuscleAtlasCanvas from "../components/MuscleAtlasCanvas";
 
 export default function AtlasMskSandbox() {
   const navigate = useNavigate();
 
-  // ✅ Imagen de prueba:
-  // - Si quieres probar con la imagen real analizada, cambia a `imagenFilePath` desde tu panel.
-  // - Para el sandbox, usa una imagen pública simple o una de tu /public
-  const defaultSrc = "/casa-diseno.jpg"; // cambia por "/atlas/muscle_base.png" si lo tienes
+  // ✅ BASE_URL de Vite para que funcione con subrutas/preview/prod
+  const BASE = import.meta.env.BASE_URL || "/";
+
+  // Probamos con un asset público típico. Cambia si lo prefieres:
+  // - si tienes /casa-diseno.jpg en public, debería funcionar con BASE + "casa-diseno.jpg"
+  // - si no, prueba con BASE + "logo.png"
+  const defaultSrc = `${BASE}logo.png`;
 
   const [src, setSrc] = useState(defaultSrc);
+  const [localUrl, setLocalUrl] = useState("");
+
+  // Limpieza de objectURL cuando cambias de fichero
+  useEffect(() => {
+    return () => {
+      if (localUrl) URL.revokeObjectURL(localUrl);
+    };
+  }, [localUrl]);
 
   const hint = useMemo(() => {
     return [
-      "Este sandbox NO toca PanelMedico.jsx.",
-      "Si aquí compila y se ve bien, luego integramos en el visor ampliado.",
-      "Recomendación: prueba con una imagen cuadrada y otra panorámica para ver escalado.",
+      "1) Si no aparece imagen, pulsa “Abrir” y mira si da 404.",
+      "2) Puedes subir una imagen local (JPG/PNG) y se verá seguro.",
+      "3) Luego integramos en PanelMedico solo cuando esto sea verde.",
     ].join(" ");
   }, []);
+
+  function handlePickLocalFile(e) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+
+    // revoca anterior si existía
+    if (localUrl) URL.revokeObjectURL(localUrl);
+
+    const url = URL.createObjectURL(f);
+    setLocalUrl(url);
+    setSrc(url);
+  }
+
+  function resetToDefault() {
+    if (localUrl) {
+      URL.revokeObjectURL(localUrl);
+      setLocalUrl("");
+    }
+    setSrc(defaultSrc);
+  }
 
   return (
     <main className="sr-container py-6 space-y-4">
@@ -50,22 +80,37 @@ export default function AtlasMskSandbox() {
         <h2 className="text-sm font-semibold">Fuente de imagen</h2>
 
         <div className="grid md:grid-cols-3 gap-3 items-end">
-          <div className="md:col-span-2">
-            <label className="sr-label">Ruta / URL (pública) de la imagen</label>
-            <input
-              type="text"
-              className="sr-input w-full"
-              value={src}
-              onChange={(e) => setSrc(e.target.value)}
-              placeholder="/atlas/muscle_base.png o https://..."
-            />
-            <p className="text-xs text-slate-500 mt-1">{hint}</p>
+          <div className="md:col-span-2 space-y-2">
+            <div>
+              <label className="sr-label">Ruta / URL (pública) de la imagen</label>
+              <input
+                type="text"
+                className="sr-input w-full"
+                value={src}
+                onChange={(e) => setSrc(e.target.value)}
+                placeholder={`${BASE}casa-diseno.jpg o https://...`}
+              />
+              <p className="text-xs text-slate-500 mt-1">{hint}</p>
+            </div>
+
+            <div>
+              <label className="sr-label">O subir imagen local (recomendado para probar rápido)</label>
+              <input
+                type="file"
+                accept="image/*"
+                className="sr-input w-full"
+                onChange={handlePickLocalFile}
+              />
+              <p className="text-[11px] text-slate-500 mt-1">
+                La imagen local se carga con <span className="font-mono">URL.createObjectURL</span> (no hay CORS).
+              </p>
+            </div>
           </div>
 
           <div className="flex gap-2">
             <button
               type="button"
-              onClick={() => setSrc(defaultSrc)}
+              onClick={resetToDefault}
               className="sr-btn-secondary text-xs"
               title="Restaurar imagen por defecto"
             >
@@ -76,7 +121,7 @@ export default function AtlasMskSandbox() {
               target="_blank"
               rel="noreferrer"
               className="sr-btn-secondary text-xs"
-              title="Abrir imagen en pestaña nueva"
+              title="Abrir imagen en pestaña nueva (si da 404, esa es la causa)"
             >
               Abrir
             </a>
@@ -88,13 +133,12 @@ export default function AtlasMskSandbox() {
         <h2 className="text-sm font-semibold mb-3">Vista</h2>
 
         <div className="w-full max-w-4xl mx-auto">
-          {/* Marco para ver el escalado */}
           <div className="rounded-xl border border-slate-200 overflow-hidden bg-slate-50">
             <MuscleAtlasCanvas src={src} />
           </div>
 
           <p className="text-[11px] text-slate-500 mt-2">
-            Si ves el SVG bien aquí (responsive, sin “saltos”, sin distorsión), estamos listos
+            Si ves el SVG bien aquí (responsive, sin distorsión), estamos listos
             para integrarlo como overlay “msk-atlas” dentro del visor ampliado.
           </p>
         </div>
