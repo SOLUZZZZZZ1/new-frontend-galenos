@@ -1,8 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import MuscleAtlasCanvas from "./MuscleAtlasCanvas";
 import AtlasMskControls from "./AtlasMskControls";
-import { loadMskCfg } from "../utils/mskAtlasStore";
-import { suggestMskCfg } from "../utils/mskAtlasSuggest";
 
 export default function MskAtlasOverlay({ imagingId, src, imgType, summary, patterns }) {
   const initial = useMemo(
@@ -16,41 +14,66 @@ export default function MskAtlasOverlay({ imagingId, src, imgType, summary, patt
   );
 
   const [cfg, setCfg] = useState(initial);
+  const [loadingAuto, setLoadingAuto] = useState(false);
 
-  useEffect(() => {
+  async function autoReal() {
     if (!imagingId) return;
+    setLoadingAuto(true);
 
-    const saved = loadMskCfg(imagingId);
-    if (saved) {
-      setCfg(saved);
-      return;
+    try {
+      const token = localStorage.getItem("access_token");
+      const res = await fetch(`/imaging/msk-overlay/${imagingId}`, {
+        method: "POST",
+        headers: {
+          "Authorization": token ? `Bearer ${token}` : "",
+        },
+      });
+
+      if (!res.ok) throw new Error("Auto MSK falló");
+
+      const data = await res.json();
+      const o = data?.msk_overlay;
+      if (!o) throw new Error("Respuesta inválida");
+
+      setCfg({
+        preset: "auto",
+        anatomyBox: {
+          x0: o.roi.x0 * 100,
+          y0: o.roi.y0 * 100,
+          x1: o.roi.x1 * 100,
+          y1: o.roi.y1 * 100,
+        },
+        layerPercents: {
+          skinEnd: o.layers.skin_end,
+          subcEnd: o.layers.subc_end,
+          fasciaEnd: o.layers.fascia_y,
+        },
+        labelOffset: o.label?.muscle_offset ?? 1.6,
+      });
+    } catch (e) {
+      alert("No se pudo ejecutar Auto (real).");
+    } finally {
+      setLoadingAuto(false);
     }
-
-    const s = suggestMskCfg({ imgType, summary, patterns });
-    if (s) setCfg((prev) => ({ ...prev, preset: s.preset || "auto", ...s }));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [imagingId]);
+  }
 
   if (!src) return null;
 
   return (
     <div className="w-full h-full">
       <div className="flex flex-col md:flex-row gap-3 w-full h-full">
-        {/* Panel */}
         <aside className="md:w-[340px] lg:w-[380px] w-full">
           <div className="bg-white/92 backdrop-blur rounded-xl border border-slate-200 shadow-sm p-3 md:max-h-[75vh] overflow-auto">
             <AtlasMskControls
               imagingId={imagingId}
-              imgType={imgType}
-              summary={summary}
-              patterns={patterns}
               value={cfg}
               onChange={setCfg}
+              onAutoReal={autoReal}
+              loadingAuto={loadingAuto}
             />
           </div>
         </aside>
 
-        {/* Imagen */}
         <section className="flex-1 min-w-0">
           <div className="rounded-xl border border-slate-200 overflow-hidden bg-slate-50 md:max-h-[75vh]">
             <MuscleAtlasCanvas
@@ -60,10 +83,6 @@ export default function MskAtlasOverlay({ imagingId, src, imgType, summary, patt
               labelOffset={cfg.labelOffset}
             />
           </div>
-
-          <p className="text-[11px] text-slate-600 mt-2">
-            Tip: Ajusta “Inicio del músculo (fascia)” y luego “Guardar” para memorizado por imagen.
-          </p>
         </section>
       </div>
     </div>
