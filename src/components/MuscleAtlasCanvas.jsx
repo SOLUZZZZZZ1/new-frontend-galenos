@@ -57,7 +57,7 @@ export default function MuscleAtlasCanvas({
     );
   };
 
-  const muscleLabelY = clamp(yMuscleTop + 2.0, 0, 98);
+  const muscleLabelY = clamp(yMuscleTop + 0.8, 0, 98);
 
   return (
     <svg
