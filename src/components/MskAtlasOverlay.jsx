@@ -19,38 +19,52 @@ export default function MskAtlasOverlay({ imagingId, src, imgType, summary, patt
 
   useEffect(() => {
     if (!imagingId) return;
+
     const saved = loadMskCfg(imagingId);
     if (saved) {
       setCfg(saved);
       return;
     }
+
     const s = suggestMskCfg({ imgType, summary, patterns });
     if (s) setCfg((prev) => ({ ...prev, preset: s.preset || "auto", ...s }));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [imagingId]);
 
   if (!src) return null;
 
   return (
-    <div className="w-full h-full p-2 sm:p-3 overflow-auto">
-      <div className="bg-white/90 backdrop-blur rounded-xl border border-slate-200 shadow-sm p-3">
-        <AtlasMskControls
-          imagingId={imagingId}
-          imgType={imgType}
-          summary={summary}
-          patterns={patterns}
-          value={cfg}
-          onChange={setCfg}
-        />
-      </div>
+    <div className="w-full h-full">
+      <div className="flex flex-col md:flex-row gap-3 w-full h-full">
+        {/* Panel */}
+        <aside className="md:w-[340px] lg:w-[380px] w-full">
+          <div className="bg-white/92 backdrop-blur rounded-xl border border-slate-200 shadow-sm p-3 md:max-h-[75vh] overflow-auto">
+            <AtlasMskControls
+              imagingId={imagingId}
+              imgType={imgType}
+              summary={summary}
+              patterns={patterns}
+              value={cfg}
+              onChange={setCfg}
+            />
+          </div>
+        </aside>
 
-      <div className="mt-3 rounded-xl border border-slate-200 overflow-hidden bg-slate-50">
-        <MuscleAtlasCanvas
-          src={src}
-          anatomyBox={cfg.anatomyBox}
-          layerPercents={cfg.layerPercents}
-          labelOffset={cfg.labelOffset}
-        />
+        {/* Imagen */}
+        <section className="flex-1 min-w-0">
+          <div className="rounded-xl border border-slate-200 overflow-hidden bg-slate-50 md:max-h-[75vh]">
+            <MuscleAtlasCanvas
+              src={src}
+              anatomyBox={cfg.anatomyBox}
+              layerPercents={cfg.layerPercents}
+              labelOffset={cfg.labelOffset}
+            />
+          </div>
+
+          <p className="text-[11px] text-slate-600 mt-2">
+            Tip: Ajusta “Inicio del músculo (fascia)” y luego “Guardar” para memorizado por imagen.
+          </p>
+        </section>
       </div>
     </div>
   );
