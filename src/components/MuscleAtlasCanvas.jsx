@@ -1,19 +1,22 @@
 import React from "react";
 
 /**
- * MuscleAtlasCanvas — DIDÁCTICO (A) · FIX label "Músculo"
+ * MuscleAtlasCanvas — DIDÁCTICO (A) · Subcutáneo↔Fascia MÁS CERRADO
  *
- * Problema reportado: "no veo muscle label".
- * Solución:
- * - Colocamos el texto "Músculo / Muscle" pegado al inicio del músculo (yMuscleTop + 2).
- * - Le añadimos borde (stroke) y fontWeight para que destaque sobre cualquier fondo.
- * - Lo renderizamos AL FINAL (encima de todo) para evitar que quede tapado.
+ * Ajuste solicitado:
+ * - Menos espacio entre Subcutáneo y Fascia.
+ *
+ * Defaults nuevos (más “apretados”):
+ * - skinEnd:   0.06
+ * - subcEnd:   0.22
+ * - fasciaEnd: 0.28
+ * - muscleStart:0.44
  */
 export default function MuscleAtlasCanvas({
   src,
   anatomyBox = { x0: 10, y0: 10, x1: 95, y1: 84 }
 layerPercents = { skinEnd: 0.06, subcEnd: 0.22, fasciaEnd: 0.28, muscleStart: 0.36 }
-,
+ },
   className = "",
 }) {
   if (!src) return null;
@@ -58,8 +61,6 @@ layerPercents = { skinEnd: 0.06, subcEnd: 0.22, fasciaEnd: 0.28, muscleStart: 0.
     );
   };
 
-  const muscleLabelY = clamp(yMuscleTop + 0.8, 0, 98);
-
   return (
     <svg
       viewBox="0 0 100 100"
@@ -81,6 +82,7 @@ layerPercents = { skinEnd: 0.06, subcEnd: 0.22, fasciaEnd: 0.28, muscleStart: 0.
       <text x={panelX+2.0} y={ySkin-2.2} fontSize="3.6" fill={txt}>Piel / Skin</text>
       <text x={panelX+2.0} y={(ySkinEnd+ySubcEnd)/2} fontSize="3.6" fill={txt}>Subcutáneo / Subcutaneous</text>
       <text x={panelX+2.0} y={(ySubcEnd+yFasciaEnd)/2} fontSize="3.6" fill={txt}>Fascia / Fascia</text>
+      <text x={panelX+2.0} y={(yMuscleTop+yBottom)/2} fontSize="3.6" fill={txt}>Músculo / Muscle</text>
 
       <path d={`M ${panelX+1.8} ${y0} L ${panelX+1.8} ${y1}`} stroke="rgba(255,255,0,0.75)" strokeWidth="1.2" />
       {[ySkin, ySkinEnd, ySubcEnd, yFasciaEnd, yMuscleTop].map((yy, i) => (
@@ -94,11 +96,11 @@ layerPercents = { skinEnd: 0.06, subcEnd: 0.22, fasciaEnd: 0.28, muscleStart: 0.
       <rect x={workX0} y={yMuscleTop} width={workX1-workX0} height={yBottom-yMuscleTop} fill="rgba(255,255,200,0.08)" stroke="rgba(255,255,200,0.10)" strokeWidth="0.3" />
 
       <defs>
-        <clipPath id="mskMuscleClipLabelFix">
+        <clipPath id="mskMuscleClipTightSF">
           <rect x={workX0} y={yMuscleTop} width={workX1-workX0} height={yBottom-yMuscleTop} />
         </clipPath>
       </defs>
-      <g clipPath="url(#mskMuscleClipLabelFix)">
+      <g clipPath="url(#mskMuscleClipTightSF)">
         {Array.from({ length: 9 }).map((_, i) => {
           const yy = yMuscleTop + (i + 1) * ((yBottom - yMuscleTop) / 10);
           const amp = 1.2;
@@ -121,20 +123,6 @@ layerPercents = { skinEnd: 0.06, subcEnd: 0.22, fasciaEnd: 0.28, muscleStart: 0.
       <text x={workX0 + W * 0.16} y={(ySkin + ySkinEnd) / 2} fontSize="3.0" fill={txt}>Skin</text>
       <text x={workX0 + W * 0.28} y={(ySkinEnd + ySubcEnd) / 2} fontSize="3.0" fill={txt}>SubQ</text>
       <text x={workX0 + W * 0.40} y={(ySubcEnd + yFasciaEnd) / 2} fontSize="3.0" fill={txt}>Fascia</text>
-
-      {/* ✅ Label músculo encima de todo, con borde para legibilidad */}
-      <text
-        x={panelX+2.0}
-        y={muscleLabelY}
-        fontSize="3.9"
-        fill={txt}
-        fontWeight="700"
-        stroke="rgba(0,0,0,0.55)"
-        strokeWidth="1.2"
-        paintOrder="stroke"
-      >
-        Músculo / Muscle
-      </text>
 
       <text x={workX0} y={clamp(yBottom + 8, 0, 98)} fontSize="3.1" fill="rgba(255,255,255,0.70)">
         Guía didáctica orientativa / Educational guide
