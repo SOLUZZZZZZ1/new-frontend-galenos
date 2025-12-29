@@ -1,16 +1,10 @@
 import React from "react";
 
-/**
- * MuscleAtlasCanvas — DIDÁCTICO (A) · SIN HUECO Fascia→Músculo (Label ajustado)
- *
- * - yMuscleTop = yFasciaEnd (sin hueco)
- * - fibras desde i=0 (sin franja vacía)
- * - label "Músculo" ajustado: estaba demasiado arriba, lo bajamos un poco
- */
 export default function MuscleAtlasCanvas({
   src,
   anatomyBox = { x0: 10, y0: 10, x1: 95, y1: 84 },
-  layerPercents = { skinEnd: 0.06, subcEnd: 0.22, fasciaEnd: 0.30, muscleStart: 0.30 },
+  layerPercents = { skinEnd: 0.06, subcEnd: 0.22, fasciaEnd: 0.30 },
+  labelOffset = 1.6,
   className = "",
 }) {
   if (!src) return null;
@@ -28,14 +22,13 @@ export default function MuscleAtlasCanvas({
   const workX1 = x1;
 
   const ySkin = y0 + H * 0.02;
-
   const ySkinEnd = y0 + H * (layerPercents.skinEnd ?? 0.06);
   const ySubcEnd = y0 + H * (layerPercents.subcEnd ?? 0.22);
 
   const pFascia = layerPercents.fasciaEnd ?? 0.30;
   const yFasciaEnd = y0 + H * pFascia;
 
-  // ✅ Músculo empieza exactamente donde acaba fascia
+  // ✅ Sin hueco: músculo empieza donde acaba fascia
   const yMuscleTop = yFasciaEnd;
   const yBottom = y1;
 
@@ -59,9 +52,7 @@ export default function MuscleAtlasCanvas({
     );
   };
 
-  // ✅ Label músculo: lo bajamos un poco respecto a la versión anterior
-  // Antes: +0.3 (muy pegado). Ahora: +1.2
-  const muscleLabelY = clamp(yMuscleTop + 4.15, 0, 98);
+  const muscleLabelY = clamp(yMuscleTop + Number(labelOffset || 1.6), 0, 98);
 
   return (
     <svg
@@ -76,54 +67,44 @@ export default function MuscleAtlasCanvas({
 
       <rect x={panelX} y={panelY} width={panelW} height={panelH} rx="2.5" fill="rgba(0,0,0,0.35)" stroke="rgba(255,255,255,0.10)" strokeWidth="0.4" />
 
-      {/* Separadores */}
       <line x1={panelX + 1.5} y1={ySkinEnd} x2={panelX + panelW - 1.5} y2={ySkinEnd} stroke={weak} strokeWidth="0.6" />
       <line x1={panelX + 1.5} y1={ySubcEnd} x2={panelX + panelW - 1.5} y2={ySubcEnd} stroke={weak} strokeWidth="0.6" />
       <line x1={panelX + 1.5} y1={yFasciaEnd} x2={panelX + panelW - 1.5} y2={yFasciaEnd} stroke={weak} strokeWidth="0.6" />
 
-      {/* Labels */}
       <text x={panelX + 2.0} y={ySkin - 2.2} fontSize="3.6" fill={txt}>Piel / Skin</text>
       <text x={panelX + 2.0} y={(ySkinEnd + ySubcEnd) / 2} fontSize="3.6" fill={txt}>Subcutáneo / Subcutaneous</text>
       <text x={panelX + 2.0} y={(ySubcEnd + yFasciaEnd) / 2} fontSize="3.6" fill={txt}>Fascia / Fascia</text>
 
-      {/* Llave amarilla + marcas */}
       <path d={`M ${panelX + 1.8} ${y0} L ${panelX + 1.8} ${y1}`} stroke="rgba(255,255,0,0.75)" strokeWidth="1.2" />
       {[ySkin, ySkinEnd, ySubcEnd, yFasciaEnd].map((yy, i) => (
         <line key={i} x1={panelX + 1.2} y1={yy} x2={panelX + 5.0} y2={yy} stroke="rgba(255,255,0,0.75)" strokeWidth="1.2" />
       ))}
 
-      {/* Líneas guía */}
       <line x1={workX0} y1={ySkinEnd} x2={workX1} y2={ySkinEnd} stroke={weak} strokeWidth="0.7" />
       <line x1={workX0} y1={ySubcEnd} x2={workX1} y2={ySubcEnd} stroke={weak} strokeWidth="0.7" />
       <line x1={workX0} y1={yFasciaEnd} x2={workX1} y2={yFasciaEnd} stroke={weak} strokeWidth="0.7" />
 
-      {/* Zona músculo */}
-      <rect x={workX0} y={yMuscleTop} width={workX1 - workX0} height={yBottom - yMuscleTop} fill="rgba(255,255,200,0.08)" stroke="rgba(255,255,200,0.10)" strokeWidth="0.3" />
+      <rect x={workX0} y={yMuscleTop} width={workX1 - workX0} height={yBottom - yMuscleTop}
+        fill="rgba(255,255,200,0.08)" stroke="rgba(255,255,200,0.10)" strokeWidth="0.3" />
 
-      {/* Fibras: empiezan desde arriba (sin franja) */}
       <defs>
-        <clipPath id="mskMuscleClipNoGap">
+        <clipPath id="mskMuscleClipB">
           <rect x={workX0} y={yMuscleTop} width={workX1 - workX0} height={yBottom - yMuscleTop} />
         </clipPath>
       </defs>
-      <g clipPath="url(#mskMuscleClipNoGap)">
+
+      <g clipPath="url(#mskMuscleClipB)">
         {Array.from({ length: 10 }).map((_, i) => {
           const frac = i / 9;
           const yy = yMuscleTop + frac * (yBottom - yMuscleTop);
           const amp = 1.2;
           return (
-            <path
-              key={i}
-              d={`M${workX0} ${yy} Q ${(workX0 + workX1) / 2} ${yy - amp} ${workX1} ${yy}`}
-              stroke={accent}
-              strokeWidth="0.9"
-              fill="none"
-            />
+            <path key={i} d={`M${workX0} ${yy} Q ${(workX0 + workX1) / 2} ${yy - amp} ${workX1} ${yy}`}
+              stroke={accent} strokeWidth="0.9" fill="none" />
           );
         })}
       </g>
 
-      {/* Flechas */}
       <ArrowDouble x={workX0 + W * 0.18} yA={ySkin} yB={ySkinEnd} />
       <ArrowDouble x={workX0 + W * 0.30} yA={ySkinEnd} yB={ySubcEnd} />
       <ArrowDouble x={workX0 + W * 0.42} yA={ySubcEnd} yB={yFasciaEnd} />
@@ -132,17 +113,8 @@ export default function MuscleAtlasCanvas({
       <text x={workX0 + W * 0.28} y={(ySkinEnd + ySubcEnd) / 2} fontSize="3.0" fill={txt}>SubQ</text>
       <text x={workX0 + W * 0.40} y={(ySubcEnd + yFasciaEnd) / 2} fontSize="3.0" fill={txt}>Fascia</text>
 
-      {/* Label músculo encima de todo */}
-      <text
-        x={panelX + 2.0}
-        y={muscleLabelY}
-        fontSize="3.9"
-        fill={txt}
-        fontWeight="700"
-        stroke="rgba(0,0,0,0.55)"
-        strokeWidth="1.2"
-        paintOrder="stroke"
-      >
+      <text x={panelX + 2.0} y={muscleLabelY} fontSize="3.9" fill={txt} fontWeight="700"
+        stroke="rgba(0,0,0,0.55)" strokeWidth="1.2" paintOrder="stroke">
         Músculo / Muscle
       </text>
 
