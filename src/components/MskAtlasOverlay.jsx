@@ -1,8 +1,11 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import MuscleAtlasCanvas from "./MuscleAtlasCanvas";
 import AtlasMskControls from "./AtlasMskControls";
 
-export default function MskAtlasOverlay({ imagingId, src, imgType, summary, patterns }) {
+// ✅ Usa el mismo backend que PanelMedico
+const API = import.meta.env.VITE_API_URL || "https://galenos-backend.onrender.com";
+
+export default function MskAtlasOverlay({ imagingId, src }) {
   const initial = useMemo(
     () => ({
       preset: "medio",
@@ -21,37 +24,45 @@ export default function MskAtlasOverlay({ imagingId, src, imgType, summary, patt
     setLoadingAuto(true);
 
     try {
-      const token = localStorage.getItem("access_token");
-      const res = await fetch(`/imaging/msk-overlay/${imagingId}`, {
+      // ✅ En Galenos se usa galenos_token
+      const token = localStorage.getItem("galenos_token");
+      const res = await fetch(`${API}/imaging/msk-overlay/${imagingId}`, {
         method: "POST",
         headers: {
-          "Authorization": token ? `Bearer ${token}` : "",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
       });
 
-      if (!res.ok) throw new Error("Auto MSK falló");
+      if (!res.ok) {
+        const t = await res.text();
+        console.error("Auto(real) error:", res.status, t);
+        throw new Error(`HTTP ${res.status}`);
+      }
 
       const data = await res.json();
       const o = data?.msk_overlay;
-      if (!o) throw new Error("Respuesta inválida");
+      if (!o || !o.roi || !o.layers) {
+        console.error("Auto(real) invalid payload:", data);
+        throw new Error("invalid payload");
+      }
 
       setCfg({
         preset: "auto",
         anatomyBox: {
-          x0: o.roi.x0 * 100,
-          y0: o.roi.y0 * 100,
-          x1: o.roi.x1 * 100,
-          y1: o.roi.y1 * 100,
+          x0: (o.roi.x0 ?? 0.10) * 100,
+          y0: (o.roi.y0 ?? 0.10) * 100,
+          x1: (o.roi.x1 ?? 0.95) * 100,
+          y1: (o.roi.y1 ?? 0.84) * 100,
         },
         layerPercents: {
-          skinEnd: o.layers.skin_end,
-          subcEnd: o.layers.subc_end,
-          fasciaEnd: o.layers.fascia_y,
+          skinEnd: o.layers.skin_end ?? 0.06,
+          subcEnd: o.layers.subc_end ?? 0.22,
+          fasciaEnd: o.layers.fascia_y ?? 0.30,
         },
         labelOffset: o.label?.muscle_offset ?? 1.6,
       });
     } catch (e) {
-      alert("No se pudo ejecutar Auto (real).");
+      alert("No se pudo ejecutar Auto (real). Revisa que el backend esté accesible y que haya sesión.");
     } finally {
       setLoadingAuto(false);
     }
