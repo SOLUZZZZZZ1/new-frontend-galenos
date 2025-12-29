@@ -1,21 +1,20 @@
 import React from "react";
 
 /**
- * MuscleAtlasCanvas — DIDÁCTICO (A) · Subcutáneo↔Fascia MÁS CERRADO
+ * MuscleAtlasCanvas — DIDÁCTICO (A) · SIN HUECO Fascia→Músculo
  *
- * Ajuste solicitado:
- * - Menos espacio entre Subcutáneo y Fascia.
+ * Fix del “hueco”:
+ * 1) yMuscleTop = yFasciaEnd (misma línea, cero banda vacía).
+ * 2) Las fibras del músculo empiezan en i=0 (antes i+1 dejaba una franja “vacía” arriba).
  *
- * Defaults nuevos (más “apretados”):
- * - skinEnd:   0.06
- * - subcEnd:   0.22
- * - fasciaEnd: 0.30
- * - muscleStart:0.30
+ * Defaults:
+ * - anatomyBox: { x0: 10, y0: 10, x1: 95, y1: 84 }
+ * - layerPercents: fasciaEnd y muscleStart iguales (0.30)
  */
 export default function MuscleAtlasCanvas({
   src,
   anatomyBox = { x0: 10, y0: 10, x1: 95, y1: 84 },
-  layerPercents = { skinEnd: 0.06, subcEnd: 0.22, fasciaEnd: 0.28, muscleStart: 0.36 },
+  layerPercents = { skinEnd: 0.06, subcEnd: 0.22, fasciaEnd: 0.30, muscleStart: 0.30 },
   className = "",
 }) {
   if (!src) return null;
@@ -36,8 +35,12 @@ export default function MuscleAtlasCanvas({
 
   const ySkinEnd = y0 + H * (layerPercents.skinEnd ?? 0.06);
   const ySubcEnd = y0 + H * (layerPercents.subcEnd ?? 0.22);
-  const yFasciaEnd = y0 + H * (layerPercents.fasciaEnd ?? 0.28);
-  const yMuscleTop = y0 + H * (layerPercents.muscleStart ?? 0.44);
+
+  const pFascia = (layerPercents.fasciaEnd ?? 0.30);
+  const yFasciaEnd = y0 + H * pFascia;
+
+  // ✅ Músculo empieza exactamente donde acaba fascia
+  const yMuscleTop = yFasciaEnd;
   const yBottom = y1;
 
   const txt = "rgba(255,255,255,0.95)";
@@ -53,12 +56,15 @@ export default function MuscleAtlasCanvas({
     return (
       <>
         <line x1={x} y1={y1c} x2={x} y2={y2c} stroke={line} strokeWidth="0.8" />
-        <path d={`M${x-0.9} ${y1c+1.6} L${x} ${y1c} L${x+0.9} ${y1c+1.6}`} stroke={line} strokeWidth="0.8" fill="none" />
-        <path d={`M${x-0.9} ${y2c-1.6} L${x} ${y2c} L${x+0.9} ${y2c-1.6}`} stroke={line} strokeWidth="0.8" fill="none" />
+        <path d={`M${x - 0.9} ${y1c + 1.6} L${x} ${y1c} L${x + 0.9} ${y1c + 1.6}`} stroke={line} strokeWidth="0.8" fill="none" />
+        <path d={`M${x - 0.9} ${y2c - 1.6} L${x} ${y2c} L${x + 0.9} ${y2c - 1.6}`} stroke={line} strokeWidth="0.8" fill="none" />
         <circle cx={x} cy={mid} r="0.8" fill="rgba(255,255,255,0.6)" />
       </>
     );
   };
+
+  // Label músculo pegado al inicio
+  const muscleLabelY = clamp(yMuscleTop + 0.3, 0, 98);
 
   return (
     <svg
@@ -73,35 +79,40 @@ export default function MuscleAtlasCanvas({
 
       <rect x={panelX} y={panelY} width={panelW} height={panelH} rx="2.5" fill="rgba(0,0,0,0.35)" stroke="rgba(255,255,255,0.10)" strokeWidth="0.4" />
 
-      <line x1={panelX+1.5} y1={ySkinEnd} x2={panelX+panelW-1.5} y2={ySkinEnd} stroke={weak} strokeWidth="0.6" />
-      <line x1={panelX+1.5} y1={ySubcEnd} x2={panelX+panelW-1.5} y2={ySubcEnd} stroke={weak} strokeWidth="0.6" />
-      <line x1={panelX+1.5} y1={yFasciaEnd} x2={panelX+panelW-1.5} y2={yFasciaEnd} stroke={weak} strokeWidth="0.6" />
-      <line x1={panelX+1.5} y1={yMuscleTop} x2={panelX+panelW-1.5} y2={yMuscleTop} stroke={weak} strokeWidth="0.6" />
+      {/* Separadores */}
+      <line x1={panelX + 1.5} y1={ySkinEnd} x2={panelX + panelW - 1.5} y2={ySkinEnd} stroke={weak} strokeWidth="0.6" />
+      <line x1={panelX + 1.5} y1={ySubcEnd} x2={panelX + panelW - 1.5} y2={ySubcEnd} stroke={weak} strokeWidth="0.6" />
+      <line x1={panelX + 1.5} y1={yFasciaEnd} x2={panelX + panelW - 1.5} y2={yFasciaEnd} stroke={weak} strokeWidth="0.6" />
 
-      <text x={panelX+2.0} y={ySkin-2.2} fontSize="3.6" fill={txt}>Piel / Skin</text>
-      <text x={panelX+2.0} y={(ySkinEnd+ySubcEnd)/2} fontSize="3.6" fill={txt}>Subcutáneo / Subcutaneous</text>
-      <text x={panelX+2.0} y={(ySubcEnd+yFasciaEnd)/2} fontSize="3.6" fill={txt}>Fascia / Fascia</text>
-      <text x={panelX+2.0} y={(yMuscleTop+yBottom)/2} fontSize="3.6" fill={txt}>Músculo / Muscle</text>
+      {/* Labels */}
+      <text x={panelX + 2.0} y={ySkin - 2.2} fontSize="3.6" fill={txt}>Piel / Skin</text>
+      <text x={panelX + 2.0} y={(ySkinEnd + ySubcEnd) / 2} fontSize="3.6" fill={txt}>Subcutáneo / Subcutaneous</text>
+      <text x={panelX + 2.0} y={(ySubcEnd + yFasciaEnd) / 2} fontSize="3.6" fill={txt}>Fascia / Fascia</text>
 
-      <path d={`M ${panelX+1.8} ${y0} L ${panelX+1.8} ${y1}`} stroke="rgba(255,255,0,0.75)" strokeWidth="1.2" />
-      {[ySkin, ySkinEnd, ySubcEnd, yFasciaEnd, yMuscleTop].map((yy, i) => (
-        <line key={i} x1={panelX+1.2} y1={yy} x2={panelX+5.0} y2={yy} stroke="rgba(255,255,0,0.75)" strokeWidth="1.2" />
+      {/* Llave amarilla + marcas */}
+      <path d={`M ${panelX + 1.8} ${y0} L ${panelX + 1.8} ${y1}`} stroke="rgba(255,255,0,0.75)" strokeWidth="1.2" />
+      {[ySkin, ySkinEnd, ySubcEnd, yFasciaEnd].map((yy, i) => (
+        <line key={i} x1={panelX + 1.2} y1={yy} x2={panelX + 5.0} y2={yy} stroke="rgba(255,255,0,0.75)" strokeWidth="1.2" />
       ))}
 
+      {/* Líneas guía */}
       <line x1={workX0} y1={ySkinEnd} x2={workX1} y2={ySkinEnd} stroke={weak} strokeWidth="0.7" />
       <line x1={workX0} y1={ySubcEnd} x2={workX1} y2={ySubcEnd} stroke={weak} strokeWidth="0.7" />
       <line x1={workX0} y1={yFasciaEnd} x2={workX1} y2={yFasciaEnd} stroke={weak} strokeWidth="0.7" />
 
-      <rect x={workX0} y={yMuscleTop} width={workX1-workX0} height={yBottom-yMuscleTop} fill="rgba(255,255,200,0.08)" stroke="rgba(255,255,200,0.10)" strokeWidth="0.3" />
+      {/* Zona músculo */}
+      <rect x={workX0} y={yMuscleTop} width={workX1 - workX0} height={yBottom - yMuscleTop} fill="rgba(255,255,200,0.08)" stroke="rgba(255,255,200,0.10)" strokeWidth="0.3" />
 
+      {/* Fibras: empiezan en el borde superior (i=0) */}
       <defs>
-        <clipPath id="mskMuscleClipTightSF">
-          <rect x={workX0} y={yMuscleTop} width={workX1-workX0} height={yBottom-yMuscleTop} />
+        <clipPath id="mskMuscleClipNoGap">
+          <rect x={workX0} y={yMuscleTop} width={workX1 - workX0} height={yBottom - yMuscleTop} />
         </clipPath>
       </defs>
-      <g clipPath="url(#mskMuscleClipTightSF)">
-        {Array.from({ length: 9 }).map((_, i) => {
-          const yy = yMuscleTop + (i + 1) * ((yBottom - yMuscleTop) / 10);
+      <g clipPath="url(#mskMuscleClipNoGap)">
+        {Array.from({ length: 10 }).map((_, i) => {
+          const frac = i / 9; // 0..1
+          const yy = yMuscleTop + frac * (yBottom - yMuscleTop);
           const amp = 1.2;
           return (
             <path
@@ -115,6 +126,7 @@ export default function MuscleAtlasCanvas({
         })}
       </g>
 
+      {/* Flechas */}
       <ArrowDouble x={workX0 + W * 0.18} yA={ySkin} yB={ySkinEnd} />
       <ArrowDouble x={workX0 + W * 0.30} yA={ySkinEnd} yB={ySubcEnd} />
       <ArrowDouble x={workX0 + W * 0.42} yA={ySubcEnd} yB={yFasciaEnd} />
@@ -122,6 +134,20 @@ export default function MuscleAtlasCanvas({
       <text x={workX0 + W * 0.16} y={(ySkin + ySkinEnd) / 2} fontSize="3.0" fill={txt}>Skin</text>
       <text x={workX0 + W * 0.28} y={(ySkinEnd + ySubcEnd) / 2} fontSize="3.0" fill={txt}>SubQ</text>
       <text x={workX0 + W * 0.40} y={(ySubcEnd + yFasciaEnd) / 2} fontSize="3.0" fill={txt}>Fascia</text>
+
+      {/* Label músculo encima de todo */}
+      <text
+        x={panelX + 2.0}
+        y={muscleLabelY}
+        fontSize="3.9"
+        fill={txt}
+        fontWeight="700"
+        stroke="rgba(0,0,0,0.55)"
+        strokeWidth="1.2"
+        paintOrder="stroke"
+      >
+        Músculo / Muscle
+      </text>
 
       <text x={workX0} y={clamp(yBottom + 8, 0, 98)} fontSize="3.1" fill="rgba(255,255,255,0.70)">
         Guía didáctica orientativa / Educational guide
