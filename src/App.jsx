@@ -19,7 +19,7 @@ import PerfilMedico from "./pages/PerfilMedico.jsx";
 import DeGuardiaPage from "./pages/DeGuardiaPage.jsx";
 import ActualidadMedica from "./pages/ActualidadMedica.jsx";
 import ComunidadPage from "./pages/ComunidadPage.jsx";
-import AtlasMskSandbox from "./pages/AtlasMskSandbox.jsx";
+
 
 // Páginas públicas SEO
 import QueEsGalenos from "./pages/QueEsGalenos.jsx";
@@ -58,8 +58,7 @@ function App() {
           <Route path="/que-es-galenos" element={<QueEsGalenos />} />
           <Route path="/seguridad" element={<Seguridad />} />
           <Route path="/contacto" element={<Contacto />} />
-          <Route path="/atlas-msk" element={<AtlasMskSandbox />} />
-
+          
           {/* Páginas legales */}
           <Route path="/aviso-legal" element={<AvisoLegal />} />
           <Route path="/privacidad" element={<Privacidad />} />
