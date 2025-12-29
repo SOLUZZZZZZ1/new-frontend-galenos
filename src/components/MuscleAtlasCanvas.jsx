@@ -9,8 +9,8 @@ import React from "react";
  * Defaults nuevos (más “apretados”):
  * - skinEnd:   0.06
  * - subcEnd:   0.22
- * - fasciaEnd: 0.28
- * - muscleStart:0.44
+ * - fasciaEnd: 0.30
+ * - muscleStart:0.30
  */
 export default function MuscleAtlasCanvas({
   src,
