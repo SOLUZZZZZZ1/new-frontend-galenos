@@ -61,7 +61,7 @@ export default function MuscleAtlasCanvas({
 
   // ✅ Label músculo: lo bajamos un poco respecto a la versión anterior
   // Antes: +0.3 (muy pegado). Ahora: +1.2
-  const muscleLabelY = clamp(yMuscleTop + 0.15, 0, 98);
+  const muscleLabelY = clamp(yMuscleTop + 4.15, 0, 98);
 
   return (
     <svg
