@@ -1722,7 +1722,19 @@ async function handleGenerateCosmeticPdf() {
                             ) : null}
 
                             {((overlayMode === "msk-orient" || overlayMode === "msk-atlas") || (overlayMode === "auto" && Array.isArray(activeOverlays) && activeOverlays.includes("FIBER_LINES"))) ? (
-                              <MuscleOverlaySvg />
+                              {(overlayMode === "msk-atlas") ? (
+  <div className="absolute inset-0 z-30 pointer-events-auto">
+    <MskAtlasOverlay
+      imagingId={lastImagenId}
+      src={imagenFilePath}
+      imgType={imgType}
+      summary={imagenSummary}
+      patterns={imagenPatterns}
+    />
+  </div>
+) : (
+  <MuscleOverlaySvg />
+)}
                             ) : null}
                           </>
                         )}
