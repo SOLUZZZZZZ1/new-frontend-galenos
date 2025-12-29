@@ -20,7 +20,7 @@ import React from "react";
  */
 export default function MuscleAtlasCanvas({
   src,
-  anatomyBox = { x0: 10, y0: 4, x1: 95, y1: 98 },
+  anatomyBox = { x0: 10, y0: 1, x1: 95, y1: 99 },
   className = "",
 }) {
   if (!src) return null;
