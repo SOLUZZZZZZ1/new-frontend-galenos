@@ -1,6 +1,7 @@
 // src/pages/PanelMedico.jsx — Panel médico con Analíticas + Imágenes · Galenos.pro
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import MskAtlasOverlay from "../components/MskAtlasOverlay";
 
 // URL del backend de Galenos (Render)
 const API =
