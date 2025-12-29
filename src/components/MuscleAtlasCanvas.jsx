@@ -1,15 +1,11 @@
 import React from "react";
 
 /**
- * MuscleAtlasCanvas — DIDÁCTICO (A) · SIN HUECO Fascia→Músculo
+ * MuscleAtlasCanvas — DIDÁCTICO (A) · SIN HUECO Fascia→Músculo (Label ajustado)
  *
- * Fix del “hueco”:
- * 1) yMuscleTop = yFasciaEnd (misma línea, cero banda vacía).
- * 2) Las fibras del músculo empiezan en i=0 (antes i+1 dejaba una franja “vacía” arriba).
- *
- * Defaults:
- * - anatomyBox: { x0: 10, y0: 10, x1: 95, y1: 84 }
- * - layerPercents: fasciaEnd y muscleStart iguales (0.30)
+ * - yMuscleTop = yFasciaEnd (sin hueco)
+ * - fibras desde i=0 (sin franja vacía)
+ * - label "Músculo" ajustado: estaba demasiado arriba, lo bajamos un poco
  */
 export default function MuscleAtlasCanvas({
   src,
@@ -36,7 +32,7 @@ export default function MuscleAtlasCanvas({
   const ySkinEnd = y0 + H * (layerPercents.skinEnd ?? 0.06);
   const ySubcEnd = y0 + H * (layerPercents.subcEnd ?? 0.22);
 
-  const pFascia = (layerPercents.fasciaEnd ?? 0.30);
+  const pFascia = layerPercents.fasciaEnd ?? 0.30;
   const yFasciaEnd = y0 + H * pFascia;
 
   // ✅ Músculo empieza exactamente donde acaba fascia
@@ -63,8 +59,9 @@ export default function MuscleAtlasCanvas({
     );
   };
 
-  // Label músculo pegado al inicio
-  const muscleLabelY = clamp(yMuscleTop + 0.3, 0, 98);
+  // ✅ Label músculo: lo bajamos un poco respecto a la versión anterior
+  // Antes: +0.3 (muy pegado). Ahora: +1.2
+  const muscleLabelY = clamp(yMuscleTop + 1.2, 0, 98);
 
   return (
     <svg
@@ -103,7 +100,7 @@ export default function MuscleAtlasCanvas({
       {/* Zona músculo */}
       <rect x={workX0} y={yMuscleTop} width={workX1 - workX0} height={yBottom - yMuscleTop} fill="rgba(255,255,200,0.08)" stroke="rgba(255,255,200,0.10)" strokeWidth="0.3" />
 
-      {/* Fibras: empiezan en el borde superior (i=0) */}
+      {/* Fibras: empiezan desde arriba (sin franja) */}
       <defs>
         <clipPath id="mskMuscleClipNoGap">
           <rect x={workX0} y={yMuscleTop} width={workX1 - workX0} height={yBottom - yMuscleTop} />
@@ -111,7 +108,7 @@ export default function MuscleAtlasCanvas({
       </defs>
       <g clipPath="url(#mskMuscleClipNoGap)">
         {Array.from({ length: 10 }).map((_, i) => {
-          const frac = i / 9; // 0..1
+          const frac = i / 9;
           const yy = yMuscleTop + frac * (yBottom - yMuscleTop);
           const amp = 1.2;
           return (
