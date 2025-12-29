@@ -14,7 +14,7 @@ import React from "react";
  */
 export default function MuscleAtlasCanvas({
   src,
-  anatomyBox = { x0: 10, y0: 18, x1: 95, y1: 86 },
+  anatomyBox = { x0: 10, y0: 10, x1: 95, y1: 74 },
   layerPercents = { skinEnd: 0.06, subcEnd: 0.22, fasciaEnd: 0.28, muscleStart: 0.44 },
   className = "",
 }) {
