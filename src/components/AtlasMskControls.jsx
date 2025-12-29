@@ -49,8 +49,11 @@ export default function AtlasMskControls({ imagingId, imgType, summary, patterns
 
   function autoBeta() {
     const s = suggestMskCfg({ imgType, summary, patterns });
-    if (!s) return;
-    onChange({ ...value, preset: s.preset || "auto", ...s });
+    if (!s) {
+  applyPreset("medio");
+  return;
+}
+
   }
 
   function load() {
