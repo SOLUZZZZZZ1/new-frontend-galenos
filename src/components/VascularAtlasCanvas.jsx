@@ -1,10 +1,5 @@
 import React from "react";
 
-/**
- * VascularAtlasCanvas
- * Dibuja un vaso como elipse SVG a partir del overlay vascular IA.
- * NO diagnostica. Orientativo.
- */
 export default function VascularAtlasCanvas({ overlay }) {
   if (!overlay || !overlay.layers) return null;
 
@@ -32,7 +27,6 @@ export default function VascularAtlasCanvas({ overlay }) {
       className="absolute inset-0 z-30 pointer-events-none"
       preserveAspectRatio="none"
     >
-      {/* Elipse del vaso */}
       <ellipse
         cx={cx}
         cy={cy}
@@ -42,8 +36,6 @@ export default function VascularAtlasCanvas({ overlay }) {
         stroke="rgba(70,160,255,0.95)"
         strokeWidth="0.8"
       />
-
-      {/* Etiqueta */}
       <text
         x={cx}
         y={Math.max(cy - ry - 2.5, 3)}
