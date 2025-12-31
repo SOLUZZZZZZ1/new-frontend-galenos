@@ -2,8 +2,10 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import MskAtlasOverlay from "../components/MskAtlasOverlay";
-
 import VascularOverlayReal from "../components/VascularOverlayReal";
+
+
+
 // URL del backend de Galenos (Render)
 const API =
   import.meta.env.VITE_API_URL || "https://galenos-backend.onrender.com";
@@ -1723,10 +1725,25 @@ async function handleGenerateCosmeticPdf() {
                         <img src={imagenFilePath} alt="Estudio de imagen médica ampliado" ref={imgModalRef} className="relative z-10 w-full max-h-[75vh] object-contain rounded-lg border border-slate-200" />
 
                         {showImgOverlay && overlayMode !== "off" && (
-                          <>
-                            {(overlayMode === "vascular" || (overlayMode === "auto" && Array.isArray(activeOverlays) && (activeOverlays.includes("VESSEL_AXIS") || activeOverlays.includes("VESSEL_GUIDE")))) ? (
-                              <VascularOverlaySvg />
-                            ) : null}
+  (overlayMode === "vascular" ||
+    (overlayMode === "auto" &&
+      Array.isArray(activeOverlays) &&
+      (activeOverlays.includes("VESSEL_AXIS") ||
+        activeOverlays.includes("VESSEL_GUIDE")))) ? (
+    <>
+      {/* ✅ Overlay vascular REAL (IA) */}
+      <VascularOverlayReal
+        imagingId={lastImagenId}
+        enabled={true}
+        imgRef={imgModalOpen ? imgModalRef : imgInlineRef}
+      />
+
+      {/* Fallback direccional */}
+      <VascularOverlaySvg />
+    </>
+  ) : null
+)}
+
 
                             {((overlayMode === "msk-orient" || overlayMode === "msk-atlas") ||
   (overlayMode === "auto" && Array.isArray(activeOverlays) && activeOverlays.includes("FIBER_LINES"))) ? (
