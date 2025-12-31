@@ -11,34 +11,25 @@ export default function VascularAtlasCanvas({ overlay }) {
   } = overlay.layers;
 
   const label = overlay.label?.text || "Vaso (orientativo)";
-  const confidence =
+  const conf =
     typeof overlay.confidence === "number"
       ? Math.round(overlay.confidence * 100)
       : null;
 
-  const cx = vessel_cx * 100;
-  const cy = vessel_cy * 100;
-  const rx = vessel_rx * 100;
-  const ry = vessel_ry * 100;
-
   return (
-    <svg
-      viewBox="0 0 100 100"
-      className="absolute inset-0 z-30 pointer-events-none"
-      preserveAspectRatio="none"
-    >
+    <svg viewBox="0 0 100 100" className="w-full h-full" preserveAspectRatio="none">
       <ellipse
-        cx={cx}
-        cy={cy}
-        rx={rx}
-        ry={ry}
+        cx={vessel_cx * 100}
+        cy={vessel_cy * 100}
+        rx={vessel_rx * 100}
+        ry={vessel_ry * 100}
         fill="rgba(70,160,255,0.22)"
         stroke="rgba(70,160,255,0.95)"
         strokeWidth="0.8"
       />
       <text
-        x={cx}
-        y={Math.max(cy - ry - 2.5, 3)}
+        x={vessel_cx * 100}
+        y={Math.max(vessel_cy * 100 - vessel_ry * 100 - 2.5, 3)}
         textAnchor="middle"
         fontSize="3.2"
         fill="rgba(220,245,255,0.95)"
@@ -46,8 +37,7 @@ export default function VascularAtlasCanvas({ overlay }) {
         strokeWidth="0.9"
         paintOrder="stroke"
       >
-        {label}
-        {confidence !== null ? ` · ${confidence}%` : ""}
+        {label}{conf !== null ? ` · ${conf}%` : ""}
       </text>
     </svg>
   );
