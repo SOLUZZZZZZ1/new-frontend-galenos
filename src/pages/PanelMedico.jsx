@@ -1,5 +1,5 @@
 // src/pages/PanelMedico.jsx — Panel médico con Analíticas + Imágenes · Galenos.pro
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import MskAtlasOverlay from "../components/MskAtlasOverlay";
 
@@ -412,7 +412,12 @@ useEffect(() => {
   const [overlayMode, setOverlayMode] = useState("auto"); // auto | msk-orient | msk-atlas | vascular | off
   const [imgModalOpen, setImgModalOpen] = useState(false);
 
-  // Chat radiológico
+  
+  // refs para overlay vascular
+  const imgInlineRef = useRef(null);
+  const imgModalRef = useRef(null);
+
+// Chat radiológico
   const [imgChatQuestion, setImgChatQuestion] = useState("");
   const [imgChatAnswer, setImgChatAnswer] = useState("");
   const [imgChatError, setImgChatError] = useState("");
@@ -1666,18 +1671,10 @@ async function handleGenerateCosmeticPdf() {
                   <img
                     src={imagenFilePath}
                     alt="Estudio de imagen médica"
+                    ref={imgInlineRef}
                     className="relative z-10 max-w-xs md:max-w-sm w-full rounded-lg border border-slate-200"
                   />
 
-
-                  {/* ✅ VASCULAR REAL (IA): si existe overlay, se pinta encima */}
-                  {showImgOverlay && overlayMode !== "off" && (
-                    (overlayMode === "vascular" ||
-                      (overlayMode === "auto" &&
-                        String(imgUiFamily || "").toUpperCase() === "VASCULAR")) ? (
-                      <VascularOverlayReal imagingId={lastImagenId} enabled={true} />
-                    ) : null
-                  )}
                   {showImgOverlay && overlayMode !== "off" && (
                     (overlayMode === "vascular" || (overlayMode === "auto" && Array.isArray(activeOverlays) && (activeOverlays.includes("VESSEL_AXIS") || activeOverlays.includes("VESSEL_GUIDE")))) ? (
                       <VascularOverlaySvg />
@@ -1723,17 +1720,8 @@ async function handleGenerateCosmeticPdf() {
                       </div>
 
                       <div className="relative w-full">
-                        <img src={imagenFilePath} alt="Estudio de imagen médica ampliado" className="relative z-10 w-full max-h-[75vh] object-contain rounded-lg border border-slate-200" />
+                        <img src={imagenFilePath} alt="Estudio de imagen médica ampliado" ref={imgModalRef} className="relative z-10 w-full max-h-[75vh] object-contain rounded-lg border border-slate-200" />
 
-
-                        {/* ✅ VASCULAR REAL (IA): se dibuja en visor ampliado */}
-                        {showImgOverlay && overlayMode !== "off" && (
-                          (overlayMode === "vascular" ||
-                            (overlayMode === "auto" &&
-                              String(imgUiFamily || "").toUpperCase() === "VASCULAR")) ? (
-                            <VascularOverlayReal imagingId={lastImagenId} enabled={true} />
-                          ) : null
-                        )}
                         {showImgOverlay && overlayMode !== "off" && (
                           <>
                             {(overlayMode === "vascular" || (overlayMode === "auto" && Array.isArray(activeOverlays) && (activeOverlays.includes("VESSEL_AXIS") || activeOverlays.includes("VESSEL_GUIDE")))) ? (
