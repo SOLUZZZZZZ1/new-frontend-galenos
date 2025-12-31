@@ -1682,6 +1682,7 @@ async function handleGenerateCosmeticPdf() {
                       <>
                         <VascularOverlayReal imagingId={lastImagenId} enabled={true} imgRef={imgInlineRef} />
                         <VascularOverlaySvg />
+    </>
                     ) : null
                   )}
 
@@ -1742,6 +1743,7 @@ async function handleGenerateCosmeticPdf() {
 
       {/* Fallback direccional */}
       <VascularOverlaySvg />
+    </>
   ) : null
 )}
 
