@@ -20,6 +20,15 @@ export default function MskAtlasOverlay({ imagingId, src, imgType, summary, patt
   const [cfg, setCfg] = useState(initial);
   const [loadingAuto, setLoadingAuto] = useState(false);
 
+  function normalizeImageSrc(input) {
+    if (!input || typeof input !== "string") return input;
+    if (input.startsWith("data:image/")) return input;
+    if (input.toLowerCase().includes(".webp")) {
+      return input.replace(/\.webp(\?|$)/i, ".png$1");
+    }
+    return input;
+  }
+
   async function autoReal() {
     if (!imagingId) return alert("No hay imagingId.");
     const token = localStorage.getItem("galenos_token");
@@ -77,6 +86,7 @@ export default function MskAtlasOverlay({ imagingId, src, imgType, summary, patt
   }
 
   if (!src) return null;
+  const safeSrc = normalizeImageSrc(src);
 
   return (
     <div className="w-full h-full">
@@ -98,7 +108,7 @@ export default function MskAtlasOverlay({ imagingId, src, imgType, summary, patt
 
         <section className="flex-1 min-w-0">
           <div className="rounded-xl border border-slate-200 overflow-hidden bg-slate-50 md:max-h-[75vh]">
-            <OverlayRenderer overlay={cfg} imageSrc={src} />
+            <OverlayRenderer overlay={cfg} imageSrc={safeSrc} />
           </div>
           <p className="text-[11px] text-slate-600 mt-2">
             API: <span className="font-mono">{API}</span>
