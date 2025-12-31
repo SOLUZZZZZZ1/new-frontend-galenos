@@ -1679,7 +1679,9 @@ async function handleGenerateCosmeticPdf() {
 
                   {showImgOverlay && overlayMode !== "off" && (
                     (overlayMode === "vascular" || (overlayMode === "auto" && Array.isArray(activeOverlays) && (activeOverlays.includes("VESSEL_AXIS") || activeOverlays.includes("VESSEL_GUIDE")))) ? (
-                      <VascularOverlaySvg />
+                      <>
+                        <VascularOverlayReal imagingId={lastImagenId} enabled={true} imgRef={imgInlineRef} />
+                        <VascularOverlaySvg />
                     ) : null
                   )}
 
@@ -1735,12 +1737,11 @@ async function handleGenerateCosmeticPdf() {
       <VascularOverlayReal
         imagingId={lastImagenId}
         enabled={true}
-        imgRef={imgModalOpen ? imgModalRef : imgInlineRef}
+        imgRef={imgModalRef}
       />
 
       {/* Fallback direccional */}
       <VascularOverlaySvg />
-    </>
   ) : null
 )}
 
@@ -1762,7 +1763,6 @@ async function handleGenerateCosmeticPdf() {
   )
 ) : null}
 
-                          </>
                         )}
                       </div>
 
