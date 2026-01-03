@@ -2,10 +2,11 @@ import React, { useMemo, useState } from "react";
 import { UIProfile } from "../utils/uiProfiles";
 import OverlayControls from "./OverlayControls";
 import OverlayRenderer from "./OverlayRenderer";
+import MskRealOverlayLayer from "./MskRealOverlayLayer";
 
 const API = import.meta.env.VITE_API_URL || "https://galenos-backend.onrender.com";
 
-export default function MskAtlasOverlay({ imagingId, src, imgType, summary, patterns }) {
+export default function MskAtlasOverlay({ imagingId, src, imgType, summary, patterns, imgRef }) {
   const initial = useMemo(
     () => ({
       profile: UIProfile.MSK,
@@ -13,8 +14,6 @@ export default function MskAtlasOverlay({ imagingId, src, imgType, summary, patt
       anatomyBox: { x0: 10, y0: 10, x1: 95, y1: 84 },
       layerPercents: { skinEnd: 0.06, subcEnd: 0.22, fasciaEnd: 0.30 },
       labelOffset: 1.6,
-      renderMode: "didactic",
-      backendOverlay: null,
     }),
     []
   );
@@ -76,8 +75,6 @@ export default function MskAtlasOverlay({ imagingId, src, imgType, summary, patt
           fasciaEnd: o.layers.fascia_y ?? 0.30,
         },
         labelOffset: o.label?.muscle_offset ?? 1.6,
-        renderMode: "real",
-        backendOverlay: o,
       }));
 
       alert("Auto(real) aplicado ✅");
@@ -112,25 +109,18 @@ export default function MskAtlasOverlay({ imagingId, src, imgType, summary, patt
 
         <section className="flex-1 min-w-0">
           <div className="rounded-xl border border-slate-200 overflow-hidden bg-slate-50 md:max-h-[75vh]">
-            <OverlayRenderer overlay={cfg} imageSrc={safeSrc} />
+            {cfg.renderMode === "real" && cfg.backendOverlay && imgRef ? (
+  <div className="relative w-full">
+    <img src={safeSrc} alt="MSK" ref={imgRef} className="w-full h-auto block" style={{ opacity: 0 }} />
+    <MskRealOverlayLayer imgRef={imgRef} overlay={cfg.backendOverlay} />
+  </div>
+) : (
+  <OverlayRenderer overlay={cfg} imageSrc={safeSrc} />
+)}
           </div>
           <p className="text-[11px] text-slate-600 mt-2">
             API: <span className="font-mono">{API}</span>
           </p>
-
-          <div className="flex items-center gap-2 mt-2">
-            <button
-              type="button"
-              className="sr-btn-secondary text-xs"
-              onClick={() => setCfg((p) => ({ ...p, renderMode: p.renderMode === "real" ? "didactic" : "real" }))}
-            >
-              {cfg.renderMode === "real" ? "Ver modo didáctico" : "Ver modo real"}
-            </button>
-            <p className="text-[11px] text-slate-600">
-              Modo real = overlay devuelto por backend (orientativo).
-            </p>
-          </div>
-
         </section>
       </div>
     </div>

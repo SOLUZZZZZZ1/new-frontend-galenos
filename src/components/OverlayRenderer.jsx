@@ -1,19 +1,20 @@
 import React from "react";
 import { UIProfile } from "../utils/uiProfiles";
 
+// MSK (existente)
 import MuscleAtlasCanvas from "./MuscleAtlasCanvas";
-import MskRealCanvas from "./MskRealCanvas";
+
+// ✅ VASCULAR (nuevo)
 import VascularAtlasCanvas from "./VascularAtlasCanvas";
 
+/**
+ * OverlayRenderer — switch central de render por perfil.
+ */
 export default function OverlayRenderer({ overlay, imageSrc }) {
   if (!overlay || !overlay.profile) return null;
 
   switch (overlay.profile) {
     case UIProfile.MSK: {
-      if (overlay.renderMode === "real" && overlay.backendOverlay) {
-        return <MskRealCanvas src={imageSrc} overlay={overlay.backendOverlay} />;
-      }
-
       const anatomyBox =
         overlay.anatomyBox ||
         overlay.roi || { x0: 10, y0: 10, x1: 95, y1: 84 };
