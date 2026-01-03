@@ -15,16 +15,24 @@ export default function OverlayRenderer({ overlay, imageSrc }) {
   if (!overlay || !overlay.profile) return null;
 
   switch (overlay.profile) {
-    case UIProfile.MSK: {
-      const renderMode = overlay.renderMode || "didactic";
-      const backendOverlay = overlay.backendOverlay || null;
-      if (renderMode === "real" && backendOverlay) {
-        return <MskRealCanvas src={imageSrc} mskOverlay={backendOverlay} />;
-      }
-
-      const anatomyBox =
-        overlay.anatomyBox ||
-        overlay.roi || { x0: 10, y0: 10, x1: 95, y1: 84 };
+    
+case UIProfile.MSK: {
+  if (overlay?.renderMode === "real" && overlay?.backendOverlay) {
+    return <MskRealCanvas src={imageSrc} overlay={overlay.backendOverlay} />;
+  }
+  if (overlayMode === "MSK_ATLAS") {
+    return (
+      <MuscleAtlasCanvas
+        src={imageSrc}
+        anatomyBox={anatomyBox}
+        layerPercents={layerPercents}
+        labelOffset={labelOffset}
+      />
+    );
+  }
+  return null;
+}
+;
 
       const layerPercents =
         overlay.layerPercents ||
