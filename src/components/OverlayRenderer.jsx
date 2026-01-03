@@ -1,38 +1,36 @@
 import React from "react";
 import { UIProfile } from "../utils/uiProfiles";
 
-// MSK (existente)
+// MSK (didáctico existente)
 import MuscleAtlasCanvas from "./MuscleAtlasCanvas";
+
+// ✅ MSK (real backend)
 import MskRealCanvas from "./MskRealCanvas";
 
-// ✅ VASCULAR (nuevo)
+// ✅ VASCULAR
 import VascularAtlasCanvas from "./VascularAtlasCanvas";
 
 /**
  * OverlayRenderer — switch central de render por perfil.
+ *
+ * Reglas:
+ * - Si MSK tiene renderMode="real" y backendOverlay, se muestra SOLO el overlay real.
+ * - En caso contrario, se muestra el MSK didáctico existente.
  */
 export default function OverlayRenderer({ overlay, imageSrc }) {
   if (!overlay || !overlay.profile) return null;
 
   switch (overlay.profile) {
-    
-case UIProfile.MSK: {
-  if (overlay?.renderMode === "real" && overlay?.backendOverlay) {
-    return <MskRealCanvas src={imageSrc} overlay={overlay.backendOverlay} />;
-  }
-  if (overlayMode === "MSK_ATLAS") {
-    return (
-      <MuscleAtlasCanvas
-        src={imageSrc}
-        anatomyBox={anatomyBox}
-        layerPercents={layerPercents}
-        labelOffset={labelOffset}
-      />
-    );
-  }
-  return null;
-}
-;
+    case UIProfile.MSK: {
+      // 1) Modo REAL: verdad del backend
+      if (overlay.renderMode === "real" && overlay.backendOverlay) {
+        return <MskRealCanvas src={imageSrc} overlay={overlay.backendOverlay} />;
+      }
+
+      // 2) Fallback didáctico: el que ya tenías
+      const anatomyBox =
+        overlay.anatomyBox ||
+        overlay.roi || { x0: 10, y0: 10, x1: 95, y1: 84 };
 
       const layerPercents =
         overlay.layerPercents ||
