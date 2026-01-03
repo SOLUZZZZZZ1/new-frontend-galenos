@@ -13,6 +13,8 @@ export default function MskAtlasOverlay({ imagingId, src, imgType, summary, patt
       anatomyBox: { x0: 10, y0: 10, x1: 95, y1: 84 },
       layerPercents: { skinEnd: 0.06, subcEnd: 0.22, fasciaEnd: 0.30 },
       labelOffset: 1.6,
+      renderMode: "didactic",
+      backendOverlay: null,
     }),
     []
   );
@@ -74,6 +76,8 @@ export default function MskAtlasOverlay({ imagingId, src, imgType, summary, patt
           fasciaEnd: o.layers.fascia_y ?? 0.30,
         },
         labelOffset: o.label?.muscle_offset ?? 1.6,
+        renderMode: "real",
+        backendOverlay: o,
       }));
 
       alert("Auto(real) aplicado ✅");
@@ -113,6 +117,20 @@ export default function MskAtlasOverlay({ imagingId, src, imgType, summary, patt
           <p className="text-[11px] text-slate-600 mt-2">
             API: <span className="font-mono">{API}</span>
           </p>
+
+          <div className="flex items-center gap-2 mt-2">
+            <button
+              type="button"
+              className="sr-btn-secondary text-xs"
+              onClick={() => setCfg((p) => ({ ...p, renderMode: p.renderMode === "real" ? "didactic" : "real" }))}
+            >
+              {cfg.renderMode === "real" ? "Ver modo didáctico" : "Ver modo real"}
+            </button>
+            <p className="text-[11px] text-slate-600">
+              Modo real = overlay devuelto por backend (orientativo).
+            </p>
+          </div>
+
         </section>
       </div>
     </div>

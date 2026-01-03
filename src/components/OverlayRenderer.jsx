@@ -3,6 +3,7 @@ import { UIProfile } from "../utils/uiProfiles";
 
 // MSK (existente)
 import MuscleAtlasCanvas from "./MuscleAtlasCanvas";
+import MskRealCanvas from "./MskRealCanvas";
 
 // ✅ VASCULAR (nuevo)
 import VascularAtlasCanvas from "./VascularAtlasCanvas";
@@ -15,6 +16,12 @@ export default function OverlayRenderer({ overlay, imageSrc }) {
 
   switch (overlay.profile) {
     case UIProfile.MSK: {
+      const renderMode = overlay.renderMode || "didactic";
+      const backendOverlay = overlay.backendOverlay || null;
+      if (renderMode === "real" && backendOverlay) {
+        return <MskRealCanvas src={imageSrc} mskOverlay={backendOverlay} />;
+      }
+
       const anatomyBox =
         overlay.anatomyBox ||
         overlay.roi || { x0: 10, y0: 10, x1: 95, y1: 84 };
