@@ -1758,6 +1758,7 @@ async function handleGenerateCosmeticPdf() {
         imgType={imgType}
         summary={imagenSummary}
         patterns={imagenPatterns}
+        imgRef={imgModalRef}
       />
     </div>
   ) : (
