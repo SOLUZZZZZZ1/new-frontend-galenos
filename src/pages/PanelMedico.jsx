@@ -1752,7 +1752,7 @@ async function handleGenerateCosmeticPdf() {
   (overlayMode === "auto" && Array.isArray(activeOverlays) && activeOverlays.includes("FIBER_LINES"))) ? (
   overlayMode === "msk-atlas" ? (
     <div className="absolute inset-0 z-30 pointer-events-auto">
-      <MskAtlasOverlay onAutoReal={() => setOverlayMode('AUTO')}
+      <MskAtlasOverlay
         imagingId={lastImagenId}
         src={imagenFilePath}
         imgType={imgType}
