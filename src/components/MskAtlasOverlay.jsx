@@ -117,6 +117,20 @@ export default function MskAtlasOverlay({ imagingId, src, imgType, summary, patt
           <p className="text-[11px] text-slate-600 mt-2">
             API: <span className="font-mono">{API}</span>
           </p>
+
+          <div className="flex items-center gap-2 mt-2">
+            <button
+              type="button"
+              className="sr-btn-secondary text-xs"
+              onClick={() => setCfg((p) => ({ ...p, renderMode: p.renderMode === "real" ? "didactic" : "real" }))}
+            >
+              {cfg.renderMode === "real" ? "Ver modo didáctico" : "Ver modo real"}
+            </button>
+            <p className="text-[11px] text-slate-600">
+              Modo real = overlay devuelto por backend (orientativo).
+            </p>
+          </div>
+
         </section>
       </div>
     </div>
