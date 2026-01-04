@@ -25,6 +25,7 @@ const API =
 
 const ActualidadMedica = () => {
   const [news, setNews] = useState([]);
+  const [generatedAt, setGeneratedAt] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -68,6 +69,8 @@ const ActualidadMedica = () => {
     };
 
     fetchNews();
+    const t = setInterval(fetchNews, 10 * 60 * 1000);
+    return () => clearInterval(t);
   }, []);
 
   return (
@@ -79,6 +82,21 @@ const ActualidadMedica = () => {
           “Ver noticia completa” para abrir el medio original en una pestaña
           nueva.
         </p>
+      
+<div className="mt-3 flex items-center gap-3">
+  <button
+    type="button"
+    className="sr-btn-secondary text-xs"
+    onClick={() => window.location.reload()}
+  >
+    Actualizar ahora
+  </button>
+  {generatedAt ? (
+    <span className="text-xs text-gray-500">
+      Actualizado: {new Date(generatedAt).toLocaleString("es-ES")}
+    </span>
+  ) : null}
+</div>
       </header>
 
       {loading && (
