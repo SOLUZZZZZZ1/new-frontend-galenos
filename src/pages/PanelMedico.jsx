@@ -413,6 +413,7 @@ useEffect(() => {
   const [showImgOverlay, setShowImgOverlay] = useState(true);
   const [activeOverlays, setActiveOverlays] = useState([]);
   const [overlayMode, setOverlayMode] = useState("auto"); // auto | msk-orient | msk-atlas | vascular | off
+  const [vascularV2Base, setVascularV2Base] = useState(null);
   const [imgModalOpen, setImgModalOpen] = useState(false);
 
   
@@ -1205,6 +1206,9 @@ async function handleGenerateCosmeticPdf() {
 
 
 
+  const vascularHasStent = !!(vascularV2Base?.facts && String(vascularV2Base.facts.join(" ")).toLowerCase().includes("stent"));
+  const vascularHasPattern = !!(vascularV2Base?.patterns && vascularV2Base.patterns.length > 0);
+
   // ========================
   // RENDER
   // ========================
@@ -1681,7 +1685,7 @@ async function handleGenerateCosmeticPdf() {
                   {showImgOverlay && overlayMode !== "off" && (
                     (overlayMode === "vascular" || (overlayMode === "auto" && Array.isArray(activeOverlays) && (activeOverlays.includes("VESSEL_AXIS") || activeOverlays.includes("VESSEL_GUIDE")))) ? (
                       <>
-                        <VascularOverlayReal imagingId={lastImagenId} enabled={true} imgRef={imgInlineRef} />
+                        <VascularOverlayReal imagingId={lastImagenId} enabled={true} imgRef={imgInlineRef} showStentLabel={vascularHasStent} showPatternShade={vascularHasPattern} />
                         <VascularOverlaySvg />
     </>
                     ) : null
@@ -1700,7 +1704,7 @@ async function handleGenerateCosmeticPdf() {
 
                 {/* ✅ Vascular V2 (hechos + patrones + oráculo) */}
                 {(overlayMode === "vascular" || (overlayMode === "auto" && Array.isArray(activeOverlays) && (activeOverlays.includes("VESSEL_AXIS") || activeOverlays.includes("VESSEL_GUIDE")))) ? (
-                  <VascularV2Card imagingId={lastImagenId} token={token} />
+                  <VascularV2Card imagingId={lastImagenId} token={token} onBaseUpdate={setVascularV2Base} />
                 ) : null}
 
                 </p>
@@ -1746,6 +1750,8 @@ async function handleGenerateCosmeticPdf() {
         imagingId={lastImagenId}
         enabled={true}
         imgRef={imgModalRef}
+        showStentLabel={vascularHasStent}
+        showPatternShade={vascularHasPattern}
       />
 
       {/* Fallback direccional */}
@@ -1780,7 +1786,7 @@ async function handleGenerateCosmeticPdf() {
 
                       {/* ✅ Vascular V2 (hechos + patrones + oráculo) */}
                       {(overlayMode === "vascular" || (overlayMode === "auto" && Array.isArray(activeOverlays) && (activeOverlays.includes("VESSEL_AXIS") || activeOverlays.includes("VESSEL_GUIDE")))) ? (
-                        <VascularV2Card imagingId={lastImagenId} token={token} />
+                        <VascularV2Card imagingId={lastImagenId} token={token} onBaseUpdate={setVascularV2Base} />
                       ) : null}
 
                       </p>
