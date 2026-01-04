@@ -25,9 +25,9 @@ const API =
 
 const ActualidadMedica = () => {
   const [news, setNews] = useState([]);
-  const [generatedAt, setGeneratedAt] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     const fetchNews = async () => {
@@ -35,7 +35,7 @@ const ActualidadMedica = () => {
         setLoading(true);
         setError(null);
 
-        const resp = await fetch(`${API}/medical-news/live?limit=20`);
+        const resp = await fetch(`${API}/medical-news/live?limit=20&days=10`);
         const raw = await resp.text();
 
         if (!resp.ok) {
@@ -69,9 +69,7 @@ const ActualidadMedica = () => {
     };
 
     fetchNews();
-    const t = setInterval(fetchNews, 10 * 60 * 1000);
-    return () => clearInterval(t);
-  }, []);
+  }, [refreshKey]);
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-6">
@@ -87,17 +85,13 @@ const ActualidadMedica = () => {
   <button
     type="button"
     className="sr-btn-secondary text-xs"
-    onClick={() => window.location.reload()}
+    onClick={() => setRefreshKey((k) => k + 1)}
   >
     Actualizar ahora
   </button>
-  {generatedAt ? (
-    <span className="text-xs text-gray-500">
-      Actualizado: {new Date(generatedAt).toLocaleString("es-ES")}
-    </span>
-  ) : null}
 </div>
-      </header>
+</header>
+
 
       {loading && (
         <p className="text-sm text-gray-500">Cargando noticias médicas…</p>
