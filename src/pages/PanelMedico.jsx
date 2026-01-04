@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import MskAtlasOverlay from "../components/MskAtlasOverlay";
 import VascularOverlayReal from "../components/VascularOverlayReal";
 import VascularV2Card from "../components/VascularV2Card";
+import MedicalNewsLiveWidget from "../components/MedicalNewsLiveWidget";
 
 
 
@@ -413,7 +414,6 @@ useEffect(() => {
   const [showImgOverlay, setShowImgOverlay] = useState(true);
   const [activeOverlays, setActiveOverlays] = useState([]);
   const [overlayMode, setOverlayMode] = useState("auto"); // auto | msk-orient | msk-atlas | vascular | off
-  const [vascularV2Base, setVascularV2Base] = useState(null);
   const [imgModalOpen, setImgModalOpen] = useState(false);
 
   
@@ -1206,9 +1206,6 @@ async function handleGenerateCosmeticPdf() {
 
 
 
-  const vascularHasStent = !!(vascularV2Base?.facts && String(vascularV2Base.facts.join(" ")).toLowerCase().includes("stent"));
-  const vascularHasPattern = !!(vascularV2Base?.patterns && vascularV2Base.patterns.length > 0);
-
   // ========================
   // RENDER
   // ========================
@@ -1292,6 +1289,10 @@ async function handleGenerateCosmeticPdf() {
             Ver / editar mi perfil médico
           </button>
         </div>
+      </section>
+
+      <section className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 space-y-3">
+        <MedicalNewsLiveWidget token={token} />
       </section>
 
       {/* BLOQUE PACIENTE SELECCIONADO / CREAR DESDE PANEL */}
@@ -1685,7 +1686,7 @@ async function handleGenerateCosmeticPdf() {
                   {showImgOverlay && overlayMode !== "off" && (
                     (overlayMode === "vascular" || (overlayMode === "auto" && Array.isArray(activeOverlays) && (activeOverlays.includes("VESSEL_AXIS") || activeOverlays.includes("VESSEL_GUIDE")))) ? (
                       <>
-                        <VascularOverlayReal imagingId={lastImagenId} enabled={true} imgRef={imgInlineRef} showStentLabel={vascularHasStent} showPatternShade={vascularHasPattern} />
+                        <VascularOverlayReal imagingId={lastImagenId} enabled={true} imgRef={imgInlineRef} />
                         <VascularOverlaySvg />
     </>
                     ) : null
@@ -1704,14 +1705,14 @@ async function handleGenerateCosmeticPdf() {
 
                 {/* ✅ Vascular V2 (hechos + patrones + oráculo) */}
                 {(overlayMode === "vascular" || (overlayMode === "auto" && Array.isArray(activeOverlays) && (activeOverlays.includes("VESSEL_AXIS") || activeOverlays.includes("VESSEL_GUIDE")))) ? (
-                  <VascularV2Card imagingId={lastImagenId} token={token} onBaseUpdate={setVascularV2Base} />
+                  <VascularV2Card imagingId={lastImagenId} token={token} />
                 ) : null}
 
                 </p>
 
                 {imgModalOpen && (
                   <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-3" onClick={() => setImgModalOpen(false)}>
-                    <div className="bg-white rounded-xl max-w-5xl w-full p-3 sm:p-4 relative" onClick={(e) => e.stopPropagation()}>
+                    <div className="bg-white rounded-xl max-w-5xl w-full p-3 sm:p-4 relative max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
                       <button type="button" onClick={() => setImgModalOpen(false)} className="absolute top-2 right-2 sr-btn-secondary text-xs" aria-label="Cerrar">✕</button>
 
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
@@ -1750,8 +1751,6 @@ async function handleGenerateCosmeticPdf() {
         imagingId={lastImagenId}
         enabled={true}
         imgRef={imgModalRef}
-        showStentLabel={vascularHasStent}
-        showPatternShade={vascularHasPattern}
       />
 
       {/* Fallback direccional */}
@@ -1786,7 +1785,7 @@ async function handleGenerateCosmeticPdf() {
 
                       {/* ✅ Vascular V2 (hechos + patrones + oráculo) */}
                       {(overlayMode === "vascular" || (overlayMode === "auto" && Array.isArray(activeOverlays) && (activeOverlays.includes("VESSEL_AXIS") || activeOverlays.includes("VESSEL_GUIDE")))) ? (
-                        <VascularV2Card imagingId={lastImagenId} token={token} onBaseUpdate={setVascularV2Base} />
+                        <VascularV2Card imagingId={lastImagenId} token={token} />
                       ) : null}
 
                       </p>
