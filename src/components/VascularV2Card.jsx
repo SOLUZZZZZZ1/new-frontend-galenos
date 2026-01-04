@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 
 const API = import.meta.env.VITE_API_URL || "https://galenos-backend.onrender.com";
 
-export default function VascularV2Card({ imagingId, token, onBaseUpdate }) {
+export default function VascularV2Card({ imagingId, token }) {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
   const [base, setBase] = useState(null);
@@ -16,11 +16,8 @@ export default function VascularV2Card({ imagingId, token, onBaseUpdate }) {
     let cancelled = false;
 
     async function run() {
-      if (!imagingId || !token) {
-        setBase(null);
-        try { onBaseUpdate && onBaseUpdate(null); } catch {}
-        return;
-      }
+      if (!imagingId) { setBase(null); return; }
+      if (!token) { setBase(null); setErr("No hay sesión activa. Inicia sesión de nuevo."); return; }
       setErr("");
       setLoading(true);
       try {
@@ -34,11 +31,7 @@ export default function VascularV2Card({ imagingId, token, onBaseUpdate }) {
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data?.detail || "Error cargando Vascular V2.");
-        if (!cancelled) {
-          const b = data?.base || null;
-          setBase(b);
-          try { onBaseUpdate && onBaseUpdate(b); } catch {}
-        }
+        if (!cancelled) setBase(data?.base || null);
       } catch (e) {
         if (!cancelled) setErr(String(e?.message || e));
       } finally {
@@ -81,7 +74,7 @@ export default function VascularV2Card({ imagingId, token, onBaseUpdate }) {
     <div className="mt-3 rounded-xl border border-slate-200 bg-white/80 p-3">
       <div className="flex items-center justify-between gap-2">
         <h4 className="text-sm font-semibold">🩸 Vascular V2 · Lo relevante en esta imagen</h4>
-        {loading ? <span className="text-xs text-slate-500">Analizando…</span> : null}
+        {loading ? <span className="text-xs text-slate-500">Analizando señales…</span> : null}
       </div>
 
       {err ? <p className="text-xs text-red-600 mt-2">{err}</p> : null}
