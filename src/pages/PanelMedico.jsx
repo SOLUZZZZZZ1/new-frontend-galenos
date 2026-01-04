@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import MskAtlasOverlay from "../components/MskAtlasOverlay";
 import VascularOverlayReal from "../components/VascularOverlayReal";
+import VascularV2Card from "../components/VascularV2Card";
 
 
 
@@ -1696,6 +1697,12 @@ async function handleGenerateCosmeticPdf() {
 
                 <p className="text-[10px] text-slate-500 mt-2">
                   Orientación visual ilustrativa. No delimita ni valora patología. (En MSK: guía didáctica por capas, no segmentación exacta.)
+
+                {/* ✅ Vascular V2 (hechos + patrones + oráculo) */}
+                {(overlayMode === "vascular" || (overlayMode === "auto" && Array.isArray(activeOverlays) && (activeOverlays.includes("VESSEL_AXIS") || activeOverlays.includes("VESSEL_GUIDE")))) ? (
+                  <VascularV2Card imagingId={lastImagenId} token={token} />
+                ) : null}
+
                 </p>
 
                 {imgModalOpen && (
@@ -1758,7 +1765,6 @@ async function handleGenerateCosmeticPdf() {
         imgType={imgType}
         summary={imagenSummary}
         patterns={imagenPatterns}
-        imgRef={imgModalRef}
       />
     </div>
   ) : (
@@ -1771,6 +1777,12 @@ async function handleGenerateCosmeticPdf() {
 
                       <p className="text-[10px] text-slate-600 mt-2">
                         Guía didáctica/visual orientativa. No delimita ni valora patología. La interpretación final corresponde al profesional sanitario responsable.
+
+                      {/* ✅ Vascular V2 (hechos + patrones + oráculo) */}
+                      {(overlayMode === "vascular" || (overlayMode === "auto" && Array.isArray(activeOverlays) && (activeOverlays.includes("VESSEL_AXIS") || activeOverlays.includes("VESSEL_GUIDE")))) ? (
+                        <VascularV2Card imagingId={lastImagenId} token={token} />
+                      ) : null}
+
                       </p>
                     </div>
                   </div>
