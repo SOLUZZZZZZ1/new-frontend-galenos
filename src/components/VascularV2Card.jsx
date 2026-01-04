@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 
 const API = import.meta.env.VITE_API_URL || "https://galenos-backend.onrender.com";
 
-export default function VascularV2Card({ imagingId, token }) {
+export default function VascularV2Card({ imagingId, token, onBaseUpdate }) {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
   const [base, setBase] = useState(null);
@@ -18,6 +18,7 @@ export default function VascularV2Card({ imagingId, token }) {
     async function run() {
       if (!imagingId || !token) {
         setBase(null);
+        try { onBaseUpdate && onBaseUpdate(null); } catch {}
         return;
       }
       setErr("");
@@ -33,7 +34,11 @@ export default function VascularV2Card({ imagingId, token }) {
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data?.detail || "Error cargando Vascular V2.");
-        if (!cancelled) setBase(data?.base || null);
+        if (!cancelled) {
+          const b = data?.base || null;
+          setBase(b);
+          try { onBaseUpdate && onBaseUpdate(b); } catch {}
+        }
       } catch (e) {
         if (!cancelled) setErr(String(e?.message || e));
       } finally {

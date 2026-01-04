@@ -3,7 +3,7 @@ import VascularAtlasCanvas from "./VascularAtlasCanvas";
 
 const API = import.meta.env.VITE_API_URL || "https://galenos-backend.onrender.com";
 
-export default function VascularOverlayReal({ imagingId, enabled, imgRef }) {
+export default function VascularOverlayReal({ imagingId, enabled, imgRef, showStentLabel, showPatternShade }) {
   const [overlay, setOverlay] = useState(null);
   const [fit, setFit] = useState(null);
 
