@@ -60,10 +60,18 @@ export default function HiloPanel({ selectedCaseId, apiBase, token }) {
       const raw = await res.text();
       console.log("👉 [DeGuardia] GET /messages raw:", raw);
 
-      if (!res.ok) {
-        setError("No se pudieron cargar los mensajes.");
-        return;
-      }
+
+if (!res.ok) {
+  let msg = "No se pudieron cargar los mensajes.";
+  try {
+    const errData = JSON.parse(raw);
+    if (errData?.detail) msg = errData.detail;
+  } catch {
+    if (raw && raw.trim()) msg = raw.trim();
+  }
+  setError(msg);
+  return;
+}
 
       let data;
       try { data = JSON.parse(raw); } catch {
@@ -147,10 +155,18 @@ export default function HiloPanel({ selectedCaseId, apiBase, token }) {
       const raw = await res.text();
       console.log("👉 [DeGuardia] POST /messages raw:", raw);
 
-      if (!res.ok) {
-        setError("No se pudo enviar el mensaje.");
-        return;
-      }
+
+if (!res.ok) {
+  let msg = "No se pudo enviar el mensaje.";
+  try {
+    const errData = JSON.parse(raw);
+    if (errData?.detail) msg = errData.detail;
+  } catch {
+    if (raw && raw.trim()) msg = raw.trim();
+  }
+  setError(msg);
+  return;
+}
 
       let newMsg;
       try { newMsg = JSON.parse(raw); } catch {
@@ -178,6 +194,15 @@ export default function HiloPanel({ selectedCaseId, apiBase, token }) {
 
   return (
     <div className="flex flex-col h-full">
+
+<div className="px-3 pt-3">
+  <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+    <p className="text-xs font-semibold text-slate-800">🛡️ Espacio moderado (aprendizaje clínico)</p>
+    <p className="text-[11px] text-slate-600 mt-1">
+      Sin insultos, sin política y sin datos identificativos. Si un mensaje se bloquea, te mostraremos el motivo para que puedas editarlo.
+    </p>
+  </div>
+</div>
       <div className="flex-1 overflow-y-auto space-y-3 p-3">
         {loading && <p className="text-sm text-gray-500">Cargando mensajes…</p>}
         {error && <p className="text-sm text-red-600">{error}</p>}
