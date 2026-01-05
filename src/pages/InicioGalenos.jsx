@@ -16,13 +16,14 @@ export default function InicioGalenos() {
         <title>Galenos.pro | Plataforma clínica segura de apoyo al médico</title>
         <meta
           name="description"
-          content="Plataforma clínica para médicos que ayuda a organizar información, interpretar analíticas e imágenes y mantener un timeline clínico de forma segura."
+          content="Plataforma clínica para médicos con IA prudente: organización de pacientes, analíticas, imágenes médicas y almacenamiento seguro escalable."
         />
       </Helmet>
 
       <main className="min-h-[80vh] flex flex-col">
+        {/* HERO */}
         <section className="sr-container flex-1 grid md:grid-cols-2 gap-10 items-center px-4 py-10">
-          {/* COLUMNA IZQUIERDA */}
+          {/* IZQUIERDA */}
           <div>
             <p className="text-xs font-semibold tracking-[0.18em] text-sky-700 uppercase mb-2">
               IA clínica prudente para médicos
@@ -36,7 +37,7 @@ export default function InicioGalenos() {
             <p className="text-lg text-slate-700 mb-5">
               Galenos.pro te ayuda a leer historias clínicas extensas,
               interpretar analíticas, organizar imágenes médicas y mantener
-              un timeline por paciente.
+              un timeline clínico claro por paciente.
             </p>
 
             <div className="grid gap-2 mb-5 text-sm text-slate-700">
@@ -50,7 +51,7 @@ export default function InicioGalenos() {
               </div>
               <div className="flex gap-2">
                 <span className="text-sky-700">✓</span>
-                <p>Interpreta imágenes (RX, TAC, RM, ECO).</p>
+                <p>Interpreta imágenes médicas (RX, TAC, RM, ECO).</p>
               </div>
               <div className="flex gap-2">
                 <span className="text-sky-700">✓</span>
@@ -58,11 +59,12 @@ export default function InicioGalenos() {
               </div>
             </div>
 
+            {/* CUENTA */}
             <div className="mb-5 rounded-md border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-slate-800">
               <p className="font-semibold mb-1">Cuenta profesional</p>
-              <p className="mb-1">
-                Crea tu cuenta de médico y después, desde tu panel, podrás activar
-                la prueba PRO de 10 días (sin cargo inicial).
+              <p>
+                Crea tu cuenta de médico y activa desde tu panel
+                la prueba PRO de <strong>10 días</strong>, sin cargo inicial.
               </p>
             </div>
 
@@ -84,18 +86,18 @@ export default function InicioGalenos() {
             </div>
 
             <p className="mt-4 text-xs text-slate-500">
-              El pago solo aparece dentro de la app, tras iniciar sesión.
+              El pago solo aparece dentro de la aplicación, tras iniciar sesión.
             </p>
           </div>
 
-          {/* COLUMNA DERECHA */}
+          {/* DERECHA */}
           <div className="space-y-5 bg-white/70 backdrop-blur-sm rounded-xl border border-slate-200 p-5 shadow-sm">
             <div>
               <h2 className="text-sm font-semibold mb-1 text-slate-900">
                 Historias clínicas
               </h2>
               <p className="text-sm text-slate-700">
-                Sube o pega evolutivos largos y Galenos resume la información clave.
+                Sube o pega evolutivos largos y Galenos resume la información relevante.
               </p>
             </div>
 
@@ -104,7 +106,7 @@ export default function InicioGalenos() {
                 Analíticas con IA
               </h2>
               <p className="text-sm text-slate-700">
-                Extrae marcadores, rangos y valores relevantes automáticamente.
+                Extracción automática de marcadores, rangos y valores clave.
               </p>
             </div>
 
@@ -113,10 +115,48 @@ export default function InicioGalenos() {
                 Imágenes médicas
               </h2>
               <p className="text-sm text-slate-700">
-                Analiza estudios RX/TAC/RM/ECO y genera un resumen prudente.
+                Apoyo en RX, TAC, RM o ECO con resúmenes prudentes.
               </p>
             </div>
           </div>
+        </section>
+
+        {/* ALMACENAMIENTO */}
+        <section className="sr-container py-10">
+          <div className="sr-card">
+            <h2 className="sr-h1 mb-3">Almacenamiento clínico seguro y escalable</h2>
+            <p className="sr-p mb-3">
+              Cada cuenta incluye <strong>10 GB de almacenamiento seguro</strong>
+              para analíticas, imágenes médicas y documentación clínica.
+            </p>
+            <ul className="sr-list">
+              <li>Escalable a 20, 50, 100 GB o más según necesidades.</li>
+              <li>Sin migraciones, sin interrupciones.</li>
+              <li>Los datos permanecen siempre accesibles y protegidos.</li>
+            </ul>
+          </div>
+        </section>
+
+        {/* SEGURIDAD */}
+        <section className="sr-container py-6">
+          <div className="sr-card">
+            <h2 className="sr-h1 mb-3">Seguridad y responsabilidad médica</h2>
+            <ul className="sr-list">
+              <li>Datos cifrados y controlados por el médico.</li>
+              <li>Sin decisiones automáticas.</li>
+              <li>La herramienta no sustituye el criterio clínico profesional.</li>
+            </ul>
+          </div>
+        </section>
+
+        {/* CTA FINAL */}
+        <section className="sr-container py-10 text-center">
+          <button
+            onClick={handleStart}
+            className="sr-btn-primary text-base px-6 py-3"
+          >
+            Empezar con Galenos
+          </button>
         </section>
       </main>
     </>
