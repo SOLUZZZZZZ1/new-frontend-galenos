@@ -4,9 +4,6 @@ import { useNavigate } from "react-router-dom";
 import MskAtlasOverlay from "../components/MskAtlasOverlay";
 import VascularOverlayReal from "../components/VascularOverlayReal";
 import VascularV2Card from "../components/VascularV2Card";
-import MedicalNewsLiveWidget from "../components/MedicalNewsLiveWidget";
-
-
 
 // URL del backend de Galenos (Render)
 const API =
@@ -305,7 +302,6 @@ function fmtDateCompact(v) {
   useEffect(() => {
     loadPatients();
   }, []);
-
 
 useEffect(() => {
   const pid = parseInt(selectedPatientId, 10);
@@ -1016,7 +1012,6 @@ async function handleGenerateCosmeticPdf() {
   }
 }
 
-
   async function handleImagingChat(e) {
     e.preventDefault();
     setImgChatError("");
@@ -1092,7 +1087,6 @@ async function handleGenerateCosmeticPdf() {
       setImgChatLoading(false);
     }
   }
-
 
   // ========================
   // Overlay: inferencia simple por texto (SAFE)
@@ -1202,10 +1196,6 @@ async function handleGenerateCosmeticPdf() {
     );
   }
 
-
-
-
-
   // ========================
   // RENDER
   // ========================
@@ -1289,10 +1279,6 @@ async function handleGenerateCosmeticPdf() {
             Ver / editar mi perfil médico
           </button>
         </div>
-      </section>
-
-      <section className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 space-y-3">
-        <MedicalNewsLiveWidget token={token} />
       </section>
 
       {/* BLOQUE PACIENTE SELECCIONADO / CREAR DESDE PANEL */}
@@ -1759,7 +1745,6 @@ async function handleGenerateCosmeticPdf() {
   ) : null
 )}
 
-
                             {((overlayMode === "msk-orient" || overlayMode === "msk-atlas") ||
   (overlayMode === "auto" && Array.isArray(activeOverlays) && activeOverlays.includes("FIBER_LINES"))) ? (
   overlayMode === "msk-atlas" ? (
@@ -1792,7 +1777,6 @@ async function handleGenerateCosmeticPdf() {
                     </div>
                   </div>
                 )}
-
 
               </div>
             )}
@@ -1943,7 +1927,6 @@ async function handleGenerateCosmeticPdf() {
 
     </div>
   )}
-
 
   <div className="mt-4 border-t border-slate-200 pt-3">
   <h4 className="text-sm font-semibold">🔁 Comparar Antes / Después</h4>
