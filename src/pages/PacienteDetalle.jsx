@@ -253,6 +253,16 @@ export default function PacienteDetalle() {
     timeline: true,
   });
 
+  // ✅ Archivar / Borrar paciente (Nora)
+  const [archiveLoading, setArchiveLoading] = useState(false);
+  const [archiveError, setArchiveError] = useState("");
+  const [deleteError, setDeleteError] = useState("");
+  const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
+  const [showDeleteConfirm1, setShowDeleteConfirm1] = useState(false);
+  const [showDeleteConfirm2, setShowDeleteConfirm2] = useState(false);
+  const [deleteText, setDeleteText] = useState("");
+  const [deleting, setDeleting] = useState(false);
+
   // Editar paciente
   const [editing, setEditing] = useState(false);
   const [editAlias, setEditAlias] = useState("");
@@ -380,6 +390,82 @@ const [sinceChangesError, setSinceChangesError] = useState("");
       setLoading(false);
     }
   }
+
+// ========================
+// ✅ Archivar / Restaurar / Borrar (Nora)
+// ========================
+async function doArchive() {
+  setArchiveError("");
+  setDeleteError("");
+  if (!id || !token) return;
+
+  try {
+    setArchiveLoading(true);
+    const res = await fetch(`${API}/patients/${id}/archive`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const raw = await res.text();
+    if (!res.ok) throw new Error(raw);
+    const data = JSON.parse(raw);
+    setPatient(data);
+    setShowArchiveConfirm(false);
+  } catch (e) {
+    console.error("❌ Error archivando paciente:", e);
+    setArchiveError("No se pudo archivar el paciente.");
+  } finally {
+    setArchiveLoading(false);
+  }
+}
+
+async function doUnarchive() {
+  setArchiveError("");
+  setDeleteError("");
+  if (!id || !token) return;
+
+  try {
+    setArchiveLoading(true);
+    const res = await fetch(`${API}/patients/${id}/unarchive`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const raw = await res.text();
+    if (!res.ok) throw new Error(raw);
+    const data = JSON.parse(raw);
+    setPatient(data);
+  } catch (e) {
+    console.error("❌ Error restaurando paciente:", e);
+    setArchiveError("No se pudo restaurar el paciente.");
+  } finally {
+    setArchiveLoading(false);
+  }
+}
+
+async function doHardDelete() {
+  setDeleteError("");
+  setArchiveError("");
+  if (!id || !token) return;
+
+  try {
+    setDeleting(true);
+    const res = await fetch(`${API}/patients/${id}?hard=true`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const raw = await res.text();
+    if (!res.ok) throw new Error(raw);
+    navigate("/pacientes");
+  } catch (e) {
+    console.error("❌ Error borrando paciente:", e);
+    setDeleteError("No se pudo borrar el paciente. (Si falló el almacenamiento, el backend aborta para evitar inconsistencias).");
+  } finally {
+    setDeleting(false);
+    setShowDeleteConfirm1(false);
+    setShowDeleteConfirm2(false);
+    setDeleteText("");
+  }
+}
+
 
 async function loadReviewState() {
   setReviewStateError("");
@@ -769,10 +855,95 @@ useEffect(() => {
 
   return (
     <div className="sr-container py-6 space-y-6">
+
+      {/* ========================= */}
+      {/* MODALES: ARCHIVAR / BORRAR */}
+      {/* ========================= */}
+      {showArchiveConfirm && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setShowArchiveConfirm(false)}>
+          <div className="bg-white rounded-xl border border-slate-200 shadow-lg max-w-lg w-full p-4" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-slate-900">Archivar paciente</h3>
+            <p className="text-sm text-slate-700 mt-2">
+              El paciente pasará a <b>Archivados</b> y no aparecerá en la lista normal. El historial se conserva y podrás restaurarlo cuando quieras.
+            </p>
+            {archiveError && <p className="text-sm text-rose-700 mt-2">{archiveError}</p>}
+            <div className="flex gap-2 justify-end mt-4">
+              <button className="sr-btn-secondary text-xs" onClick={() => setShowArchiveConfirm(false)}>
+                Cancelar
+              </button>
+              <button className="sr-btn-primary text-xs disabled:opacity-60 disabled:cursor-not-allowed" onClick={doArchive} disabled={archiveLoading}>
+                {archiveLoading ? "Archivando..." : "Archivar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDeleteConfirm1 && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setShowDeleteConfirm1(false)}>
+          <div className="bg-white rounded-xl border border-rose-200 shadow-lg max-w-lg w-full p-4" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-slate-900">Borrado permanente</h3>
+            <p className="text-sm text-slate-700 mt-2">
+              Vas a borrar <b>definitivamente</b> este paciente y <b>todo su historial</b> (analíticas, imágenes, notas, timeline). Esta acción es <b>irrecuperable</b>.
+            </p>
+            <p className="text-xs text-slate-500 mt-2">
+              Recomendación: usa <b>Archivar</b> si solo quieres ocultarlo sin perder información.
+            </p>
+            <div className="flex gap-2 justify-end mt-4">
+              <button className="sr-btn-secondary text-xs" onClick={() => setShowDeleteConfirm1(false)}>
+                Cancelar
+              </button>
+              <button
+                className="inline-flex items-center justify-center rounded-xl bg-rose-600 px-4 py-2 text-xs font-medium text-white hover:bg-rose-700"
+                onClick={() => {
+                  setShowDeleteConfirm1(false);
+                  setShowDeleteConfirm2(true);
+                }}
+              >
+                Continuar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDeleteConfirm2 && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setShowDeleteConfirm2(false)}>
+          <div className="bg-white rounded-xl border border-rose-200 shadow-lg max-w-lg w-full p-4" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-slate-900">Confirmación final</h3>
+            <p className="text-sm text-slate-700 mt-2">
+              Para confirmar el borrado irreversible, escribe <b>BORRAR</b>.
+            </p>
+
+            <input className="sr-input mt-3" value={deleteText} onChange={(e) => setDeleteText(e.target.value)} placeholder="BORRAR" />
+
+            {deleteError && <p className="text-sm text-rose-700 mt-2">{deleteError}</p>}
+
+            <div className="flex gap-2 justify-end mt-4">
+              <button className="sr-btn-secondary text-xs" onClick={() => setShowDeleteConfirm2(false)}>
+                Cancelar
+              </button>
+              <button
+                className="inline-flex items-center justify-center rounded-xl bg-rose-600 px-4 py-2 text-xs font-medium text-white hover:bg-rose-700 disabled:opacity-60 disabled:cursor-not-allowed"
+                disabled={deleting || deleteText.trim().toUpperCase() !== "BORRAR"}
+                onClick={doHardDelete}
+              >
+                {deleting ? "Borrando..." : "Borrar definitivamente"}
+              </button>
+            </div>
+
+            <p className="text-[10px] text-slate-500 mt-2">
+              Acción irreversible. Si falla la limpieza de almacenamiento, el backend aborta para evitar inconsistencias.
+            </p>
+          </div>
+        </div>
+      )}
+
+
       <section className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 sm:p-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <h1 className="text-xl sm:text-2xl font-semibold text-slate-900">Paciente: {patient.alias}</h1>
+            <h1 className="text-xl sm:text-2xl font-semibold text-slate-900">Paciente: {patient.alias} {patient?.archived ? (<span className="ml-2 text-xs px-2 py-0.5 rounded-full border border-slate-200 bg-slate-50 text-slate-700">Archivado</span>) : null}</h1>
             <p className="text-sm text-slate-500 mt-1">
               Nº Paciente: <span className="font-mono">{patient.patient_number ?? "—"}</span> · ID interno:{" "}
               <span className="font-mono">{patient.id}</span> · Alta: {patient.created_at ? toMadrid(patient.created_at) : "-"}
@@ -792,6 +963,47 @@ useEffect(() => {
 
             <button type="button" onClick={() => navigate("/dashboard")} className="sr-btn-secondary text-xs sm:text-sm">Volver al dashboard</button>
             <button type="button" onClick={() => navigate("/pacientes")} className="sr-btn-secondary text-xs sm:text-sm">Volver a pacientes</button>
+
+            {/* ✅ Archivar / Restaurar */}
+            {!patient?.archived ? (
+              <button
+                type="button"
+                className="sr-btn-secondary text-xs sm:text-sm disabled:opacity-60 disabled:cursor-not-allowed"
+                disabled={archiveLoading}
+                onClick={() => {
+                  setArchiveError("");
+                  setDeleteError("");
+                  setShowArchiveConfirm(true);
+                }}
+                title="Archivar (recomendado). El historial se conserva."
+              >
+                {archiveLoading ? "..." : "Archivar"}
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="sr-btn-secondary text-xs sm:text-sm disabled:opacity-60 disabled:cursor-not-allowed"
+                disabled={archiveLoading}
+                onClick={doUnarchive}
+                title="Restaurar paciente archivado"
+              >
+                {archiveLoading ? "Restaurando..." : "Restaurar"}
+              </button>
+            )}
+
+            {/* 🔴 Borrado permanente */}
+            <button
+              type="button"
+              className="inline-flex items-center justify-center rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-xs sm:text-sm font-medium text-rose-700 hover:bg-rose-100"
+              onClick={() => {
+                setArchiveError("");
+                setDeleteError("");
+                setShowDeleteConfirm1(true);
+              }}
+              title="Borrado irreversible (paciente + historial + almacenamiento)"
+            >
+              Borrar permanente…
+            </button>
           </div>
 
 <div className="mt-3 w-full sm:w-[380px] border border-slate-200 rounded-lg bg-slate-50/60 p-3">
