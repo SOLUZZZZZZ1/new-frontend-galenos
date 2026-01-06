@@ -263,6 +263,16 @@ export default function PacienteDetalle() {
   const [deleteText, setDeleteText] = useState("");
   const [deleting, setDeleting] = useState(false);
 
+  // ✅ Toast UX (mensajes breves)
+  const [toast, setToast] = useState(null); // { type: "success"|"info"|"error", msg: string }
+
+  function pushToast(type, msg) {
+    setToast({ type, msg });
+    window.clearTimeout(pushToast._t);
+    pushToast._t = window.setTimeout(() => setToast(null), 3500);
+  }
+
+
   // Editar paciente
   const [editing, setEditing] = useState(false);
   const [editAlias, setEditAlias] = useState("");
@@ -410,6 +420,7 @@ async function doArchive() {
     const data = JSON.parse(raw);
     setPatient(data);
     setShowArchiveConfirm(false);
+    pushToast("success", "Paciente archivado. Puedes restaurarlo desde ‘Archivados’. ");
   } catch (e) {
     console.error("❌ Error archivando paciente:", e);
     setArchiveError("No se pudo archivar el paciente.");
@@ -433,6 +444,7 @@ async function doUnarchive() {
     if (!res.ok) throw new Error(raw);
     const data = JSON.parse(raw);
     setPatient(data);
+    pushToast("success", "Paciente restaurado y activo.");
   } catch (e) {
     console.error("❌ Error restaurando paciente:", e);
     setArchiveError("No se pudo restaurar el paciente.");
@@ -454,6 +466,7 @@ async function doHardDelete() {
     });
     const raw = await res.text();
     if (!res.ok) throw new Error(raw);
+    pushToast("success", "Paciente borrado definitivamente.");
     navigate("/pacientes");
   } catch (e) {
     console.error("❌ Error borrando paciente:", e);
@@ -855,6 +868,22 @@ useEffect(() => {
 
   return (
     <div className="sr-container py-6 space-y-6">
+      {/* ✅ Toast flotante */}
+      {toast?.msg && (
+        <div className="fixed top-4 right-4 z-[60] max-w-[360px]">
+          <div
+            className={[
+              "rounded-xl border shadow-sm px-4 py-3 text-sm",
+              toast.type === "success" ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+              : toast.type === "error" ? "bg-rose-50 border-rose-200 text-rose-800"
+              : "bg-sky-50 border-sky-200 text-sky-800",
+            ].join(" ")}
+          >
+            {toast.msg}
+          </div>
+        </div>
+      )}
+
 
       {/* ========================= */}
       {/* MODALES: ARCHIVAR / BORRAR */}
