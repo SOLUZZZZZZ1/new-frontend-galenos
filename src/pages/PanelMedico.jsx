@@ -430,6 +430,15 @@ useEffect(() => {
   const [imgUiConfidence, setImgUiConfidence] = useState(0);
 
 // ========================
+// LUNG V2 (señales estructuradas, sin diagnóstico)
+// ========================
+const [lungV2Open, setLungV2Open] = useState(false);
+const [lungV2Loading, setLungV2Loading] = useState(false);
+const [lungV2Error, setLungV2Error] = useState("");
+const [lungV2Signals, setLungV2Signals] = useState(null);
+
+
+// ========================
 // ESTADO IMÁGENES QUIRÚRGICAS (ANTES / DESPUÉS) — sin IA automática
 // ========================
 const [cosType, setCosType] = useState("COSMETIC_PRE");
@@ -752,6 +761,70 @@ if (data.duplicate === true) {
       setLoadingImagen(false);
     }
   }
+// ========================
+// HANDLER LUNG V2 (Pulmón)
+// ========================
+async function handleLungV2Analyze() {
+  setLungV2Error("");
+  setLungV2Signals(null);
+
+  if (!token) {
+    setLungV2Error("No hay sesión activa. Vuelve a iniciar sesión.");
+    return;
+  }
+
+  const imagingId = lastImagenId;
+  if (!imagingId) {
+    setLungV2Error("Primero analiza y guarda una imagen médica para obtener su ID.");
+    return;
+  }
+
+  try {
+    setLungV2Loading(true);
+
+    const payload = {};
+    if (imgContext && imgContext.trim()) payload.context = imgContext.trim();
+
+    const res = await fetch(`${API}/imaging/lung-v2/${imagingId}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const raw = await res.text();
+    console.log("👉 [LUNG V2] Respuesta (raw):", raw);
+
+    if (!res.ok) {
+      let msg = "No se pudo ejecutar Pulmón V2.";
+      try {
+        const errData = JSON.parse(raw);
+        if (errData.detail) {
+          if (Array.isArray(errData.detail)) {
+            msg = errData.detail.map((d) => d?.msg || d?.type || "Error").join(" · ");
+          } else {
+            msg = errData.detail;
+          }
+        }
+      } catch {}
+      setLungV2Error(msg);
+      return;
+    }
+
+    let data;
+    try { data = JSON.parse(raw); } catch { data = null; }
+    setLungV2Signals(data?.signals || null);
+    setLungV2Open(true);
+  } catch (err) {
+    console.error("❌ Error Pulmón V2:", err);
+    setLungV2Error("Error de conexión al ejecutar Pulmón V2.");
+  } finally {
+    setLungV2Loading(false);
+  }
+}
+
 // ========================
 // HANDLERS IMÁGENES QUIRÚRGICAS
 // ========================
@@ -1695,6 +1768,120 @@ async function handleGenerateCosmeticPdf() {
                 ) : null}
 
                 </p>
+
+{/* 🫁 Pulmón V2 (señales estructuradas, sin diagnóstico) */}
+<div className="mt-4 border border-slate-200 rounded-lg bg-white p-4 space-y-2">
+  <div className="flex items-center justify-between gap-2">
+    <h4 className="text-sm font-semibold text-slate-900">🫁 Pulmón V2 (orientativo)</h4>
+    <button
+      type="button"
+      onClick={() => setLungV2Open((v) => !v)}
+      className="sr-btn-secondary text-xs"
+      disabled={!lastImagenId}
+      title={!lastImagenId ? "Primero analiza una imagen para obtener su ID" : ""}
+    >
+      {lungV2Open ? "Ocultar" : "Mostrar"}
+    </button>
+  </div>
+
+  <div className="flex flex-wrap items-center gap-2">
+    <button
+      type="button"
+      onClick={handleLungV2Analyze}
+      disabled={lungV2Loading || !lastImagenId}
+      className="sr-btn-secondary text-xs disabled:opacity-60 disabled:cursor-not-allowed"
+    >
+      {lungV2Loading ? "Analizando..." : "Analizar Pulmón (V2)"}
+    </button>
+    <span className="text-[11px] text-slate-500">
+      Señales estructuradas (hechos/patrones/comparaciones/calidad). No diagnóstico.
+    </span>
+  </div>
+
+  {lungV2Error ? <p className="text-xs text-rose-700">{lungV2Error}</p> : null}
+
+  {lungV2Open && (
+    <div className="pt-2 space-y-3 text-xs text-slate-800">
+      {lungV2Signals ? (
+        <>
+          {Array.isArray(lungV2Signals.facts_visible) && lungV2Signals.facts_visible.length > 0 && (
+            <div>
+              <p className="font-semibold text-slate-700 mb-1">Hechos visibles</p>
+              <ul className="list-disc list-inside space-y-1">
+                {lungV2Signals.facts_visible.slice(0, 6).map((it, idx) => (
+                  <li key={idx}>
+                    <span className="font-medium">{it.type}</span>
+                    {it.evidence ? ` — ${it.evidence}` : ""}
+                    {typeof it.confidence === "number" ? (
+                      <span className="text-slate-500"> (conf {Math.round(it.confidence * 100)}%)</span>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {Array.isArray(lungV2Signals.patterns_detected) && lungV2Signals.patterns_detected.length > 0 && (
+            <div>
+              <p className="font-semibold text-slate-700 mb-1">Patrones detectados</p>
+              <ul className="list-disc list-inside space-y-1">
+                {lungV2Signals.patterns_detected.slice(0, 8).map((it, idx) => (
+                  <li key={idx}>
+                    <span className="font-medium">{it.type}</span>
+                    {it.evidence ? ` — ${it.evidence}` : ""}
+                    {typeof it.confidence === "number" ? (
+                      <span className="text-slate-500"> (conf {Math.round(it.confidence * 100)}%)</span>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {Array.isArray(lungV2Signals.comparisons) && lungV2Signals.comparisons.length > 0 && (
+            <div>
+              <p className="font-semibold text-slate-700 mb-1">Comparaciones</p>
+              <ul className="list-disc list-inside space-y-1">
+                {lungV2Signals.comparisons.slice(0, 6).map((it, idx) => (
+                  <li key={idx}>
+                    <span className="font-medium">{it.type}</span>
+                    {it.evidence ? ` — ${it.evidence}` : ""}
+                    {typeof it.confidence === "number" ? (
+                      <span className="text-slate-500"> (conf {Math.round(it.confidence * 100)}%)</span>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {Array.isArray(lungV2Signals.quality_notes) && lungV2Signals.quality_notes.length > 0 && (
+            <div>
+              <p className="font-semibold text-slate-700 mb-1">Calidad / limitaciones</p>
+              <ul className="list-disc list-inside space-y-1">
+                {lungV2Signals.quality_notes.slice(0, 6).map((it, idx) => (
+                  <li key={idx}>
+                    <span className="font-medium">{it.type}</span>
+                    {it.evidence ? ` — ${it.evidence}` : ""}
+                    {typeof it.confidence === "number" ? (
+                      <span className="text-slate-500"> (conf {Math.round(it.confidence * 100)}%)</span>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <p className="text-[10px] text-slate-500">
+            Documento de apoyo descriptivo. No diagnóstico. La valoración final corresponde al profesional responsable.
+          </p>
+        </>
+      ) : (
+        <p className="text-xs text-slate-600">Pulsa “Analizar Pulmón (V2)” para obtener señales estructuradas.</p>
+      )}
+    </div>
+  )}
+</div>
 
                 {imgModalOpen && (
                   <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-3" onClick={() => setImgModalOpen(false)}>
